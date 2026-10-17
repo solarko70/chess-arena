@@ -8,7 +8,13 @@ export class ClockWidget {
   private whiteTimerEl!: HTMLElement;
   private blackTimerEl!: HTMLElement;
   private selectEl!: HTMLSelectElement;
-
+  private updateVisibility(): void {
+  const hide = this.clock.getMode() === 'none';
+  for (const id of ['white-clock-box', 'black-clock-box']) {
+    const el = this.container.querySelector<HTMLElement>('#' + id);
+    if (el) el.style.display = hide ? 'none' : 'flex';
+  }
+}
   constructor(container: HTMLElement, store: ChessStore, clock: ChessClock) {
     this.container = container;
     this.store = store;
@@ -40,7 +46,7 @@ export class ClockWidget {
     this.whiteTimerEl = this.container.querySelector('#white-time') as HTMLElement;
     this.blackTimerEl = this.container.querySelector('#black-time') as HTMLElement;
     this.selectEl = this.container.querySelector('#time-control-select') as HTMLSelectElement;
-
+    this.updateVisibility();
     this.initEvents();
   }
 
@@ -48,6 +54,7 @@ export class ClockWidget {
     this.selectEl.addEventListener('change', () => {
       const mode = this.selectEl.value as TimeControlMode;
       this.clock.setMode(mode);
+      this.updateVisibility();
       this.renderTimes();
     });
 
@@ -55,11 +62,9 @@ export class ClockWidget {
     let prevHistoryLen = 0;
     this.store.subscribe((state) => {
       const mode = this.clock.getMode();
+      this.updateVisibility();
       if (mode === 'none') {
-        this.container.style.display = 'none';
-        return;
-      } else {
-        this.container.style.display = 'flex';
+      return;
       }
 
       const historyLen = state.history.length;
