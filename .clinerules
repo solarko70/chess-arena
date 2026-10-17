@@ -1,0 +1,57 @@
+# Chess Arena Project Rules
+
+## Code Style
+- Use TypeScript strict mode
+- Prefer functional programming over OOP
+- Keep functions short (<20 lines)
+- Use descriptive names for variables and functions
+- Avoid magic numbers and strings
+- Use JSDoc for complex functions
+
+## Architecture
+- Strict separation of layers: core (pure logic), state, UI
+- Immutable data where possible
+- Pure functions for game logic
+- Use interfaces for data structures
+- Keep dependencies minimal
+
+## Testing
+- Write unit tests for all core logic
+- Test edge cases
+- Use Vitest for testing
+- Run tests before committing
+
+## Git
+- Use conventional commits
+- Keep commits small and focused
+- Write clear commit messages
+
+## Documentation
+- Document complex logic
+- Keep README.md up to date
+- Document architecture decisions in ARCHITECTURE.md
+
+## Performance
+- Optimize critical paths
+- Avoid unnecessary re-renders
+- Use Web Workers for heavy computations
+
+## Accessibility
+- Follow WCAG guidelines
+- Use semantic HTML
+- Provide ARIA labels
+- Ensure keyboard navigation
+
+## Internationalization
+- Use i18n for all user-facing text
+- Keep translations up to date
+
+## Security
+- Validate all inputs
+- Sanitize outputs
+- Avoid eval()
+
+## Deployment
+- Ensure all tests pass before deployment
+- Optimize bundle size
+- Use GitHub Pages or Netlify for deployment
