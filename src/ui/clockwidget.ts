@@ -13,7 +13,7 @@ export class ClockWidget {
     this.store = store;
 
     this.container.innerHTML = `
-      <div class="clock-panel" id="clock-panel" style="display: none;">
+      <div class="clock-panel" id="clock-panel">
         <div class="clock-box white-clock" id="white-clock-box">
           <span class="clock-label">Белые</span>
           <span class="clock-time" id="white-time">--:--</span>
@@ -52,20 +52,21 @@ export class ClockWidget {
   }
 
   public render(): void {
-    const mode = this.store.getClockMode();
-    const panelEl = this.container.querySelector('#clock-panel') as HTMLElement;
+  const mode = this.store.getClockMode();
+  const hide = mode === 'none';
 
-    if (mode === 'none') {
-      panelEl.style.display = 'none';
-      return;
-    }
+  // Hide only the two timer boxes, never the panel with the mode selector
+  for (const id of ['white-clock-box', 'black-clock-box']) {
+    const el = this.container.querySelector<HTMLElement>('#' + id);
+    if (el) el.style.display = hide ? 'none' : 'flex';
+  }
+  if (hide) return;
 
-    panelEl.style.display = 'flex';
-    const whiteMs = this.store.getTime('white');
-    const blackMs = this.store.getTime('black');
+  const whiteMs = this.store.getTime('white');
+  const blackMs = this.store.getTime('black');
 
-    this.whiteTimerEl.textContent = formatMs(whiteMs);
-    this.blackTimerEl.textContent = formatMs(blackMs);
+  this.whiteTimerEl.textContent = formatMs(whiteMs);
+  this.blackTimerEl.textContent = formatMs(blackMs);
   }
 }
 
