@@ -1,27 +1,19 @@
-import { ChessClock, TimeControlMode } from '@/state/clock';
-import { ChessStore } from '@/state/store';
+import { ChessStore, TimeControlMode } from '@/state/store';
+import type { Color } from '@/core';
 
 export class ClockWidget {
   private container: HTMLElement;
   private store: ChessStore;
-  private clock: ChessClock;
   private whiteTimerEl!: HTMLElement;
   private blackTimerEl!: HTMLElement;
   private selectEl!: HTMLSelectElement;
-  private updateVisibility(): void {
-  const hide = this.clock.getMode() === 'none';
-  for (const id of ['white-clock-box', 'black-clock-box']) {
-    const el = this.container.querySelector<HTMLElement>('#' + id);
-    if (el) el.style.display = hide ? 'none' : 'flex';
-  }
-}
-  constructor(container: HTMLElement, store: ChessStore, clock: ChessClock) {
+
+  constructor(container: HTMLElement, store: ChessStore, onTimeout?: (loser: Color) => void) {
     this.container = container;
     this.store = store;
-    this.clock = clock;
 
     this.container.innerHTML = `
-      <div class="clock-panel">
+      <div class="clock-panel" id="clock-panel" style="display: none;">
         <div class="clock-box white-clock" id="white-clock-box">
           <span class="clock-label">Белые</span>
           <span class="clock-time" id="white-time">--:--</span>
@@ -46,61 +38,31 @@ export class ClockWidget {
     this.whiteTimerEl = this.container.querySelector('#white-time') as HTMLElement;
     this.blackTimerEl = this.container.querySelector('#black-time') as HTMLElement;
     this.selectEl = this.container.querySelector('#time-control-select') as HTMLSelectElement;
-    this.updateVisibility();
-    this.initEvents();
+
+    this.initEvents(onTimeout);
+    this.store.subscribe(() => this.render());
   }
 
-  private initEvents(): void {
+  private initEvents(onTimeout?: (loser: Color) => void): void {
     this.selectEl.addEventListener('change', () => {
       const mode = this.selectEl.value as TimeControlMode;
-      this.clock.setMode(mode);
-      this.updateVisibility();
-      this.renderTimes();
-    });
-
-    // Whenever store state changes (move made, undo, new game)
-    let prevHistoryLen = 0;
-    this.store.subscribe((state) => {
-      const mode = this.clock.getMode();
-      this.updateVisibility();
-      if (mode === 'none') {
-      return;
-      }
-
-      const historyLen = state.history.length;
-      if (historyLen === 0) {
-        // Reset clock
-        this.clock.reset();
-        this.renderTimes();
-        prevHistoryLen = 0;
-      } else if (historyLen > prevHistoryLen) {
-        // Move made -> switch turn in clock
-        this.clock.switchTurn(state.turn);
-        prevHistoryLen = historyLen;
-      } else if (historyLen < prevHistoryLen) {
-        // Undo -> reset or adjust
-        this.clock.reset(); // simplified reset on undo for robustness
-        prevHistoryLen = historyLen;
-      }
-
-      if (!this.clock.isActive() && historyLen > 0) {
-        this.clock.start(state.turn);
-      }
-
-      this.renderTimes();
+      this.store.setClockMode(mode, onTimeout);
+      this.render();
     });
   }
 
-  public renderTimes(): void {
-    const mode = this.clock.getMode();
+  public render(): void {
+    const mode = this.store.getClockMode();
+    const panelEl = this.container.querySelector('#clock-panel') as HTMLElement;
+
     if (mode === 'none') {
-      this.whiteTimerEl.textContent = '--:--';
-      this.blackTimerEl.textContent = '--:--';
+      panelEl.style.display = 'none';
       return;
     }
 
-    const whiteMs = this.clock.getTime('white');
-    const blackMs = this.clock.getTime('black');
+    panelEl.style.display = 'flex';
+    const whiteMs = this.store.getTime('white');
+    const blackMs = this.store.getTime('black');
 
     this.whiteTimerEl.textContent = formatMs(whiteMs);
     this.blackTimerEl.textContent = formatMs(blackMs);

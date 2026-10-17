@@ -1,6 +1,5 @@
 import './ui/styles.css';
 import { globalStore } from './state/store';
-import { ChessClock } from './state/clock';
 import { ChessBoardUI } from './ui/board';
 import { HistoryUI } from './ui/history';
 import { ImportExportUI } from './ui/importexport';
@@ -35,18 +34,14 @@ function initApp(): void {
     </div>
   `;
 
-  const clock = new ChessClock((loser) => {
+  const clockMount = document.getElementById('clock-mount') as HTMLElement;
+  new ClockWidget(clockMount, globalStore, (loser) => {
     const statusText = document.getElementById('status-text') as HTMLElement;
     const badgeContainer = document.getElementById('status-badge-container') as HTMLElement;
     const winner = loser === 'white' ? 'Чёрные победили' : 'Белые победили';
     statusText.textContent = `Время истекло! ${winner} по времени.`;
     badgeContainer.innerHTML = '<span class="status-badge badge-over">Время истекло</span>';
-  }, () => {
-    clockWidget.renderTimes();
   });
-
-  const clockMount = document.getElementById('clock-mount') as HTMLElement;
-  const clockWidget = new ClockWidget(clockMount, globalStore, clock);
 
   const boardMount = document.getElementById('board-mount') as HTMLElement;
   new ChessBoardUI(boardMount, globalStore);
@@ -104,8 +99,6 @@ function initApp(): void {
 
   document.getElementById('btn-new-game')?.addEventListener('click', () => {
     globalStore.newGame();
-    clock.reset();
-    clockWidget.renderTimes();
   });
 
   document.getElementById('btn-undo')?.addEventListener('click', () => {

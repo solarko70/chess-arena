@@ -5,8 +5,25 @@ import type {
   GameResult,
   RuleSet,
   PieceType,
+  Color,
 } from '@/core';
 import { classicalRuleSet, parseFEN, parsePGN, serializeFEN, exportPGN } from '@/core';
+
+export type TimeControlMode = 'none' | 'bullet-1-0' | 'blitz-3-2' | 'blitz-5-0' | 'rapid-10-0' | 'rapid-15-10';
+
+export interface TimeControlConfig {
+  initialMs: number;
+  incrementMs: number;
+}
+
+export const TIME_CONTROLS: Record<TimeControlMode, TimeControlConfig> = {
+  'none': { initialMs: 0, incrementMs: 0 },
+  'bullet-1-0': { initialMs: 60 * 1000, incrementMs: 0 },
+  'blitz-3-2': { initialMs: 3 * 60 * 1000, incrementMs: 2 * 1000 },
+  'blitz-5-0': { initialMs: 5 * 60 * 1000, incrementMs: 0 },
+  'rapid-10-0': { initialMs: 10 * 60 * 1000, incrementMs: 0 },
+  'rapid-15-10': { initialMs: 15 * 60 * 1000, incrementMs: 10 * 1000 },
+};
 
 export type StoreListener = (state: GameState, store: ChessStore) => void;
 
@@ -19,6 +36,18 @@ export class ChessStore {
   private pendingPromotion: { from: Square; to: Square } | null = null;
   private viewIndex: number | null = null; // null means viewing latest live position
   private lastError: string | null = null;
+
+  // Clock state inside store
+  private clockMode: TimeControlMode = 'none';
+  private whiteMs: number = 0;
+  private blackMs: number = 0;
+  private incrementMs: number = 0;
+  private clockSnapshots: { whiteMs: number; blackMs: number }[] = [{ whiteMs: 0, blackMs: 0 }];
+  private clockActive: boolean = false;
+  private clockStarted: boolean = false;
+  private lastTickTime: number = 0;
+  private timerId: ReturnType<typeof setInterval> | null = null;
+  private onTimeOutCallback?: (loser: Color) => void;
 
   constructor(ruleSet: RuleSet = classicalRuleSet) {
     this.ruleSet = ruleSet;
@@ -47,11 +76,18 @@ export class ChessStore {
   setViewIndex(index: number | null): void {
     if (index === null) {
       this.viewIndex = null;
+      if (this.clockMode !== 'none' && this.getGameResult().type === 'ongoing' && this.clockStarted) {
+        this.clockActive = true;
+        this.lastTickTime = Date.now();
+      }
     } else {
       const maxIndex = this.state.history.length - 1;
       if (index < -1) this.viewIndex = -1;
       else if (index > maxIndex) this.viewIndex = null;
       else this.viewIndex = index;
+
+      this.tickClock();
+      this.clockActive = false;
     }
     this.selectedSquare = null;
     this.pendingPromotion = null;
@@ -61,6 +97,82 @@ export class ChessStore {
   isViewingHistory(): boolean {
     return this.viewIndex !== null && this.viewIndex < this.state.history.length - 1;
   }
+
+  // ── Clock methods ──────────────────────────────────────────────────────────
+
+  setClockMode(mode: TimeControlMode, onTimeout?: (loser: Color) => void): void {
+    this.clockMode = mode;
+    this.onTimeOutCallback = onTimeout;
+    const cfg = TIME_CONTROLS[mode];
+    this.whiteMs = cfg.initialMs;
+    this.blackMs = cfg.initialMs;
+    this.incrementMs = cfg.incrementMs;
+    this.clockSnapshots = [{ whiteMs: this.whiteMs, blackMs: this.blackMs }];
+    this.clockActive = false;
+    this.clockStarted = false;
+    this.stopTimer();
+    this.notify();
+  }
+
+  getClockMode(): TimeControlMode {
+    return this.clockMode;
+  }
+
+  getTime(color: Color): number {
+    this.tickClock();
+    if (this.viewIndex === null) {
+      return color === 'white' ? this.whiteMs : this.blackMs;
+    } else {
+      const snapIndex = Math.max(0, Math.min(this.viewIndex + 1, this.clockSnapshots.length - 1));
+      const snap = this.clockSnapshots[snapIndex];
+      return snap ? (color === 'white' ? snap.whiteMs : snap.blackMs) : (color === 'white' ? this.whiteMs : this.blackMs);
+    }
+  }
+
+  isClockActive(): boolean {
+    return this.clockActive;
+  }
+
+  private startTimer(): void {
+    this.stopTimer();
+    if (this.clockMode === 'none') return;
+    this.timerId = setInterval(() => {
+      this.tickClock();
+      this.notify();
+    }, 100);
+  }
+
+  private stopTimer(): void {
+    if (this.timerId !== null) {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    }
+  }
+
+  public tickClock(): void {
+    if (!this.clockActive || this.clockMode === 'none') return;
+    const now = Date.now();
+    const elapsed = now - this.lastTickTime;
+    this.lastTickTime = now;
+
+    if (this.state.turn === 'white') {
+      this.whiteMs = Math.max(0, this.whiteMs - elapsed);
+      if (this.whiteMs === 0) {
+        this.clockActive = false;
+        this.stopTimer();
+        this.onTimeOutCallback?.('white');
+      }
+    } else {
+      this.blackMs = Math.max(0, this.blackMs - elapsed);
+      if (this.blackMs === 0) {
+        this.clockActive = false;
+        this.stopTimer();
+        this.onTimeOutCallback?.('black');
+      }
+    }
+  }
+
+  // ── Store methods ──────────────────────────────────────────────────────────
 
   isFlipped(): boolean {
     return this.flipped;
@@ -131,6 +243,15 @@ export class ChessStore {
     this.selectedSquare = null;
     this.pendingPromotion = null;
     this.lastError = null;
+
+    const cfg = TIME_CONTROLS[this.clockMode];
+    this.whiteMs = cfg.initialMs;
+    this.blackMs = cfg.initialMs;
+    this.clockSnapshots = [{ whiteMs: this.whiteMs, blackMs: this.blackMs }];
+    this.clockActive = false;
+    this.clockStarted = false;
+    this.stopTimer();
+
     this.notify();
   }
 
@@ -153,6 +274,10 @@ export class ChessStore {
   makeMove(from: Square, to: Square, promoPiece?: PieceType): boolean {
     if (this.viewIndex !== null) {
       this.viewIndex = null;
+    }
+
+    if (this.getGameResult().type !== 'ongoing') {
+      return false;
     }
 
     const legalMoves = this.getLegalMoves();
@@ -183,7 +308,35 @@ export class ChessStore {
       return false;
     }
 
+    if (this.clockMode !== 'none') {
+      this.tickClock();
+    }
+
+    const movingColor = this.state.turn;
     this.state = this.ruleSet.applyMove(this.state, chosenMove);
+
+    if (this.clockMode !== 'none') {
+      if (!this.clockStarted) {
+        this.clockStarted = true;
+      }
+      if (movingColor === 'white') {
+        this.whiteMs += this.incrementMs;
+      } else {
+        this.blackMs += this.incrementMs;
+      }
+
+      this.clockSnapshots.push({ whiteMs: this.whiteMs, blackMs: this.blackMs });
+
+      if (this.getGameResult().type !== 'ongoing') {
+        this.clockActive = false;
+        this.stopTimer();
+      } else {
+        this.clockActive = true;
+        this.lastTickTime = Date.now();
+        this.startTimer();
+      }
+    }
+
     this.viewIndex = null;
     this.selectedSquare = null;
     this.pendingPromotion = null;
@@ -197,7 +350,29 @@ export class ChessStore {
     if (this.viewIndex !== null) {
       this.viewIndex = null;
     }
+
     this.state = this.ruleSet.undoMove(this.state);
+
+    if (this.clockMode !== 'none') {
+      if (this.clockSnapshots.length > 1) {
+        this.clockSnapshots.pop();
+      }
+      const prevSnap = this.clockSnapshots[this.clockSnapshots.length - 1];
+      if (prevSnap) {
+        this.whiteMs = prevSnap.whiteMs;
+        this.blackMs = prevSnap.blackMs;
+      }
+
+      if (this.getGameResult().type === 'ongoing') {
+        this.clockActive = true;
+        this.lastTickTime = Date.now();
+        this.startTimer();
+      } else {
+        this.clockActive = false;
+        this.stopTimer();
+      }
+    }
+
     this.selectedSquare = null;
     this.pendingPromotion = null;
     this.notify();
@@ -233,6 +408,13 @@ export class ChessStore {
     try {
       const parsed = parsePGN(pgnText);
       this.newGame(parsed.state);
+
+      const cfg = TIME_CONTROLS[this.clockMode];
+      this.clockSnapshots = [{ whiteMs: cfg.initialMs, blackMs: cfg.initialMs }];
+      for (let i = 0; i < parsed.state.history.length; i++) {
+        this.clockSnapshots.push({ whiteMs: cfg.initialMs, blackMs: cfg.initialMs });
+      }
+
       this.lastError = null;
       return true;
     } catch (e: unknown) {
