@@ -5,8 +5,14 @@
 - [x] Declarative piece movement definitions (`src/core/pieces.ts`).
 - [x] FEN parser/serializer and position key generation (`src/core/notation/fen.ts`).
 - [x] Pseudo-legal and legal move generators, check/mate/stalemate detection (`src/core/moves/`).
-- [x] Full FIDE rules: castling, en passant, pawn promotion, fifty-move rule, threefold repetition, insufficient material (`src/core/rules/classical.ts`).
-- [x] SAN export and basic PGN export (`src/core/notation/san.ts`, `src/core/notation/pgn.ts`).
+- [x] Full FIDE rules: castling, en passant, pawn promotion, fifty-move rule, threefold repetition with irreversible move reset, insufficient material (`src/core/rules/classical.ts`).
+- [x] Advanced SAN notation: `moveToSAN`, `sanToMove`, full disambiguation (`Nbd7`, `R1a3`, `Qh4e1`), checks, checkmates, promotions, and castling (`src/core/notation/san.ts`).
+- [x] PGN notation: Seven Tag Roster export with line-wrapping (<80 chars) and robust single-game PGN parser `parsePGN` (`src/core/notation/pgn.ts`).
+- [x] Comprehensive public API entry point (`src/core/index.ts`).
 - [x] Perft-tests (Start position depths 1–4, Kiwipete, Positions 3, 4, 5).
-- [x] Comprehensive unit tests (FEN, SAN, perft, checkmate, stalemate, castling, en passant, draw conditions, round-trip apply/undo).
+- [x] Comprehensive test suites: FEN, SAN round-trips for every legal move, ambiguous SAN cases, classical game rules (checkmate, stalemate, draw conditions), Morphy Opera Game (1858) PGN test.
 - [x] Verified via `npm run lint`, `npm run build`, and `npm test`.
+
+## What's Next
+- Stage 3: UI integration, chessboard rendering, move input, and interactive gameplay.
+
