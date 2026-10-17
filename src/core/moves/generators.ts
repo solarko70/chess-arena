@@ -222,6 +222,7 @@ function pushMove(
     prevCastling: copyCastling(state.castlingRights),
     prevEpSquare: state.enPassantSquare,
     prevHalfmove: state.halfMoveClock,
+    prevPositionHistory: state.positionHistory,
     promotion: options?.promotion,
     castling: options?.castling,
     isEnPassant: options?.isEnPassant,

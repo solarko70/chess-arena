@@ -38,6 +38,7 @@ export interface Move {
   prevCastling: CastlingRights;
   prevEpSquare: Square | null;
   prevHalfmove: number;
+  prevPositionHistory: string[];
   // flags
   promotion?: PieceType;
   castling?: 'kingside' | 'queenside';

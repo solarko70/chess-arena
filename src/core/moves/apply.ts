@@ -97,6 +97,21 @@ export function applyMove(state: GameState, move: Move): GameState {
 
   const newHistory = [...state.history, move];
 
+  // Temp state to compute position key
+  const tempState: GameState = {
+    board: newBoard,
+    turn: newTurn,
+    castlingRights: newCastling,
+    enPassantSquare: newEp,
+    halfMoveClock: newHalfmove,
+    fullMoveNumber: newFullmove,
+    history: newHistory,
+    positionHistory: [],
+  };
+
+  const currentKey = positionKey(tempState);
+  const newPosHistory = isCapture || isPawnMove ? [currentKey] : [...state.positionHistory, currentKey];
+
   const next: GameState = {
     board: newBoard,
     turn: newTurn,
@@ -105,10 +120,8 @@ export function applyMove(state: GameState, move: Move): GameState {
     halfMoveClock: newHalfmove,
     fullMoveNumber: newFullmove,
     history: newHistory,
-    positionHistory: [...state.positionHistory, ''], // placeholder, filled below
+    positionHistory: newPosHistory,
   };
-
-  next.positionHistory[next.positionHistory.length - 1] = positionKey(next);
   return next;
 }
 
@@ -157,6 +170,6 @@ export function undoMove(state: GameState): GameState {
     halfMoveClock: move.prevHalfmove,
     fullMoveNumber: Math.max(1, prevFullmove),
     history,
-    positionHistory: state.positionHistory.slice(0, -1),
+    positionHistory: move.prevPositionHistory,
   };
 }

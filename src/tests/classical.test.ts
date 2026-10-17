@@ -205,3 +205,78 @@ describe('Round-trip applyMove + undoMove (depth 3)', () => {
     60000,
   );
 });
+
+describe('Specific edge cases and rules validation', () => {
+  it('pawn move and capture reset 50-move clock, normal move does not', () => {
+    let state = parseFEN('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 50 25');
+    expect(state.halfMoveClock).toBe(50);
+
+    const moves = classicalRuleSet.generateLegalMoves(state);
+    const knightMove = moves.find((m) => m.piece.type === 'knight');
+    if (knightMove) {
+      state = classicalRuleSet.applyMove(state, knightMove);
+      expect(state.halfMoveClock).toBe(51);
+      state = classicalRuleSet.undoMove(state);
+    }
+
+    const pawnMove = moves.find((m) => m.piece.type === 'pawn');
+    if (pawnMove) {
+      state = classicalRuleSet.applyMove(state, pawnMove);
+      expect(state.halfMoveClock).toBe(0);
+    }
+  });
+
+  it('same board setup with different castling rights is not a repetition', () => {
+    const s1 = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    const s2 = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w K - 0 1');
+    expect(s1.positionHistory[0]).not.toBe(s2.positionHistory[0]);
+  });
+
+  it('repetition is reset across irreversible moves (capture or pawn move)', () => {
+    let state = classicalRuleSet.getInitialState();
+
+    function findAndApply(fromAlg: string, toAlg: string): void {
+      const fromFile = fromAlg.charCodeAt(0) - 97;
+      const fromRank = parseInt(fromAlg[1], 10);
+      const fromSq = (8 - fromRank) * 8 + fromFile;
+
+      const toFile = toAlg.charCodeAt(0) - 97;
+      const toRank = parseInt(toAlg[1], 10);
+      const toSq = (8 - toRank) * 8 + toFile;
+
+      const moves = classicalRuleSet.generateLegalMoves(state);
+      const move = moves.find((m) => m.from === fromSq && m.to === toSq);
+      if (!move) throw new Error(`Move ${fromAlg}-${toAlg} not found!`);
+      state = classicalRuleSet.applyMove(state, move);
+    }
+
+    findAndApply('g1', 'f3');
+    findAndApply('g8', 'f6');
+    findAndApply('f3', 'g1');
+    findAndApply('f6', 'g8');
+
+    const pawnMove = classicalRuleSet.generateLegalMoves(state).find((m) => m.piece.type === 'pawn');
+    if (pawnMove) {
+      state = classicalRuleSet.applyMove(state, pawnMove);
+      expect(state.positionHistory.length).toBe(1);
+    }
+  });
+
+  it('checkmate on 100th half-move takes precedence over fifty-move draw', () => {
+    const fen = 'r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 100 20';
+    const state = parseFEN(fen);
+
+    expect(isCheckmate(state)).toBe(true);
+    const result = classicalRuleSet.getGameResult(state);
+    expect(result.type).toBe('checkmate');
+    expect(result.winner).toBe('white');
+  });
+
+  it('K+B vs K+N and K+N+N vs K are NOT insufficient material', () => {
+    const kbKn = parseFEN('8/8/8/4k3/4b3/4K3/4n3/8 w - - 0 1');
+    expect(isInsufficientMaterial(kbKn)).toBe(false);
+
+    const knn = parseFEN('8/8/8/4k3/4nn2/4K3/8/8 w - - 0 1');
+    expect(isInsufficientMaterial(knn)).toBe(false);
+  });
+});
