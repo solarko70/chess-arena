@@ -1,13 +1,15 @@
-import type { Color, GameState, Move, Piece } from '../types';
+import type { Color, GameState, Move, Piece, PieceType } from '../types';
 import { toCoords, toSquare, inBounds } from '../board';
 import { PIECE_DEFS } from '../pieces';
-import { copyCastling } from './apply';
+import { copyCastling, isSquareAttacked } from './apply';
+
+const PROMOTION_PIECES: PieceType[] = ['queen', 'rook', 'bishop', 'knight'];
 
 /**
  * Generate pseudo-legal moves for the side to move.
- * Currently handles: slider/jumper pieces via PIECE_DEFS,
- * pawn pushes (single + double from start rank), pawn captures.
- * Does NOT yet handle: castling, en passant, promotion.
+ * Handles: slider/jumper pieces via PIECE_DEFS,
+ * pawn pushes (single, double, promotion), pawn captures (regular, en passant, promotion),
+ * and castling (kingside, queenside).
  */
 export function generatePseudoLegal(state: GameState): Move[] {
   const moves: Move[] = [];
@@ -18,6 +20,7 @@ export function generatePseudoLegal(state: GameState): Move[] {
 
   const pawnDir = color === 'white' ? -1 : 1;
   const startRank = color === 'white' ? height - 2 : 1;
+  const promoRank = color === 'white' ? 0 : height - 1;
 
   for (let sq = 0; sq < pieces.length; sq++) {
     const piece = pieces[sq];
@@ -32,14 +35,20 @@ export function generatePseudoLegal(state: GameState): Move[] {
       if (inBounds(x, fy, width, height)) {
         const fSq = toSquare(x, fy, width);
         if (pieces[fSq] === null) {
-          pushMove(moves, sq, fSq, piece, undefined, state);
+          if (fy === promoRank) {
+            for (const promo of PROMOTION_PIECES) {
+              pushMove(moves, sq, fSq, piece, undefined, state, { promotion: promo });
+            }
+          } else {
+            pushMove(moves, sq, fSq, piece, undefined, state);
 
-          // Double push from start rank
-          if (y === startRank) {
-            const dy = y + pawnDir * 2;
-            const dSq = toSquare(x, dy, width);
-            if (pieces[dSq] === null) {
-              pushMove(moves, sq, dSq, piece, undefined, state);
+            // Double push from start rank
+            if (y === startRank) {
+              const dy = y + pawnDir * 2;
+              const dSq = toSquare(x, dy, width);
+              if (pieces[dSq] === null) {
+                pushMove(moves, sq, dSq, piece, undefined, state);
+              }
             }
           }
         }
@@ -53,7 +62,98 @@ export function generatePseudoLegal(state: GameState): Move[] {
         const cSq = toSquare(cx, cy, width);
         const target = pieces[cSq];
         if (target !== null && target.color === enemy) {
-          pushMove(moves, sq, cSq, piece, target, state);
+          if (cy === promoRank) {
+            for (const promo of PROMOTION_PIECES) {
+              pushMove(moves, sq, cSq, piece, target, state, { promotion: promo });
+            }
+          } else {
+            pushMove(moves, sq, cSq, piece, target, state);
+          }
+        } else if (target === null && state.enPassantSquare !== null && cSq === state.enPassantSquare) {
+          // En passant capture
+          const capturedSq = toSquare(cx, y, width);
+          const epCapturedPiece = pieces[capturedSq];
+          if (epCapturedPiece !== null && epCapturedPiece.color === enemy && epCapturedPiece.type === 'pawn') {
+            pushMove(moves, sq, cSq, piece, epCapturedPiece, state, {
+              isEnPassant: true,
+              capturedAt: capturedSq,
+            });
+          }
+        }
+      }
+      continue;
+    }
+
+    // ── King (castling + normal moves) ────────────────────────────────────
+    if (piece.type === 'king') {
+      // Normal king moves via PIECE_DEFS
+      const def = PIECE_DEFS[piece.type];
+      for (const [dx, dy] of def.directions) {
+        const cx = x + dx;
+        const cy = y + dy;
+        if (!inBounds(cx, cy, width, height)) continue;
+        const tSq = toSquare(cx, cy, width);
+        const target = pieces[tSq];
+        if (target === null || target.color === enemy) {
+          pushMove(moves, sq, tSq, piece, target ?? undefined, state);
+        }
+      }
+
+      // Castling
+      const backRank = color === 'white' ? height - 1 : 0;
+      if (y === backRank && x === 4) {
+        const rights = state.castlingRights[color];
+
+        // Kingside castling (e1 -> g1 or e8 -> g8)
+        if (rights.kingside) {
+          const fSq = toSquare(5, backRank, width);
+          const gSq = toSquare(6, backRank, width);
+          const rSq = toSquare(7, backRank, width);
+          const rook = pieces[rSq];
+          if (
+            rook !== null &&
+            rook.type === 'rook' &&
+            rook.color === color &&
+            pieces[fSq] === null &&
+            pieces[gSq] === null
+          ) {
+            // Check that king does not pass through or start in check
+            // (Target square gSq is checked during legal move filter or here)
+            if (
+              !isSquareAttacked(board, sq, enemy) &&
+              !isSquareAttacked(board, fSq, enemy) &&
+              !isSquareAttacked(board, gSq, enemy)
+            ) {
+              pushMove(moves, sq, gSq, piece, undefined, state, { castling: 'kingside' });
+            }
+          }
+        }
+
+        // Queenside castling (e1 -> c1 or e8 -> c8)
+        if (rights.queenside) {
+          const dSq = toSquare(3, backRank, width);
+          const cSq = toSquare(2, backRank, width);
+          const bSq = toSquare(1, backRank, width);
+          const rSq = toSquare(0, backRank, width);
+          const rook = pieces[rSq];
+          if (
+            rook !== null &&
+            rook.type === 'rook' &&
+            rook.color === color &&
+            pieces[dSq] === null &&
+            pieces[cSq] === null &&
+            pieces[bSq] === null
+          ) {
+            // Check that king does not start in or pass through check (e1, d1, c1)
+            // b1 does not need to be safe from attack, only empty
+            if (
+              !isSquareAttacked(board, sq, enemy) &&
+              !isSquareAttacked(board, dSq, enemy) &&
+              !isSquareAttacked(board, cSq, enemy)
+            ) {
+              pushMove(moves, sq, cSq, piece, undefined, state, { castling: 'queenside' });
+            }
+          }
         }
       }
       continue;
@@ -82,7 +182,7 @@ export function generatePseudoLegal(state: GameState): Move[] {
         }
       }
     } else {
-      // Jumper (knight, king)
+      // Jumper (knight)
       for (const [dx, dy] of def.directions) {
         const cx = x + dx;
         const cy = y + dy;
@@ -106,14 +206,24 @@ function pushMove(
   piece: Piece,
   captured: Piece | undefined,
   state: GameState,
+  options?: {
+    promotion?: PieceType;
+    castling?: 'kingside' | 'queenside';
+    isEnPassant?: boolean;
+    capturedAt?: number;
+  },
 ): void {
   moves.push({
     from,
     to,
     piece,
     captured,
+    capturedAt: options?.capturedAt,
     prevCastling: copyCastling(state.castlingRights),
     prevEpSquare: state.enPassantSquare,
     prevHalfmove: state.halfMoveClock,
+    promotion: options?.promotion,
+    castling: options?.castling,
+    isEnPassant: options?.isEnPassant,
   });
 }
