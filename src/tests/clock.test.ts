@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ChessStore } from '@/state/store';
+import { ClockWidget } from '@/ui/clockwidget';
 
 describe('Chess Clock Integration & Navigation Tests', () => {
   let store: ChessStore;
@@ -110,5 +111,52 @@ describe('Chess Clock Integration & Navigation Tests', () => {
     vi.advanceTimersByTime(5000);
     expect(store.getTime('white')).toBe(w1);
     expect(store.isClockActive()).toBe(false);
+  });
+
+  it('updates black clock text automatically after move and time advance (Widget test)', () => {
+    store.setClockMode('blitz-3-2');
+    const container = document.createElement('div');
+    const widget = new ClockWidget(container, store);
+    widget.render();
+
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4)); // 1. e4
+    const blackTimeEl = container.querySelector('#black-time') as HTMLElement;
+    const initialText = blackTimeEl.textContent;
+
+    vi.advanceTimersByTime(5000); // 5s elapse
+    widget.render();
+
+    expect(blackTimeEl.textContent).not.toBe(initialText);
+    widget.destroy();
+  });
+
+  it('bullet 1+0 triggers timeout automatically after 60s without user action', () => {
+    let timedOutColor: string | null = null;
+    store.setClockMode('bullet-1-0', (loser) => {
+      timedOutColor = loser;
+    });
+    const container = document.createElement('div');
+    const widget = new ClockWidget(container, store, (loser) => {
+      timedOutColor = loser;
+    });
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
+
+    vi.advanceTimersByTime(60000);
+    widget.render();
+    expect(timedOutColor).toBe('black');
+    widget.destroy();
+  });
+
+  it('clock widget destroy stops internal interval', () => {
+    store.setClockMode('blitz-3-2');
+    const container = document.createElement('div');
+    const widget = new ClockWidget(container, store);
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
+
+    const blackTimeBefore = store.getTime('black');
+    widget.destroy();
+
+    vi.advanceTimersByTime(5000);
+    expect(store.getTime('black')).toBeLessThan(blackTimeBefore);
   });
 });

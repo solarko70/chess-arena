@@ -7,6 +7,7 @@ export class ClockWidget {
   private whiteTimerEl!: HTMLElement;
   private blackTimerEl!: HTMLElement;
   private selectEl!: HTMLSelectElement;
+  private intervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(container: HTMLElement, store: ChessStore, onTimeout?: (loser: Color) => void) {
     this.container = container;
@@ -41,6 +42,18 @@ export class ClockWidget {
 
     this.initEvents(onTimeout);
     this.store.subscribe(() => this.render());
+
+    this.intervalId = setInterval(() => {
+      this.store.tickClock();
+      this.render();
+    }, 100);
+  }
+
+  public destroy(): void {
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
   }
 
   private initEvents(onTimeout?: (loser: Color) => void): void {
@@ -52,28 +65,57 @@ export class ClockWidget {
   }
 
   public render(): void {
-  const mode = this.store.getClockMode();
-  const hide = mode === 'none';
+    const mode = this.store.getClockMode();
+    const hide = mode === 'none';
 
-  // Hide only the two timer boxes, never the panel with the mode selector
-  for (const id of ['white-clock-box', 'black-clock-box']) {
-    const el = this.container.querySelector<HTMLElement>('#' + id);
-    if (el) el.style.display = hide ? 'none' : 'flex';
-  }
-  if (hide) return;
+    for (const id of ['white-clock-box', 'black-clock-box']) {
+      const el = this.container.querySelector<HTMLElement>('#' + id);
+      if (el) el.style.display = hide ? 'none' : 'flex';
+    }
+    if (hide) return;
 
-  const whiteMs = this.store.getTime('white');
-  const blackMs = this.store.getTime('black');
+    const whiteMs = this.store.getTime('white');
+    const blackMs = this.store.getTime('black');
 
-  this.whiteTimerEl.textContent = formatMs(whiteMs);
-  this.blackTimerEl.textContent = formatMs(blackMs);
+    const wRes = formatMs(whiteMs);
+    const bRes = formatMs(blackMs);
+
+    this.whiteTimerEl.textContent = wRes.text;
+    if (wRes.isLow) {
+      this.whiteTimerEl.classList.add('low-time');
+    } else {
+      this.whiteTimerEl.classList.remove('low-time');
+    }
+
+    this.blackTimerEl.textContent = bRes.text;
+    if (bRes.isLow) {
+      this.blackTimerEl.classList.add('low-time');
+    } else {
+      this.blackTimerEl.classList.remove('low-time');
+    }
   }
 }
 
-function formatMs(ms: number): string {
-  if (ms <= 0) return '00:00';
-  const totalSec = Math.ceil(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+function formatMs(ms: number): { text: string; isLow: boolean } {
+  if (ms <= 0) return { text: '00:00.0', isLow: true };
+  const isLow = ms < 10000;
+  const totalSec = ms / 1000;
+  if (isLow) {
+    const sec = Math.floor(totalSec);
+    const tenths = Math.floor((ms % 1000) / 100);
+    const min = Math.floor(sec / 60);
+    const s = sec % 60;
+    return {
+      text: `${min > 0 ? min + ':' : ''}${s.toString().padStart(2, '0')}.${tenths}`,
+      isLow: true,
+    };
+  } else {
+    const totalSecCeil = Math.ceil(totalSec);
+    const min = Math.floor(totalSecCeil / 60);
+    const sec = totalSecCeil % 60;
+    return {
+      text: `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`,
+      isLow: false,
+    };
+  }
 }
