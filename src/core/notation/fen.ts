@@ -146,7 +146,64 @@ export function serializeFEN(state: GameState): string {
 }
 
 export function positionKey(state: GameState): string {
-  const fen = serializeFEN(state);
-  const parts = fen.split(' ');
-  return parts.slice(0, 4).join(' ');
+  const { board, turn, castlingRights, enPassantSquare } = state;
+  const { width, height } = board;
+
+  const rows: string[] = [];
+  for (let y = 0; y < height; y++) {
+    let emptyCount = 0;
+    let rowStr = '';
+    for (let x = 0; x < width; x++) {
+      const p = board.pieces[toSquare(x, y, width)];
+      if (p === null) {
+        emptyCount++;
+      } else {
+        if (emptyCount > 0) {
+          rowStr += emptyCount;
+          emptyCount = 0;
+        }
+        rowStr += PIECE_TO_CHAR[`${p.color}-${p.type}`] ?? '?';
+      }
+    }
+    if (emptyCount > 0) {
+      rowStr += emptyCount;
+    }
+    rows.push(rowStr);
+  }
+
+  const boardStr = rows.join('/');
+  const turnStr = turn === 'white' ? 'w' : 'b';
+
+  let castlingStr = '';
+  if (castlingRights.white.kingside) castlingStr += 'K';
+  if (castlingRights.white.queenside) castlingStr += 'Q';
+  if (castlingRights.black.kingside) castlingStr += 'k';
+  if (castlingRights.black.queenside) castlingStr += 'q';
+  if (castlingStr === '') castlingStr = '-';
+
+  // An en passant square is only meaningful for threefold repetition
+  // if an enemy pawn can legally capture on it.
+  let epStr = '-';
+  if (enPassantSquare !== null) {
+    const epCoords = toCoords(enPassantSquare, width);
+    const pawnRank = epCoords.y + (turn === 'white' ? 1 : -1);
+    let canCaptureEp = false;
+    for (const dx of [-1, 1]) {
+      const px = epCoords.x + dx;
+      if (px >= 0 && px < width && pawnRank >= 0 && pawnRank < height) {
+        const p = board.pieces[toSquare(px, pawnRank, width)];
+        if (p !== null && p.type === 'pawn' && p.color === turn) {
+          canCaptureEp = true;
+          break;
+        }
+      }
+    }
+    if (canCaptureEp) {
+      const fileChar = String.fromCharCode(97 + epCoords.x);
+      const rankNum = height - epCoords.y;
+      epStr = `${fileChar}${rankNum}`;
+    }
+  }
+
+  return `${boardStr} ${turnStr} ${castlingStr} ${epStr}`;
 }
