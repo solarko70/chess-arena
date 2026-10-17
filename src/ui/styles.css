@@ -379,3 +379,165 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Clock Widget */
+.clock-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-secondary);
+  padding: 10px 16px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--bg-tertiary);
+}
+
+.clock-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-primary);
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--bg-tertiary);
+  min-width: 90px;
+}
+
+.clock-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.clock-time {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-select {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--bg-tertiary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* History Panel */
+.history-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+}
+
+.history-header {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-family: monospace;
+}
+
+.history-row {
+  display: flex;
+  gap: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.history-num {
+  color: var(--text-secondary);
+  width: 32px;
+}
+
+.history-move {
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.history-move:hover {
+  background: var(--bg-tertiary);
+}
+
+.history-move.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+  font-weight: 700;
+}
+
+.history-nav {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  border-top: 1px solid var(--bg-tertiary);
+  padding-top: 6px;
+}
+
+.history-nav button {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--bg-tertiary);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.history-nav button:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Import / Export Panel */
+.io-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.io-textarea {
+  width: 100%;
+  height: 60px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  resize: none;
+}
+
+.io-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.io-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+

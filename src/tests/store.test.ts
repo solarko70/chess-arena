@@ -102,4 +102,10 @@ describe('ChessStore', () => {
     store.selectSquare(12);
     expect(store.getSelectedSquare()).toBe(12);
   });
+
+  it('handles invalid FEN gracefully and sets lastError', () => {
+    const success = store.loadFEN('invalid-fen-string');
+    expect(success).toBe(false);
+    expect(store.getLastError()).not.toBeNull();
+  });
 });

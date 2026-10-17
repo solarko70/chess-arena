@@ -1,6 +1,10 @@
 import './ui/styles.css';
 import { globalStore } from './state/store';
+import { ChessClock } from './state/clock';
 import { ChessBoardUI } from './ui/board';
+import { HistoryUI } from './ui/history';
+import { ImportExportUI } from './ui/importexport';
+import { ClockWidget } from './ui/clockwidget';
 
 function initApp(): void {
   const app = document.getElementById('app');
@@ -19,7 +23,10 @@ function initApp(): void {
       <div id="status-badge-container"></div>
     </div>
 
+    <div id="clock-mount"></div>
     <div id="board-mount"></div>
+    <div id="history-mount"></div>
+    <div id="io-mount"></div>
 
     <div class="controls-bar">
       <button class="btn-action" id="btn-new-game">🔄 Новая партия</button>
@@ -28,11 +35,28 @@ function initApp(): void {
     </div>
   `;
 
-  // Mount Board UI
+  const clock = new ChessClock((loser) => {
+    const statusText = document.getElementById('status-text') as HTMLElement;
+    const badgeContainer = document.getElementById('status-badge-container') as HTMLElement;
+    const winner = loser === 'white' ? 'Чёрные победили' : 'Белые победили';
+    statusText.textContent = `Время истекло! ${winner} по времени.`;
+    badgeContainer.innerHTML = '<span class="status-badge badge-over">Время истекло</span>';
+  }, () => {
+    clockWidget.renderTimes();
+  });
+
+  const clockMount = document.getElementById('clock-mount') as HTMLElement;
+  const clockWidget = new ClockWidget(clockMount, globalStore, clock);
+
   const boardMount = document.getElementById('board-mount') as HTMLElement;
   new ChessBoardUI(boardMount, globalStore);
 
-  // Status updates
+  const historyMount = document.getElementById('history-mount') as HTMLElement;
+  new HistoryUI(historyMount, globalStore);
+
+  const ioMount = document.getElementById('io-mount') as HTMLElement;
+  new ImportExportUI(ioMount, globalStore);
+
   const statusText = document.getElementById('status-text') as HTMLElement;
   const badgeContainer = document.getElementById('status-badge-container') as HTMLElement;
   const undoBtn = document.getElementById('btn-undo') as HTMLButtonElement;
@@ -41,10 +65,14 @@ function initApp(): void {
     const result = store.getGameResult();
     const inCheck = store.isInCheck();
     const isWhite = state.turn === 'white';
+    const isViewing = store.isViewingHistory();
 
-    undoBtn.disabled = state.history.length === 0;
+    undoBtn.disabled = state.history.length === 0 || isViewing;
 
     let text = isWhite ? 'Ход белых' : 'Ход чёрных';
+    if (isViewing) {
+      text = `Просмотр истории (ход ${(store.getViewIndex() ?? 0) + 1})`;
+    }
     let badgeHtml = isWhite
       ? '<span class="status-badge badge-turn-white">Белые</span>'
       : '<span class="status-badge badge-turn-black">Чёрные</span>';
@@ -65,7 +93,7 @@ function initApp(): void {
     } else if (result.type === 'insufficientMaterial') {
       text = 'Ничья! Недостаточно материала для мата.';
       badgeHtml = '<span class="status-badge badge-over">Ничья</span>';
-    } else if (inCheck) {
+    } else if (inCheck && !isViewing) {
       text = `${isWhite ? 'Белый' : 'Чёрный'} король под шахом!`;
       badgeHtml += ' <span class="status-badge badge-check">Шах</span>';
     }
@@ -74,9 +102,10 @@ function initApp(): void {
     badgeContainer.innerHTML = badgeHtml;
   });
 
-  // Action buttons
   document.getElementById('btn-new-game')?.addEventListener('click', () => {
     globalStore.newGame();
+    clock.reset();
+    clockWidget.renderTimes();
   });
 
   document.getElementById('btn-undo')?.addEventListener('click', () => {
@@ -87,7 +116,6 @@ function initApp(): void {
     globalStore.toggleFlip();
   });
 
-  // Theme toggle
   const themeBtn = document.getElementById('theme-btn') as HTMLButtonElement;
   let isDark = true;
   themeBtn.addEventListener('click', () => {
