@@ -1,0 +1,210 @@
+import type { Board, CastlingRights, Color, GameState, Move, Square } from '../types';
+import { cloneBoard, toCoords, toSquare } from '../board';
+import { positionKey } from '../notation/fen';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+export function copyCastling(c: CastlingRights): CastlingRights {
+  return {
+    white: { kingside: c.white.kingside, queenside: c.white.queenside },
+    black: { kingside: c.black.kingside, queenside: c.black.queenside },
+  };
+}
+
+function updateCastlingRights(
+  rights: CastlingRights,
+  from: Square,
+  to: Square,
+  width: number,
+  height: number,
+): CastlingRights {
+  const r = copyCastling(rights);
+  const whiteBack = height - 1;
+  const blackBack = 0;
+
+  const wK = toSquare(4, whiteBack, width);
+  const bK = toSquare(4, blackBack, width);
+  const wRk = toSquare(7, whiteBack, width);
+  const wRq = toSquare(0, whiteBack, width);
+  const bRk = toSquare(7, blackBack, width);
+  const bRq = toSquare(0, blackBack, width);
+
+  if (from === wK || from === wRk || to === wRk) r.white.kingside = false;
+  if (from === wK || from === wRq || to === wRq) r.white.queenside = false;
+  if (from === bK || from === bRk || to === bRk) r.black.kingside = false;
+  if (from === bK || from === bRq || to === bRq) r.black.queenside = false;
+
+  return r;
+}
+
+// ── isSquareAttacked ─────────────────────────────────────────────────────────
+
+import { inBounds } from '../board';
+import { PIECE_DEFS } from '../pieces';
+
+export function isSquareAttacked(board: Board, sq: Square, byColor: Color): boolean {
+  const { width, height, pieces } = board;
+  const target = toCoords(sq, width);
+
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i];
+    if (p === null || p.color !== byColor) continue;
+    const c = toCoords(i, width);
+
+    if (p.type === 'pawn') {
+      const dir = byColor === 'white' ? -1 : 1;
+      if (c.y + dir === target.y && Math.abs(c.x - target.x) === 1) return true;
+      continue;
+    }
+
+    const def = PIECE_DEFS[p.type];
+    if (def.slider) {
+      for (const [dx, dy] of def.directions) {
+        let cx = c.x + dx;
+        let cy = c.y + dy;
+        while (inBounds(cx, cy, width, height)) {
+          if (cx === target.x && cy === target.y) return true;
+          if (pieces[toSquare(cx, cy, width)] !== null) break;
+          cx += dx;
+          cy += dy;
+        }
+      }
+    } else {
+      for (const [dx, dy] of def.directions) {
+        if (c.x + dx === target.x && c.y + dy === target.y) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function isInCheck(board: Board, color: Color): boolean {
+  const { pieces, width } = board;
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i];
+    if (p !== null && p.type === 'king' && p.color === color) {
+      return isSquareAttacked(board, i, color === 'white' ? 'black' : 'white');
+    }
+  }
+  return false;
+}
+
+// ── applyMove ────────────────────────────────────────────────────────────────
+
+export function applyMove(state: GameState, move: Move): GameState {
+  const newBoard = cloneBoard(state.board);
+  const { width, height } = newBoard;
+
+  // Remove piece from origin
+  newBoard.pieces[move.from] = null;
+
+  // Place piece (or promoted piece) on target
+  const placed = move.promotion
+    ? { type: move.promotion, color: move.piece.color }
+    : move.piece;
+  newBoard.pieces[move.to] = placed;
+
+  // En passant capture
+  if (move.isEnPassant && move.capturedAt !== undefined) {
+    newBoard.pieces[move.capturedAt] = null;
+  }
+
+  // Castling rook movement
+  if (move.castling) {
+    const backRank = move.piece.color === 'white' ? height - 1 : 0;
+    if (move.castling === 'kingside') {
+      newBoard.pieces[toSquare(7, backRank, width)] = null;
+      newBoard.pieces[toSquare(5, backRank, width)] = { type: 'rook', color: move.piece.color };
+    } else {
+      newBoard.pieces[toSquare(0, backRank, width)] = null;
+      newBoard.pieces[toSquare(3, backRank, width)] = { type: 'rook', color: move.piece.color };
+    }
+  }
+
+  // New castling rights
+  const newCastling = updateCastlingRights(state.castlingRights, move.from, move.to, width, height);
+
+  // En passant square for next move
+  let newEp: Square | null = null;
+  if (move.piece.type === 'pawn') {
+    const fromY = toCoords(move.from, width).y;
+    const toY = toCoords(move.to, width).y;
+    if (Math.abs(toY - fromY) === 2) {
+      const midY = (fromY + toY) / 2;
+      newEp = toSquare(toCoords(move.from, width).x, midY, width);
+    }
+  }
+
+  // Halfmove clock
+  const isCapture = move.captured !== undefined;
+  const isPawnMove = move.piece.type === 'pawn';
+  const newHalfmove = isCapture || isPawnMove ? 0 : state.halfMoveClock + 1;
+
+  const newTurn: Color = state.turn === 'white' ? 'black' : 'white';
+  const newFullmove = state.fullMoveNumber + (state.turn === 'black' ? 1 : 0);
+
+  const newHistory = [...state.history, move];
+
+  const next: GameState = {
+    board: newBoard,
+    turn: newTurn,
+    castlingRights: newCastling,
+    enPassantSquare: newEp,
+    halfMoveClock: newHalfmove,
+    fullMoveNumber: newFullmove,
+    history: newHistory,
+    positionHistory: [...state.positionHistory, ''], // placeholder, filled below
+  };
+
+  next.positionHistory[next.positionHistory.length - 1] = positionKey(next);
+  return next;
+}
+
+// ── undoMove ─────────────────────────────────────────────────────────────────
+
+export function undoMove(state: GameState): GameState {
+  if (state.history.length === 0) return state;
+
+  const history = state.history.slice(0, -1);
+  const move = state.history[state.history.length - 1];
+
+  const newBoard = cloneBoard(state.board);
+  const { width, height } = newBoard;
+
+  // Put piece back
+  newBoard.pieces[move.from] = move.piece;
+  // Remove placed piece from target
+  newBoard.pieces[move.to] = move.captured && !move.isEnPassant ? move.captured : null;
+
+  // En passant: restore captured pawn
+  if (move.isEnPassant && move.capturedAt !== undefined && move.captured) {
+    newBoard.pieces[move.to] = null;
+    newBoard.pieces[move.capturedAt] = move.captured;
+  }
+
+  // Undo castling rook
+  if (move.castling) {
+    const backRank = move.piece.color === 'white' ? height - 1 : 0;
+    if (move.castling === 'kingside') {
+      newBoard.pieces[toSquare(5, backRank, width)] = null;
+      newBoard.pieces[toSquare(7, backRank, width)] = { type: 'rook', color: move.piece.color };
+    } else {
+      newBoard.pieces[toSquare(3, backRank, width)] = null;
+      newBoard.pieces[toSquare(0, backRank, width)] = { type: 'rook', color: move.piece.color };
+    }
+  }
+
+  const prevTurn: Color = state.turn === 'white' ? 'black' : 'white';
+  const prevFullmove = state.fullMoveNumber - (state.turn === 'white' ? 1 : 0);
+
+  return {
+    board: newBoard,
+    turn: prevTurn,
+    castlingRights: move.prevCastling,
+    enPassantSquare: move.prevEpSquare,
+    halfMoveClock: move.prevHalfmove,
+    fullMoveNumber: Math.max(1, prevFullmove),
+    history,
+    positionHistory: state.positionHistory.slice(0, -1),
+  };
+}
