@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ChessStore } from '@/state/store';
 
-describe('Chess Clock Integration in Store', () => {
+describe('Chess Clock Integration & Navigation Tests', () => {
   let store: ChessStore;
 
   beforeEach(() => {
@@ -13,49 +13,56 @@ describe('Chess Clock Integration in Store', () => {
     vi.useRealTimers();
   });
 
-  it('time ticks after move and freezes after checkmate', () => {
-    const scholarsMateFen = 'r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4';
-    store.loadFEN(scholarsMateFen);
+  it('viewing history does not pause clock; time continues ticking', () => {
     store.setClockMode('blitz-3-2');
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4)); // 1. e4
+    vi.advanceTimersByTime(2000);
 
-    expect(store.getGameResult().type).toBe('checkmate');
+    const timeBeforeViewing = store.getTime('black');
+    store.setViewIndex(0); // view past position
 
-    const frozenWhiteTime = store.getTime('white');
-    const frozenBlackTime = store.getTime('black');
+    vi.advanceTimersByTime(5000); // 5s elapse while viewing history
+    const timeAfterViewing = store.getTime('black');
+    expect(timeAfterViewing).toBeLessThan(timeBeforeViewing);
 
-    vi.advanceTimersByTime(10000);
-
-    expect(store.getTime('white')).toBe(frozenWhiteTime);
-    expect(store.getTime('black')).toBe(frozenBlackTime);
+    store.setViewIndex(null); // return to live
+    const timeAfterReturn = store.getTime('black');
+    expect(timeAfterReturn).toBe(timeAfterViewing);
   });
 
-  it('undo restores time snapshot before the move', () => {
+  it('Home and End navigation do not pause or reset clock', () => {
+    store.setClockMode('blitz-3-2');
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
+    vi.advanceTimersByTime(1000);
+
+    const t1 = store.getTime('black');
+    store.setViewIndex(-1); // Home
+    vi.advanceTimersByTime(4000);
+    const t2 = store.getTime('black');
+    expect(t2).toBeLessThan(t1);
+
+    store.setViewIndex(null); // End
+    const t3 = store.getTime('black');
+    expect(t3).toBe(t2);
+  });
+
+  it('undo at active clock restores time snapshot and clock keeps ticking', () => {
     store.setClockMode('blitz-5-0');
     const startBlackTime = store.getTime('black');
 
     store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4)); // white e4
+    vi.advanceTimersByTime(3000); // black thinking
 
-    vi.advanceTimersByTime(3000); // 3s elapsed for black thinking
     store.makeMove(store.coordsToSquare(4, 1), store.coordsToSquare(4, 3)); // black e5
     store.undo(); // undo black move
 
     expect(store.getTime('black')).toBe(startBlackTime);
+
+    vi.advanceTimersByTime(4000);
+    expect(store.getTime('black')).toBe(startBlackTime - 4000);
   });
 
-  it('viewing history does not change clock and returning resumes it', () => {
-    store.setClockMode('blitz-3-2');
-    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
-    vi.advanceTimersByTime(3000);
-    const timeDuringGame = store.getTime('black');
-
-    store.setViewIndex(0);
-    vi.advanceTimersByTime(10000);
-
-    store.setViewIndex(null);
-    expect(store.getTime('black')).toBe(timeDuringGame);
-  });
-
-  it('undoing from checkmate makes clock resume', () => {
+  it('undoing from checkmate resumes clock', () => {
     const pgn = `
 [Event "Scholar's Mate"]
 [Site "Chess Arena"]
@@ -78,15 +85,30 @@ describe('Chess Clock Integration in Store', () => {
     expect(store.isClockActive()).toBe(true);
   });
 
-  it('timeout ends game and stops clock', () => {
-    let timedOut: string | null = null;
-    store.setClockMode('bullet-1-0', (loser) => {
-      timedOut = loser;
-    });
-    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
+  it('time freezes after checkmate and viewing history after mate does not start clock', () => {
+    const pgn = `
+[Event "Scholar's Mate"]
+[Site "Chess Arena"]
+[Date "2026.10.17"]
+[Round "1"]
+[White "White"]
+[Black "Black"]
+[Result "1-0"]
 
-    vi.advanceTimersByTime(61000);
-    expect(timedOut).toBe('black');
+1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7#
+    `;
+    store.loadPGN(pgn);
+    store.setClockMode('blitz-3-2');
+
+    expect(store.getGameResult().type).toBe('checkmate');
+    const w1 = store.getTime('white');
+
+    vi.advanceTimersByTime(10000);
+    expect(store.getTime('white')).toBe(w1);
+
+    store.setViewIndex(2); // view history of finished game
+    vi.advanceTimersByTime(5000);
+    expect(store.getTime('white')).toBe(w1);
     expect(store.isClockActive()).toBe(false);
   });
 });

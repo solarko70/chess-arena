@@ -46,7 +46,6 @@ export class ChessStore {
   private clockActive: boolean = false;
   private clockStarted: boolean = false;
   private lastTickTime: number = 0;
-  private timerId: ReturnType<typeof setInterval> | null = null;
   private onTimeOutCallback?: (loser: Color) => void;
 
   constructor(ruleSet: RuleSet = classicalRuleSet) {
@@ -76,18 +75,11 @@ export class ChessStore {
   setViewIndex(index: number | null): void {
     if (index === null) {
       this.viewIndex = null;
-      if (this.clockMode !== 'none' && this.getGameResult().type === 'ongoing' && this.clockStarted) {
-        this.clockActive = true;
-        this.lastTickTime = Date.now();
-      }
     } else {
       const maxIndex = this.state.history.length - 1;
       if (index < -1) this.viewIndex = -1;
       else if (index > maxIndex) this.viewIndex = null;
       else this.viewIndex = index;
-
-      this.tickClock();
-      this.clockActive = false;
     }
     this.selectedSquare = null;
     this.pendingPromotion = null;
@@ -110,7 +102,7 @@ export class ChessStore {
     this.clockSnapshots = [{ whiteMs: this.whiteMs, blackMs: this.blackMs }];
     this.clockActive = false;
     this.clockStarted = false;
-    this.stopTimer();
+    this.syncClock();
     this.notify();
   }
 
@@ -120,55 +112,51 @@ export class ChessStore {
 
   getTime(color: Color): number {
     this.tickClock();
-    if (this.viewIndex === null) {
-      return color === 'white' ? this.whiteMs : this.blackMs;
-    } else {
-      const snapIndex = Math.max(0, Math.min(this.viewIndex + 1, this.clockSnapshots.length - 1));
-      const snap = this.clockSnapshots[snapIndex];
-      return snap ? (color === 'white' ? snap.whiteMs : snap.blackMs) : (color === 'white' ? this.whiteMs : this.blackMs);
-    }
+    return color === 'white' ? this.whiteMs : this.blackMs;
   }
 
   isClockActive(): boolean {
+    this.tickClock();
     return this.clockActive;
-  }
-
-  private startTimer(): void {
-    this.stopTimer();
-    if (this.clockMode === 'none') return;
-    this.timerId = setInterval(() => {
-      this.tickClock();
-      this.notify();
-    }, 100);
-  }
-
-  private stopTimer(): void {
-    if (this.timerId !== null) {
-      clearInterval(this.timerId);
-      this.timerId = null;
-    }
   }
 
   public tickClock(): void {
     if (!this.clockActive || this.clockMode === 'none') return;
     const now = Date.now();
     const elapsed = now - this.lastTickTime;
+    if (elapsed <= 0) return;
     this.lastTickTime = now;
 
     if (this.state.turn === 'white') {
       this.whiteMs = Math.max(0, this.whiteMs - elapsed);
       if (this.whiteMs === 0) {
         this.clockActive = false;
-        this.stopTimer();
         this.onTimeOutCallback?.('white');
       }
     } else {
       this.blackMs = Math.max(0, this.blackMs - elapsed);
       if (this.blackMs === 0) {
         this.clockActive = false;
-        this.stopTimer();
         this.onTimeOutCallback?.('black');
       }
+    }
+  }
+
+  public syncClock(): void {
+    this.tickClock();
+    if (this.clockMode === 'none') {
+      this.clockActive = false;
+      return;
+    }
+
+    const result = this.getGameResult();
+    const historyLen = this.state.history.length;
+
+    if (result.type !== 'ongoing' || historyLen === 0) {
+      this.clockActive = false;
+    } else {
+      this.clockActive = true;
+      this.lastTickTime = Date.now();
     }
   }
 
@@ -248,9 +236,8 @@ export class ChessStore {
     this.whiteMs = cfg.initialMs;
     this.blackMs = cfg.initialMs;
     this.clockSnapshots = [{ whiteMs: this.whiteMs, blackMs: this.blackMs }];
-    this.clockActive = false;
     this.clockStarted = false;
-    this.stopTimer();
+    this.syncClock();
 
     this.notify();
   }
@@ -326,15 +313,7 @@ export class ChessStore {
       }
 
       this.clockSnapshots.push({ whiteMs: this.whiteMs, blackMs: this.blackMs });
-
-      if (this.getGameResult().type !== 'ongoing') {
-        this.clockActive = false;
-        this.stopTimer();
-      } else {
-        this.clockActive = true;
-        this.lastTickTime = Date.now();
-        this.startTimer();
-      }
+      this.syncClock();
     }
 
     this.viewIndex = null;
@@ -362,15 +341,7 @@ export class ChessStore {
         this.whiteMs = prevSnap.whiteMs;
         this.blackMs = prevSnap.blackMs;
       }
-
-      if (this.getGameResult().type === 'ongoing') {
-        this.clockActive = true;
-        this.lastTickTime = Date.now();
-        this.startTimer();
-      } else {
-        this.clockActive = false;
-        this.stopTimer();
-      }
+      this.syncClock();
     }
 
     this.selectedSquare = null;
