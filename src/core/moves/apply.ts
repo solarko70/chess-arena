@@ -1,4 +1,4 @@
-import type { Board, CastlingRights, Color, GameState, Move, Square } from '../types';
+import type { CastlingRights, Color, GameState, Move, Square } from '../types';
 import { cloneBoard, toCoords, toSquare } from '../board';
 import { positionKey } from '../notation/fen';
 
@@ -37,57 +37,9 @@ function updateCastlingRights(
   return r;
 }
 
-// ── isSquareAttacked ─────────────────────────────────────────────────────────
+// ── isSquareAttacked / isInCheck (re-exported from ./legal) ─────────────────
 
-import { inBounds } from '../board';
-import { PIECE_DEFS } from '../pieces';
-
-export function isSquareAttacked(board: Board, sq: Square, byColor: Color): boolean {
-  const { width, height, pieces } = board;
-  const target = toCoords(sq, width);
-
-  for (let i = 0; i < pieces.length; i++) {
-    const p = pieces[i];
-    if (p === null || p.color !== byColor) continue;
-    const c = toCoords(i, width);
-
-    if (p.type === 'pawn') {
-      const dir = byColor === 'white' ? -1 : 1;
-      if (c.y + dir === target.y && Math.abs(c.x - target.x) === 1) return true;
-      continue;
-    }
-
-    const def = PIECE_DEFS[p.type];
-    if (def.slider) {
-      for (const [dx, dy] of def.directions) {
-        let cx = c.x + dx;
-        let cy = c.y + dy;
-        while (inBounds(cx, cy, width, height)) {
-          if (cx === target.x && cy === target.y) return true;
-          if (pieces[toSquare(cx, cy, width)] !== null) break;
-          cx += dx;
-          cy += dy;
-        }
-      }
-    } else {
-      for (const [dx, dy] of def.directions) {
-        if (c.x + dx === target.x && c.y + dy === target.y) return true;
-      }
-    }
-  }
-  return false;
-}
-
-export function isInCheck(board: Board, color: Color): boolean {
-  const { pieces, width } = board;
-  for (let i = 0; i < pieces.length; i++) {
-    const p = pieces[i];
-    if (p !== null && p.type === 'king' && p.color === color) {
-      return isSquareAttacked(board, i, color === 'white' ? 'black' : 'white');
-    }
-  }
-  return false;
-}
+export { isSquareAttacked, isInCheck } from './legal';
 
 // ── applyMove ────────────────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ import { copyCastling } from './apply';
  */
 export function generatePseudoLegal(state: GameState): Move[] {
   const moves: Move[] = [];
-  const { board, castlingRights, enPassantSquare, halfMoveClock } = state;
+  const { board } = state;
   const { width, height, pieces } = board;
   const color = state.turn;
   const enemy: Color = color === 'white' ? 'black' : 'white';

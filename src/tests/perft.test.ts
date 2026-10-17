@@ -1,16 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseFEN } from '@/core/notation/fen';
-import { generatePseudoLegal } from '@/core/moves/generators';
-import { applyMove, isInCheck } from '@/core/moves/apply';
+import { generateLegal } from '@/core/moves/legal';
+import { applyMove } from '@/core/moves/apply';
 import type { GameState } from '@/core/types';
-
-function generateLegal(state: GameState) {
-  const pseudo = generatePseudoLegal(state);
-  return pseudo.filter((m) => {
-    const next = applyMove(state, m);
-    return !isInCheck(next.board, state.turn);
-  });
-}
 
 function perft(state: GameState, depth: number): number {
   if (depth === 0) return 1;
@@ -35,4 +27,18 @@ describe('perft – start position (no castling/ep/promo yet)', () => {
     const state = parseFEN(START_FEN);
     expect(perft(state, 2)).toBe(400);
   });
+
+  it('depth 3 = 8902', () => {
+    const state = parseFEN(START_FEN);
+    expect(perft(state, 3)).toBe(8902);
+  });
+
+  it(
+    'depth 4 = 197281',
+    () => {
+      const state = parseFEN(START_FEN);
+      expect(perft(state, 4)).toBe(197281);
+    },
+    60000,
+  );
 });
