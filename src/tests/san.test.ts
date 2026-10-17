@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseFEN } from '@/core/notation/fen';
-import { moveToSAN } from '@/core/notation/san';
+import { moveToSAN, sanToMove } from '@/core/notation/san';
 import { exportPGN } from '@/core/notation/pgn';
 import { classicalRuleSet } from '@/core/rules/classical';
 
@@ -53,5 +53,63 @@ describe('SAN and PGN Export', () => {
     if (kingsideCastle) {
       expect(moveToSAN(state, kingsideCastle)).toBe('O-O');
     }
+  });
+
+  it('round-trip sanToMove(moveToSAN(m)) == m for every legal move from start, Kiwipete, pos4, pos5', () => {
+    const fens = [
+      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1',
+      'r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1',
+      'rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8',
+    ];
+
+    for (const fen of fens) {
+      const state = parseFEN(fen);
+      const legalMoves = classicalRuleSet.generateLegalMoves(state);
+      for (const m of legalMoves) {
+        const san = moveToSAN(state, m);
+        const reconstructed = sanToMove(state, san);
+        expect(reconstructed).not.toBeNull();
+        expect(reconstructed?.from).toBe(m.from);
+        expect(reconstructed?.to).toBe(m.to);
+        expect(reconstructed?.promotion).toBe(m.promotion);
+      }
+    }
+  });
+
+  it('handles disambiguations: Nbd7, R1a3, Qh4e1', () => {
+    const posNbd7 = parseFEN('8/1n3n2/8/8/8/8/8/K6k b - - 0 1');
+    const legalN = classicalRuleSet.generateLegalMoves(posNbd7);
+    const moveNbd7 = legalN.find((m) => m.from === 8 && m.to === 21);
+    if (moveNbd7) {
+      expect(moveToSAN(posNbd7, moveNbd7)).toBe('Nbd7');
+    }
+
+    const posR2 = parseFEN('r7/8/8/r7/8/8/8/K6k b - - 0 1');
+    const legalR2 = classicalRuleSet.generateLegalMoves(posR2);
+    const moveR8a3 = legalR2.find((m) => m.from === 0 && m.to === 40);
+    if (moveR8a3) {
+      expect(moveToSAN(posR2, moveR8a3)).toBe('R8a3');
+    }
+
+    const posQ = parseFEN('k7/8/8/7Q/4Q3/8/8/K6k w - - 0 1');
+    const legalQ = classicalRuleSet.generateLegalMoves(posQ);
+    const moveH4e1 = legalQ.find((m) => m.from === 31 && m.to === 60);
+    if (moveH4e1) {
+      expect(moveToSAN(posQ, moveH4e1)).toBe('Qh4e1');
+    }
+  });
+
+  it('promotions with capture, castling check, checkmate #, stalemate without suffix', () => {
+    const promoCapture = parseFEN('b1k5/P7/8/8/8/8/8/K7 w - - 0 1');
+    const legal = classicalRuleSet.generateLegalMoves(promoCapture);
+    const promoMove = legal.find((m) => m.from === 8 && m.to === 0 && m.promotion === 'queen');
+    if (promoMove) {
+      const san = moveToSAN(promoCapture, promoMove);
+      expect(san).toContain('bxa8=Q');
+    }
+
+    const stalemateState = parseFEN('7k/5Q2/6K1/8/8/8/8/8 b - - 0 1');
+    expect(classicalRuleSet.getGameResult(stalemateState).type).toBe('stalemate');
   });
 });

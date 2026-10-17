@@ -24,8 +24,8 @@ export function moveToSAN(state: GameState, move: Move): string {
   const { width, height } = board;
 
   // 1. Castling
-  if (move.castling === 'kingside') return 'O-O';
-  if (move.castling === 'queenside') return 'O-O-O';
+  if (move.castling === 'kingside') return 'O-O' + getSuffix(state, move);
+  if (move.castling === 'queenside') return 'O-O-O' + getSuffix(state, move);
 
   const pieceType = move.piece.type;
   const isCapture = move.captured !== undefined || move.isEnPassant;
@@ -58,11 +58,11 @@ export function moveToSAN(state: GameState, move: Move): string {
 
     if (ambiguousMoves.length > 0) {
       const fromCoords = toCoords(move.from, width);
-      const sameFile = ambiguousMoves.some((m) => toCoords(m.from, width).x === fromCoords.x);
-      const sameRank = ambiguousMoves.some((m) => toCoords(m.from, width).y === fromCoords.y);
-
       const fileChar = String.fromCharCode(97 + fromCoords.x);
       const rankNum = height - fromCoords.y;
+
+      const sameFile = ambiguousMoves.some((m) => toCoords(m.from, width).x === fromCoords.x);
+      const sameRank = ambiguousMoves.some((m) => toCoords(m.from, width).y === fromCoords.y);
 
       if (!sameFile) {
         sanPrefix += fileChar;
@@ -79,13 +79,28 @@ export function moveToSAN(state: GameState, move: Move): string {
     sanPrefix += targetAlg;
   }
 
-  // Check / Checkmate suffix
+  return sanPrefix + getSuffix(state, move);
+}
+
+function getSuffix(state: GameState, move: Move): string {
   const nextState = applyMove(state, move);
   if (isCheckmate(nextState)) {
-    sanPrefix += '#';
+    return '#';
   } else if (isInCheck(nextState.board, nextState.turn)) {
-    sanPrefix += '+';
+    return '+';
   }
+  return '';
+}
 
-  return sanPrefix;
+export function sanToMove(state: GameState, san: string): Move | null {
+  const cleanSan = san.replace(/[+#]$/, '').trim();
+  const legalMoves = generateLegal(state);
+
+  for (const move of legalMoves) {
+    const candidateSan = moveToSAN(state, move).replace(/[+#]$/, '');
+    if (candidateSan === cleanSan) {
+      return move;
+    }
+  }
+  return null;
 }
