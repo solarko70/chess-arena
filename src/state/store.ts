@@ -8,8 +8,30 @@ import type {
   Color,
 } from '@/core';
 import { classicalRuleSet, parseFEN, parsePGN, serializeFEN, exportPGN } from '@/core';
+import { LEVELS, LEVEL_ORDER, type LevelId, type WorkerRequest, type WorkerResponse } from '@/ai';
 
 export type TimeControlMode = 'none' | 'bullet-1-0' | 'blitz-3-2' | 'blitz-5-0' | 'rapid-10-0' | 'rapid-15-10';
+export type GameMode = 'pvp' | 'ai';
+export type PlayerColorChoice = 'white' | 'black' | 'random';
+
+export interface GameModeOptions {
+  mode?: GameMode;
+  level?: LevelId;
+  playerColor?: PlayerColorChoice;
+}
+
+export interface AIWorkerLike {
+  postMessage(message: WorkerRequest): void;
+  terminate?(): void;
+  onmessage: ((ev: MessageEvent<WorkerResponse>) => unknown) | null;
+  onerror: ((ev: ErrorEvent) => unknown) | null;
+}
+
+export const STORAGE_KEYS = {
+  mode: 'chess_arena_game_mode',
+  level: 'chess_arena_ai_level',
+  playerColor: 'chess_arena_player_color',
+} as const;
 
 export interface TimeControlConfig {
   initialMs: number;
@@ -47,6 +69,19 @@ export class ChessStore {
   private clockStarted: boolean = false;
   private lastTickTime: number = 0;
   private onTimeOutCallback?: (loser: Color) => void;
+  private timedOutLoser: Color | null = null;
+
+  // AI state inside store
+  private gameMode: GameMode = 'pvp';
+  private aiLevel: LevelId = 'club';
+  private playerColorChoice: PlayerColorChoice = 'white';
+  private playerColor: Color = 'white';
+  private aiThinking: boolean = false;
+  private aiRequestId: number = 0;
+  private aiWorker: AIWorkerLike | null = null;
+  private workerFactory?: () => AIWorkerLike;
+  private aiDelayTimer: ReturnType<typeof setTimeout> | null = null;
+  private aiMinDelayMs: number = 0;
 
   constructor(ruleSet: RuleSet = classicalRuleSet) {
     this.ruleSet = ruleSet;
@@ -84,10 +119,257 @@ export class ChessStore {
     this.selectedSquare = null;
     this.pendingPromotion = null;
     this.notify();
+    if (!this.isViewingHistory()) {
+      this.maybeTriggerAIMove();
+    }
   }
 
   isViewingHistory(): boolean {
     return this.viewIndex !== null && this.viewIndex < this.state.history.length - 1;
+  }
+
+  // ── AI & Game Mode methods ─────────────────────────────────────────────────
+
+  setWorkerFactory(factory?: () => AIWorkerLike): void {
+    this.cancelAISearch();
+    if (this.aiWorker?.terminate) {
+      this.aiWorker.terminate();
+    }
+    this.aiWorker = null;
+    this.workerFactory = factory;
+  }
+
+  setAIMinDelay(delayMs: number): void {
+    this.aiMinDelayMs = Math.max(0, delayMs);
+  }
+
+  getGameMode(): GameMode {
+    return this.gameMode;
+  }
+
+  getAILevel(): LevelId {
+    return this.aiLevel;
+  }
+
+  getPlayerColorChoice(): PlayerColorChoice {
+    return this.playerColorChoice;
+  }
+
+  getPlayerColor(): Color {
+    return this.playerColor;
+  }
+
+  getAIColor(): Color | null {
+    if (this.gameMode !== 'ai') return null;
+    return this.playerColor === 'white' ? 'black' : 'white';
+  }
+
+  isAIThinking(): boolean {
+    return this.aiThinking;
+  }
+
+  isPlayerTurn(): boolean {
+    if (this.timedOutLoser !== null) return false;
+    if (this.gameMode === 'pvp') return true;
+    return !this.aiThinking && this.state.turn === this.playerColor;
+  }
+
+  getTimedOutLoser(): Color | null {
+    return this.timedOutLoser;
+  }
+
+  setGameMode(mode: GameMode, persist = true): void {
+    this.gameMode = mode;
+    if (persist) this.saveSettingsToStorage();
+  }
+
+  setAILevel(level: LevelId, persist = true): void {
+    if (LEVEL_ORDER.includes(level)) {
+      this.aiLevel = level;
+      if (persist) this.saveSettingsToStorage();
+    }
+  }
+
+  setPlayerColorChoice(choice: PlayerColorChoice, persist = true): void {
+    this.playerColorChoice = choice;
+    if (persist) this.saveSettingsToStorage();
+  }
+
+  configureGame(options: GameModeOptions, persist = true): void {
+    if (options.mode !== undefined) {
+      this.gameMode = options.mode;
+    }
+    if (options.level !== undefined && LEVEL_ORDER.includes(options.level)) {
+      this.aiLevel = options.level;
+    }
+    if (options.playerColor !== undefined) {
+      this.playerColorChoice = options.playerColor;
+    }
+    if (persist) {
+      this.saveSettingsToStorage();
+    }
+  }
+
+  loadSettingsFromStorage(): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      const savedMode = localStorage.getItem(STORAGE_KEYS.mode);
+      if (savedMode === 'pvp' || savedMode === 'ai') {
+        this.gameMode = savedMode;
+      }
+      const savedLevel = localStorage.getItem(STORAGE_KEYS.level) as LevelId | null;
+      if (savedLevel && LEVEL_ORDER.includes(savedLevel)) {
+        this.aiLevel = savedLevel;
+      }
+      const savedColor = localStorage.getItem(STORAGE_KEYS.playerColor);
+      if (savedColor === 'white' || savedColor === 'black' || savedColor === 'random') {
+        this.playerColorChoice = savedColor;
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  }
+
+  private saveSettingsToStorage(): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem(STORAGE_KEYS.mode, this.gameMode);
+      localStorage.setItem(STORAGE_KEYS.level, this.aiLevel);
+      localStorage.setItem(STORAGE_KEYS.playerColor, this.playerColorChoice);
+    } catch {
+      // Ignore storage access errors
+    }
+  }
+
+  public cancelAISearch(): void {
+    this.aiRequestId++;
+    if (this.aiDelayTimer !== null) {
+      clearTimeout(this.aiDelayTimer);
+      this.aiDelayTimer = null;
+    }
+    const wasThinking = this.aiThinking;
+    this.aiThinking = false;
+    if (wasThinking && this.aiWorker) {
+      try {
+        this.aiWorker.postMessage({ type: 'cancel', id: this.aiRequestId });
+      } catch {
+        // Ignore worker postMessage errors during cancellation
+      }
+    }
+  }
+
+  private ensureWorker(): AIWorkerLike {
+    if (!this.aiWorker) {
+      const worker: AIWorkerLike = this.workerFactory
+        ? this.workerFactory()
+        : new Worker(new URL('../ai/worker.ts', import.meta.url), { type: 'module' });
+      worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+        this.handleWorkerResponse(event.data);
+      };
+      worker.onerror = (event: ErrorEvent) => {
+        this.handleWorkerError(event?.message || 'сбой фонового потока');
+      };
+      this.aiWorker = worker;
+    }
+    return this.aiWorker;
+  }
+
+  private handleWorkerError(message: string): void {
+    this.aiRequestId++;
+    if (this.aiDelayTimer !== null) {
+      clearTimeout(this.aiDelayTimer);
+      this.aiDelayTimer = null;
+    }
+    this.aiThinking = false;
+    if (this.aiWorker?.terminate) {
+      try {
+        this.aiWorker.terminate();
+      } catch {
+        // Ignore terminate error
+      }
+    }
+    this.aiWorker = null;
+    this.lastError = `Ошибка ИИ: ${message}`;
+    this.notify();
+  }
+
+  private handleWorkerResponse(res: WorkerResponse): void {
+    if (!res || res.id !== this.aiRequestId || !this.aiThinking) {
+      return;
+    }
+
+    if (res.type === 'error') {
+      this.handleWorkerError(res.message);
+      return;
+    }
+
+    const finalizeMove = (): void => {
+      this.aiDelayTimer = null;
+      if (res.id !== this.aiRequestId || !this.aiThinking) return;
+
+      if (this.clockMode !== 'none') {
+        this.tickClock();
+      }
+      if (this.timedOutLoser !== null) {
+        this.aiThinking = false;
+        this.notify();
+        return;
+      }
+
+      this.aiThinking = false;
+      if (!res.move) {
+        this.notify();
+        return;
+      }
+
+      this.applyMoveInternal(res.move.from, res.move.to, res.move.promotion ?? 'queen');
+    };
+
+    const waitMs = Math.max(0, this.aiMinDelayMs - (res.elapsedMs ?? 0));
+    if (waitMs > 0) {
+      this.aiDelayTimer = setTimeout(finalizeMove, waitMs);
+    } else {
+      finalizeMove();
+    }
+  }
+
+  private maybeTriggerAIMove(): void {
+    if (this.gameMode !== 'ai') return;
+    if (this.aiThinking) return;
+    if (this.timedOutLoser !== null) return;
+    if (this.isViewingHistory()) return;
+    if (this.getGameResult().type !== 'ongoing') return;
+    if (this.state.turn === this.playerColor) return;
+
+    const reqId = ++this.aiRequestId;
+    this.aiThinking = true;
+    this.notify();
+
+    const cfg = LEVELS[this.aiLevel];
+    let timeMs = cfg.timeMs;
+    if (this.clockMode !== 'none') {
+      const remaining = this.getTime(this.state.turn);
+      if (remaining <= 0) {
+        this.aiThinking = false;
+        this.notify();
+        return;
+      }
+      timeMs = Math.min(cfg.timeMs, Math.max(50, Math.floor(remaining * 0.8)));
+    }
+
+    try {
+      const worker = this.ensureWorker();
+      worker.postMessage({
+        type: 'search',
+        id: reqId,
+        state: this.state,
+        level: this.aiLevel,
+        timeMs,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'не удалось запустить поиск';
+      this.handleWorkerError(msg);
+    }
   }
 
   // ── Clock methods ──────────────────────────────────────────────────────────
@@ -102,6 +384,7 @@ export class ChessStore {
     this.clockSnapshots = [{ whiteMs: this.whiteMs, blackMs: this.blackMs }];
     this.clockActive = false;
     this.clockStarted = false;
+    this.timedOutLoser = null;
     this.syncClock();
     this.notify();
   }
@@ -131,13 +414,19 @@ export class ChessStore {
       this.whiteMs = Math.max(0, this.whiteMs - elapsed);
       if (this.whiteMs === 0) {
         this.clockActive = false;
+        this.timedOutLoser = 'white';
+        this.cancelAISearch();
         this.onTimeOutCallback?.('white');
+        this.notify();
       }
     } else {
       this.blackMs = Math.max(0, this.blackMs - elapsed);
       if (this.blackMs === 0) {
         this.clockActive = false;
+        this.timedOutLoser = 'black';
+        this.cancelAISearch();
         this.onTimeOutCallback?.('black');
+        this.notify();
       }
     }
   }
@@ -145,6 +434,11 @@ export class ChessStore {
   public syncClock(): void {
     this.tickClock();
     if (this.clockMode === 'none') {
+      this.clockActive = false;
+      return;
+    }
+
+    if (this.timedOutLoser !== null) {
       this.clockActive = false;
       return;
     }
@@ -225,12 +519,27 @@ export class ChessStore {
     }
   }
 
-  newGame(initialState?: GameState): void {
+  newGame(initialState?: GameState, options?: GameModeOptions): void {
+    this.cancelAISearch();
+    if (options) {
+      this.configureGame(options);
+    }
+
+    if (this.gameMode === 'ai') {
+      if (this.playerColorChoice === 'random') {
+        this.playerColor = Math.random() < 0.5 ? 'white' : 'black';
+      } else {
+        this.playerColor = this.playerColorChoice;
+      }
+      this.flipped = this.playerColor === 'black';
+    }
+
     this.state = initialState ?? this.ruleSet.getInitialState();
     this.viewIndex = null;
     this.selectedSquare = null;
     this.pendingPromotion = null;
     this.lastError = null;
+    this.timedOutLoser = null;
 
     const cfg = TIME_CONTROLS[this.clockMode];
     this.whiteMs = cfg.initialMs;
@@ -240,6 +549,7 @@ export class ChessStore {
     this.syncClock();
 
     this.notify();
+    this.maybeTriggerAIMove();
   }
 
   toggleFlip(): void {
@@ -249,6 +559,10 @@ export class ChessStore {
 
   selectSquare(sq: Square | null): void {
     if (this.isViewingHistory()) return;
+    if (this.timedOutLoser !== null) return;
+    if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
+      return;
+    }
     this.selectedSquare = sq;
     this.notify();
   }
@@ -259,11 +573,21 @@ export class ChessStore {
   }
 
   makeMove(from: Square, to: Square, promoPiece?: PieceType): boolean {
+    if (this.timedOutLoser !== null) {
+      return false;
+    }
+    if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
+      return false;
+    }
+    return this.applyMoveInternal(from, to, promoPiece);
+  }
+
+  private applyMoveInternal(from: Square, to: Square, promoPiece?: PieceType): boolean {
     if (this.viewIndex !== null) {
       this.viewIndex = null;
     }
 
-    if (this.getGameResult().type !== 'ongoing') {
+    if (this.timedOutLoser !== null || this.getGameResult().type !== 'ongoing') {
       return false;
     }
 
@@ -297,6 +621,9 @@ export class ChessStore {
 
     if (this.clockMode !== 'none') {
       this.tickClock();
+      if (this.timedOutLoser !== null) {
+        return false;
+      }
     }
 
     const movingColor = this.state.turn;
@@ -321,21 +648,47 @@ export class ChessStore {
     this.pendingPromotion = null;
     this.lastError = null;
     this.notify();
+    this.maybeTriggerAIMove();
     return true;
   }
 
   undo(): boolean {
-    if (this.state.history.length === 0) return false;
+    const wasThinking = this.aiThinking;
+    this.cancelAISearch();
+
+    if (this.state.history.length === 0) {
+      if (wasThinking) {
+        this.selectedSquare = null;
+        this.pendingPromotion = null;
+        this.notify();
+        return true;
+      }
+      return false;
+    }
+
     if (this.viewIndex !== null) {
       this.viewIndex = null;
     }
 
-    this.state = this.ruleSet.undoMove(this.state);
+    let pliesToUndo = 1;
+    if (this.gameMode === 'ai') {
+      // If AI already replied (so it is now player's turn) and there are at least 2 plies,
+      // undo both the AI move and the player's previous move.
+      if (!wasThinking && this.state.turn === this.playerColor && this.state.history.length >= 2) {
+        pliesToUndo = 2;
+      }
+    }
 
-    if (this.clockMode !== 'none') {
-      if (this.clockSnapshots.length > 1) {
+    for (let i = 0; i < pliesToUndo && this.state.history.length > 0; i++) {
+      this.state = this.ruleSet.undoMove(this.state);
+      if (this.clockMode !== 'none' && this.clockSnapshots.length > 1) {
         this.clockSnapshots.pop();
       }
+    }
+
+    this.timedOutLoser = null;
+
+    if (this.clockMode !== 'none') {
       const prevSnap = this.clockSnapshots[this.clockSnapshots.length - 1];
       if (prevSnap) {
         this.whiteMs = prevSnap.whiteMs;
@@ -378,15 +731,36 @@ export class ChessStore {
   loadPGN(pgnText: string): boolean {
     try {
       const parsed = parsePGN(pgnText);
-      this.newGame(parsed.state);
+      this.cancelAISearch();
+
+      if (this.gameMode === 'ai') {
+        if (this.playerColorChoice === 'random') {
+          this.playerColor = Math.random() < 0.5 ? 'white' : 'black';
+        } else {
+          this.playerColor = this.playerColorChoice;
+        }
+        this.flipped = this.playerColor === 'black';
+      }
+
+      this.state = parsed.state;
+      this.viewIndex = null;
+      this.selectedSquare = null;
+      this.pendingPromotion = null;
+      this.lastError = null;
+      this.timedOutLoser = null;
 
       const cfg = TIME_CONTROLS[this.clockMode];
+      this.whiteMs = cfg.initialMs;
+      this.blackMs = cfg.initialMs;
       this.clockSnapshots = [{ whiteMs: cfg.initialMs, blackMs: cfg.initialMs }];
       for (let i = 0; i < parsed.state.history.length; i++) {
         this.clockSnapshots.push({ whiteMs: cfg.initialMs, blackMs: cfg.initialMs });
       }
+      this.clockStarted = false;
+      this.syncClock();
 
-      this.lastError = null;
+      this.notify();
+      this.maybeTriggerAIMove();
       return true;
     } catch (e: unknown) {
       const err = e as Error;
@@ -406,6 +780,10 @@ export class ChessStore {
 
   getValidDestinationsFor(sq: Square): Square[] {
     if (this.isViewingHistory()) return [];
+    if (this.timedOutLoser !== null) return [];
+    if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
+      return [];
+    }
     const moves = this.getLegalMoves();
     return moves.filter((m) => m.from === sq).map((m) => m.to);
   }

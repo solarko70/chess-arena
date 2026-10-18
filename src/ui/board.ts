@@ -152,6 +152,7 @@ export class ChessBoardUI {
 
   private handlePointerDown(e: PointerEvent): void {
     if (this.store.getPendingPromotion()) return;
+    if (!this.store.isPlayerTurn() || this.store.isAIThinking()) return;
     const target = (e.target as HTMLElement).closest('.chess-square') as HTMLElement | null;
     if (!target || !target.dataset.square) return;
 

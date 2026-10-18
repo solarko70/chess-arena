@@ -20,7 +20,10 @@
 - [x] Analysis API `analyzePosition` with White-perspective scores and multi-PV (`src/ai/api.ts`).
 - [x] Levels Новичок…Мастер and `findBestMove` (`src/ai/levels.ts`); tests in `src/tests/ai.test.ts`.
 
-## What's Next
-- Stage 3: UI integration, chessboard rendering, move input, and interactive gameplay.
-- Stage 4b: wire the AI into the UI (Web Worker), game review using `analyzePosition`.
+## Stage 4b: Play vs AI in UI (Completed)
+- [x] Web Worker `src/ai/worker.ts` with search cancellation, error reporting, and 300–600 ms delay on weak levels.
+- [x] Game setup menu in UI (`src/main.ts`, `src/ui/styles.css`): mode ("Двое на одном экране" / "Против компьютера"), level (Новичок…Мастер), player color (Белые / Чёрные / Случайно), persisted in `localStorage`.
+- [x] Store integration (`src/state/store.ts`): automatic AI move, input lock during AI turn, auto-flip by player color, two-ply undo vs AI, search cancellation on undo/new game/FEN/PGN/timeout, clock support for AI, and worker error handling.
+- [x] Unit & integration tests with synchronous/deferred Worker stubs (`src/tests/ai-ui.test.ts`).
+
 

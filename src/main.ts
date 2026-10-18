@@ -1,13 +1,20 @@
 import './ui/styles.css';
-import { globalStore } from './state/store';
+import { globalStore, type GameMode, type PlayerColorChoice } from './state/store';
 import { ChessBoardUI } from './ui/board';
 import { HistoryUI } from './ui/history';
 import { ImportExportUI } from './ui/importexport';
 import { ClockWidget } from './ui/clockwidget';
+import { LEVELS, LEVEL_ORDER, type LevelId } from './ai';
 
-function initApp(): void {
+export function initApp(): void {
   const app = document.getElementById('app');
   if (!app) return;
+
+  globalStore.loadSettingsFromStorage();
+
+  const levelOptionsHtml = LEVEL_ORDER.map(
+    (id) => `<option value="${id}">${LEVELS[id].name}</option>`,
+  ).join('');
 
   app.innerHTML = `
     <header class="chess-header">
@@ -16,6 +23,30 @@ function initApp(): void {
       </div>
       <button class="theme-toggle-btn" id="theme-btn">🌙 Тёмная тема</button>
     </header>
+
+    <div class="game-setup-panel" id="game-setup-panel">
+      <div class="setup-field">
+        <label for="game-mode-select">Режим:</label>
+        <select id="game-mode-select" class="clock-select">
+          <option value="pvp">Двое на одном экране</option>
+          <option value="ai">Против компьютера</option>
+        </select>
+      </div>
+      <div class="setup-field" id="ai-level-field">
+        <label for="ai-level-select">Уровень:</label>
+        <select id="ai-level-select" class="clock-select">
+          ${levelOptionsHtml}
+        </select>
+      </div>
+      <div class="setup-field" id="player-color-field">
+        <label for="player-color-select">Цвет:</label>
+        <select id="player-color-select" class="clock-select">
+          <option value="white">Белые</option>
+          <option value="black">Чёрные</option>
+          <option value="random">Случайно</option>
+        </select>
+      </div>
+    </div>
 
     <div class="status-bar">
       <div class="status-text" id="status-text">Ход белых</div>
@@ -33,6 +64,36 @@ function initApp(): void {
       <button class="btn-action" id="btn-flip">🔃 Перевернуть</button>
     </div>
   `;
+
+  const modeSelect = document.getElementById('game-mode-select') as HTMLSelectElement;
+  const levelSelect = document.getElementById('ai-level-select') as HTMLSelectElement;
+  const colorSelect = document.getElementById('player-color-select') as HTMLSelectElement;
+  const aiLevelField = document.getElementById('ai-level-field') as HTMLElement;
+  const playerColorField = document.getElementById('player-color-field') as HTMLElement;
+
+  modeSelect.value = globalStore.getGameMode();
+  levelSelect.value = globalStore.getAILevel();
+  colorSelect.value = globalStore.getPlayerColorChoice();
+
+  const syncSetupVisibility = (): void => {
+    const isAI = modeSelect.value === 'ai';
+    aiLevelField.style.display = isAI ? 'flex' : 'none';
+    playerColorField.style.display = isAI ? 'flex' : 'none';
+  };
+  syncSetupVisibility();
+
+  const applySetupAndStartNewGame = (): void => {
+    syncSetupVisibility();
+    globalStore.newGame(undefined, {
+      mode: modeSelect.value as GameMode,
+      level: levelSelect.value as LevelId,
+      playerColor: colorSelect.value as PlayerColorChoice,
+    });
+  };
+
+  modeSelect.addEventListener('change', applySetupAndStartNewGame);
+  levelSelect.addEventListener('change', applySetupAndStartNewGame);
+  colorSelect.addEventListener('change', applySetupAndStartNewGame);
 
   const clockMount = document.getElementById('clock-mount') as HTMLElement;
   new ClockWidget(clockMount, globalStore, (loser) => {
@@ -61,8 +122,23 @@ function initApp(): void {
     const inCheck = store.isInCheck();
     const isWhite = state.turn === 'white';
     const isViewing = store.isViewingHistory();
+    const timedOutLoser = store.getTimedOutLoser();
+    const lastError = store.getLastError();
 
-    undoBtn.disabled = state.history.length === 0 || isViewing;
+    undoBtn.disabled = (state.history.length === 0 && !store.isAIThinking()) || isViewing;
+
+    if (lastError && lastError.startsWith('Ошибка ИИ:')) {
+      statusText.textContent = lastError;
+      badgeContainer.innerHTML = '<span class="status-badge badge-check">Ошибка</span>';
+      return;
+    }
+
+    if (timedOutLoser !== null) {
+      const winner = timedOutLoser === 'white' ? 'Чёрные победили' : 'Белые победили';
+      statusText.textContent = `Время истекло! ${winner} по времени.`;
+      badgeContainer.innerHTML = '<span class="status-badge badge-over">Время истекло</span>';
+      return;
+    }
 
     let text = isWhite ? 'Ход белых' : 'Ход чёрных';
     if (isViewing) {
@@ -88,6 +164,9 @@ function initApp(): void {
     } else if (result.type === 'insufficientMaterial') {
       text = 'Ничья! Недостаточно материала для мата.';
       badgeHtml = '<span class="status-badge badge-over">Ничья</span>';
+    } else if (store.isAIThinking() && !isViewing) {
+      text = 'Компьютер думает…';
+      badgeHtml = '<span class="status-badge badge-thinking">Компьютер думает…</span>';
     } else if (inCheck && !isViewing) {
       text = `${isWhite ? 'Белый' : 'Чёрный'} король под шахом!`;
       badgeHtml += ' <span class="status-badge badge-check">Шах</span>';
@@ -97,8 +176,12 @@ function initApp(): void {
     badgeContainer.innerHTML = badgeHtml;
   });
 
-  document.getElementById('btn-new-game')?.addEventListener('click', () => {
+  if (globalStore.getGameMode() === 'ai') {
     globalStore.newGame();
+  }
+
+  document.getElementById('btn-new-game')?.addEventListener('click', () => {
+    applySetupAndStartNewGame();
   });
 
   document.getElementById('btn-undo')?.addEventListener('click', () => {
@@ -124,3 +207,4 @@ function initApp(): void {
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
+
