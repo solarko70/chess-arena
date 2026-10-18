@@ -164,17 +164,24 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
         input.linesBefore.some((l) => !isForcedMateAgainstMover(l.score, input.moverColor))) ||
       input.winBefore >= THRESHOLDS.decidedLowWin);
 
-  if (hadNonMatingReply) {
-    // Walking into a forced mate when a non-mating reply existed is at least a mistake (or blunder)
+  // A move leading into a forced mate against the mover can never be 'best'
+  if (walkedIntoMate && rawClass === 'best') {
+    rawClass = 'excellent';
+  }
+
+  // Minimum class 'mistake' applies only if the position before the move was not already decided
+  // (winBefore for the mover > 3%); otherwise classify normally by loss.
+  const isDecidedLost = input.winBefore <= THRESHOLDS.decidedLowWin;
+  if (walkedIntoMate && hadNonMatingReply && !isDecidedLost) {
     if (SEVERITY_ORDER[rawClass] < SEVERITY_ORDER.mistake) {
       rawClass = loss >= THRESHOLDS.mistakeLoss ? 'blunder' : 'mistake';
     }
   }
 
   // In an already decided position (winBefore < 3, or winBefore > 97 unless the win is thrown away below 50%),
-  // a move is not classified stricter than 'good' — UNLESS it allows a new forced mate when a non-mating defence existed.
-  const isAlreadyLost = input.winBefore < THRESHOLDS.decidedLowWin && !hadNonMatingReply;
-  const isAlreadyWon = input.winBefore > THRESHOLDS.decidedHighWin && input.winAfter >= 50 && !hadNonMatingReply;
+  // a move is not classified stricter than 'good'
+  const isAlreadyLost = input.winBefore < THRESHOLDS.decidedLowWin;
+  const isAlreadyWon = input.winBefore > THRESHOLDS.decidedHighWin && input.winAfter >= 50;
   let moveClass = rawClass;
   if ((isAlreadyLost || isAlreadyWon) && SEVERITY_ORDER[moveClass] > SEVERITY_ORDER.good) {
     moveClass = 'good';

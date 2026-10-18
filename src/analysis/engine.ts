@@ -464,6 +464,11 @@ export class StockfishEngine implements AnalysisEngine {
   private queue: QueuedSearchTask[] = [];
   private processing = false;
   private chess960: boolean;
+  private requestIdCounter = 0;
+  private activeRequestId = 0;
+  private isSearching = false;
+  private pendingStopPromise: Promise<void> | null = null;
+  private resolveStop: (() => void) | null = null;
 
   constructor(options: { workerFactory?: UCIWorkerFactory; chess960?: boolean } = {}) {
     this.workerFactory = options.workerFactory ?? createDefaultStockfishWorker;
@@ -531,6 +536,28 @@ export class StockfishEngine implements AnalysisEngine {
     return this.initPromise;
   }
 
+  /** Send `stop` to the worker if a search is in-flight and await its `bestmove`. */
+  private async stopAndAwaitBestMove(w: UCIWorkerLike): Promise<void> {
+    if (!this.isSearching) return;
+    if (this.pendingStopPromise) return this.pendingStopPromise;
+
+    this.pendingStopPromise = new Promise<void>((resolve) => {
+      this.resolveStop = () => {
+        this.isSearching = false;
+        this.pendingStopPromise = null;
+        this.resolveStop = null;
+        resolve();
+      };
+      try {
+        w.postMessage('stop');
+      } catch {
+        this.resolveStop?.();
+      }
+    });
+
+    return this.pendingStopPromise;
+  }
+
   analyze(state: GameState, options: EngineAnalyzeOptions = {}): Promise<AnalysisEngineResult> {
     if (this.disposed) {
       return Promise.reject(new Error('StockfishEngine has been disposed'));
@@ -579,6 +606,15 @@ export class StockfishEngine implements AnalysisEngine {
       throw createAbortError();
     }
 
+    // Await bestmove of the prior search (or send stop) before starting a new search
+    if (this.isSearching) {
+      await this.stopAndAwaitBestMove(w);
+    }
+
+    if (options.signal?.aborted) {
+      throw createAbortError();
+    }
+
     if (legal.length === 0) {
       const mated = isInCheck(state.board, state.turn);
       return {
@@ -593,6 +629,9 @@ export class StockfishEngine implements AnalysisEngine {
       };
     }
 
+    const requestId = ++this.requestIdCounter;
+    this.activeRequestId = requestId;
+
     const depth = options.depth ?? 14;
     const multiPV = Math.min(Math.max(1, options.multiPV ?? 2), legal.length);
     const fen = serializeFEN(state);
@@ -603,20 +642,16 @@ export class StockfishEngine implements AnalysisEngine {
       let maxDepthReached = 0;
       let totalNodes = 0;
       let phase: 'waiting_ready' | 'searching' | 'done' = 'waiting_ready';
+      let hasReceivedBestMove = false;
       let aborted = false;
 
       const onAbort = () => {
         if (phase === 'done') return;
         aborted = true;
         if (phase === 'searching') {
-          try {
-            w.postMessage('stop');
-          } catch {
-            // Ignore postMessage failure on abort
-          }
-        } else {
-          finishReject(createAbortError());
+          void this.stopAndAwaitBestMove(w);
         }
+        finishReject(createAbortError());
       };
 
       const cleanup = () => {
@@ -628,6 +663,7 @@ export class StockfishEngine implements AnalysisEngine {
       const finishReject = (err: unknown) => {
         if (phase === 'done') return;
         phase = 'done';
+        this.isSearching = false;
         cleanup();
         reject(err);
       };
@@ -642,6 +678,19 @@ export class StockfishEngine implements AnalysisEngine {
         const line = String(ev.data).trim();
         if (!line) return;
 
+        // Discard messages that do not belong to the active search request
+        if (this.activeRequestId !== requestId) {
+          if (line.startsWith('bestmove')) {
+            this.resolveStop?.();
+          }
+          return;
+        }
+
+        // Ignore any info lines received after bestmove has already arrived
+        if (hasReceivedBestMove) {
+          return;
+        }
+
         if (phase === 'waiting_ready') {
           if (line === 'readyok') {
             if (aborted || options.signal?.aborted) {
@@ -649,6 +698,7 @@ export class StockfishEngine implements AnalysisEngine {
               return;
             }
             phase = 'searching';
+            this.isSearching = true;
             w.postMessage(`position fen ${fen}`);
             w.postMessage(`go depth ${depth}`);
           }
@@ -658,7 +708,7 @@ export class StockfishEngine implements AnalysisEngine {
         if (phase === 'searching') {
           if (line.startsWith('info ')) {
             const parsed = parseUCIInfoLine(line, whiteToMove);
-            if (parsed && parsed.pv.length > 0 && !parsed.isBound) {
+            if (parsed && parsed.pv.length > 0 && !parsed.isBound && parsed.depth <= depth) {
               const prev = infoByMultiPV.get(parsed.multipv);
               if (!prev || parsed.depth >= prev.depth) {
                 infoByMultiPV.set(parsed.multipv, parsed);
@@ -674,8 +724,11 @@ export class StockfishEngine implements AnalysisEngine {
           }
 
           if (line.startsWith('bestmove')) {
-            const bm = parseUCIBestMove(line);
+            hasReceivedBestMove = true;
             phase = 'done';
+            this.isSearching = false;
+            this.resolveStop?.();
+            const bm = parseUCIBestMove(line);
             cleanup();
 
             if (aborted || options.signal?.aborted) {
@@ -741,6 +794,8 @@ export class StockfishEngine implements AnalysisEngine {
 
   dispose(): void {
     this.disposed = true;
+    this.isSearching = false;
+    this.resolveStop?.();
     while (this.queue.length > 0) {
       const task = this.queue.shift()!;
       task.reject(createAbortError());

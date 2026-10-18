@@ -19,7 +19,6 @@ import {
   classifyMove,
   isForcedMateAgainstMover,
   isSameMove,
-  THRESHOLDS,
   type MoveClass,
 } from './classify';
 
@@ -88,6 +87,8 @@ export interface ReviewOptions {
   onProgress?: (progress: ReviewProgress) => void;
   /** AbortSignal to cancel an ongoing review */
   signal?: AbortSignal;
+  /** Whether to re-analyze positions at higher depth when shallow engine horizon inconsistencies are detected (default: true) */
+  autoReanalyze?: boolean;
 }
 
 export interface GameReviewResult {
@@ -109,6 +110,8 @@ export interface GameReviewResult {
   evalHistory: EvalPoint[];
   /** Name of the engine that produced the review */
   engineName: string;
+  /** Number of positions re-analyzed at higher depth during consistency checks */
+  reanalyzed: number;
 }
 
 export type GameInput = GameState | readonly GameState[];
@@ -189,22 +192,15 @@ function hasEvalInconsistency(
     isForcedMateAgainstMover(resAfter.score, moverColor) &&
     !isForcedMateAgainstMover(resBefore.score, moverColor);
 
-  if (matchedBest && (loss > THRESHOLDS.bestMaxLoss || cpDrop >= 250 || walkedIntoMate)) {
-    // Either stateBefore overestimated playedMove (horizon effect before the move)
-    // or stateAfter missed a defence / tactical refutation.
+  // A genuine engine inconsistency occurs when the engine recommended a move for a winning/equal
+  // side (winBefore >= 40%), but following that recommendation caused the position to collapse
+  // heavily into a loss (loss >= 30% or walking into mate with winAfter < 20%).
+  if (matchedBest && winBefore >= 40 && (loss >= 30 || walkedIntoMate)) {
     return { recheckBefore: true, recheckAfter: true };
   }
 
-  // If a move appears to lose >= 500 cp (or >= 15% win probability), stateBefore may have
-  // overestimated another candidate move at shallow depth (e.g. missing a deep forced mate on the other recapture).
-  if (cpDrop >= 500 || loss >= 15 || walkedIntoMate) {
-    return { recheckBefore: true, recheckAfter: false };
-  }
-
-  if (loss < -10 || cpDrop <= -250) {
-    // The mover's evaluation improved dramatically after their own move, so
-    // stateAfter likely missed the opponent's refutation at shallow depth.
-    return { recheckBefore: false, recheckAfter: true };
+  if (matchedBest && winBefore >= 40 && cpDrop >= 400 && cpAfter < -100) {
+    return { recheckBefore: true, recheckAfter: true };
   }
 
   return { recheckBefore: false, recheckAfter: false };
@@ -271,16 +267,17 @@ export async function reviewGame(
       });
     }
 
-    // Consistency verification pass: if consecutive evaluations conflict (e.g. engine's
-    // chosen bestMove loses heavily according to evalAfter, or evalAfter jumps up due to
-    // a horizon miss), re-analyze the affected position(s) at higher depth.
+    // Consistency verification pass (safety net): if consecutive evaluations conflict
+    // (e.g. engine's recommended bestMove in a winning position collapses into a loss due to
+    // a shallow horizon miss), re-analyze the affected position(s) at higher depth.
+    const autoReanalyze = options.autoReanalyze ?? true;
     const baseDepth = getBaseDepth();
     const isStockfish = resolvedEngineName.toLowerCase().includes('stockfish');
     const deeperDepth = isStockfish ? Math.max(baseDepth + 4, 18) : baseDepth + 2;
     const reanalyzedIndices = new Set<number>();
 
     // Only run deeper re-analysis on Stockfish when depth was not artificially capped very low (depth >= 6)
-    if (isStockfish && baseDepth >= 6) {
+    if (autoReanalyze && isStockfish && baseDepth >= 6) {
       for (let i = 0; i < totalPositions - 1; i++) {
         const stateBefore = states[i];
         const stateAfter = states[i + 1];
@@ -439,6 +436,7 @@ export async function reviewGame(
       keyMoments,
       evalHistory,
       engineName: resolvedEngineName,
+      reanalyzed: reanalyzedIndices.size,
     };
   } finally {
     if (ownCreated) {

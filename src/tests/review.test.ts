@@ -31,6 +31,7 @@ import {
   type AnalysisEngineResult,
   type EngineAnalyzeOptions,
   type MoveClass,
+  type UCIWorkerLike,
 } from '@/analysis';
 
 const VALID_CLASSES: MoveClass[] = ['best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder'];
@@ -148,7 +149,8 @@ describe('classifyMove boundaries & special rules', () => {
   });
 
   it('never classifies a move that leads to forced mate against the mover as best when a non-mating reply exists', () => {
-    // Even if winBefore was low (< 3%) or matchedBestMove was true, walking into mate when a non-mating line existed cannot be 'best'
+    // When the position before the move was already decided (winBefore <= 3%), walking into mate cannot be 'best',
+    // but the minimum class 'mistake' is NOT enforced — the move is classified normally by loss.
     const resFromDecided = classifyMove({
       winBefore: 1.8,
       winAfter: 0,
@@ -158,8 +160,9 @@ describe('classifyMove boundaries & special rules', () => {
       evalAfter: { type: 'mate', value: 3 },
     });
     expect(resFromDecided.moveClass).not.toBe('best');
-    expect(['mistake', 'blunder']).toContain(resFromDecided.moveClass);
+    expect(['excellent', 'good']).toContain(resFromDecided.moveClass);
 
+    // In an undecided position (winBefore > 3%), walking into a forced mate must be at least mistake/blunder
     const resFromEqual = classifyMove({
       winBefore: 28.9,
       winAfter: 0,
@@ -299,6 +302,7 @@ describe('reviewGame with stub engine & fallback behavior', () => {
 
     expect(res1).toEqual(res2);
     expect(res1.engineName).toBe('StubEngine');
+    expect(res1.reanalyzed).toBe(0);
     expect(progressEvents.length).toBe(5);
     expect(progressEvents[0]).toEqual({ completed: 1, total: 5, ply: 0 });
     expect(progressEvents[4]).toEqual({ completed: 5, total: 5, ply: 4 });
@@ -398,13 +402,14 @@ describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () =
     const afterQxd7 = applyMove(afterBxd7, moveQxd7);
 
     const engine: AnalysisEngine = hasStockfishFiles ? new StockfishEngine() : new OwnEngine();
-    const depth = hasStockfishFiles ? 14 : 8;
+    const depth = hasStockfishFiles ? 15 : 8;
 
     try {
       const reviewNxd7 = await reviewGame([afterBxd7, afterNxd7], engine, { depth });
       expect(reviewNxd7.moves.length).toBe(1);
       expect(reviewNxd7.moves[0].san).toBe('Nxd7');
-      expect(['blunder', 'mistake']).toContain(reviewNxd7.moves[0].class);
+      expect(reviewNxd7.moves[0].class).not.toBe('best');
+      expect(['excellent', 'good']).toContain(reviewNxd7.moves[0].class);
 
       const reviewQxd7 = await reviewGame([afterBxd7, afterQxd7], engine, { depth });
       expect(reviewQxd7.moves.length).toBe(1);
@@ -422,4 +427,62 @@ describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () =
       engine.dispose();
     }
   }, 15000);
+
+  it('StockfishEngine ignores delayed info lines from a prior search and binds results to request IDs', async () => {
+    let messageHandler: ((ev: { data: string }) => void) | null = null;
+    const stubWorker: UCIWorkerLike = {
+      set onmessage(fn: ((ev: { data: string }) => void) | null) {
+        messageHandler = fn;
+      },
+      get onmessage() {
+        return messageHandler;
+      },
+      onerror: null,
+      postMessage(cmd: string) {
+        if (cmd === 'uci') {
+          setTimeout(() => {
+            messageHandler?.({ data: 'id name MockDelayedEngine' });
+            messageHandler?.({ data: 'uciok' });
+          }, 0);
+        } else if (cmd === 'isready') {
+          setTimeout(() => {
+            messageHandler?.({ data: 'readyok' });
+          }, 5);
+        } else if (cmd.startsWith('go depth 6')) {
+          setTimeout(() => {
+            messageHandler?.({ data: 'info depth 6 multipv 1 score cp 50 pv e2e4 e7e5' });
+            messageHandler?.({ data: 'bestmove e2e4' });
+            // Send delayed stale info after bestmove has been emitted
+            setTimeout(() => {
+              messageHandler?.({ data: 'info depth 14 multipv 1 score cp 999 pv h2h4' });
+            }, 1);
+          }, 2);
+        } else if (cmd.startsWith('go depth 8')) {
+          setTimeout(() => {
+            messageHandler?.({ data: 'info depth 8 multipv 1 score cp 30 pv d2d4 d7d5' });
+            messageHandler?.({ data: 'bestmove d2d4' });
+          }, 15);
+        }
+      },
+      terminate() {},
+    };
+
+    const engine = new StockfishEngine({
+      workerFactory: () => stubWorker,
+    });
+
+    try {
+      const startState = classicalRuleSet.getInitialState();
+      const res1 = await engine.analyze(startState, { depth: 6 });
+      expect(res1.score).toEqual({ type: 'cp', value: 50 });
+      expect(moveToSAN(startState, res1.bestMove!)).toBe('e4');
+
+      const res2 = await engine.analyze(startState, { depth: 8 });
+      // The delayed line with score cp 999 must NOT leak into res2
+      expect(res2.score).toEqual({ type: 'cp', value: 30 });
+      expect(moveToSAN(startState, res2.bestMove!)).toBe('d4');
+    } finally {
+      engine.dispose();
+    }
+  });
 });

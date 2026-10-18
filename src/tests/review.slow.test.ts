@@ -74,6 +74,7 @@ describe('Morphy Opera Game (1858) full review with OwnEngine and StockfishEngin
     }
     expect(operaOwn.moves[operaOwn.moves.length - 1].san).toBe('Rd8#');
     expect(operaOwn.moves[operaOwn.moves.length - 1].class).toBe('best');
+    expect(operaOwn.reanalyzed).toBe(0);
 
     console.log(
       `[opera-own] engine="${operaOwn.engineName}" | 33 plies (34 positions) reviewed in ${ownMs} ms | ` +
@@ -98,6 +99,7 @@ describe('Morphy Opera Game (1858) full review with OwnEngine and StockfishEngin
 
         expect(operaSf.engineName).toMatch(/Stockfish/i);
         expect(operaSf.moves.length).toBe(33);
+        expect(operaSf.reanalyzed).toBe(0);
         for (const m of operaSf.moves) {
           expect(VALID_CLASSES).toContain(m.class);
         }
