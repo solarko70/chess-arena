@@ -46,7 +46,9 @@ export {
   reviewGame,
   reconstructGameStates,
   DEFAULT_STOCKFISH_DEPTH,
+  DEFAULT_STOCKFISH_DEEP_DEPTH,
   DEFAULT_OWN_ENGINE_DEPTH,
+  MAX_REANALYZED_PER_GAME,
 } from './review';
 export type {
   ReviewedMove,

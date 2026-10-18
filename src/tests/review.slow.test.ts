@@ -99,16 +99,24 @@ describe('Morphy Opera Game (1858) full review with OwnEngine and StockfishEngin
 
         expect(operaSf.engineName).toMatch(/Stockfish/i);
         expect(operaSf.moves.length).toBe(33);
-        expect(operaSf.reanalyzed).toBe(0);
+        expect(operaSf.reanalyzed).toBeGreaterThan(0);
         for (const m of operaSf.moves) {
           expect(VALID_CLASSES).toContain(m.class);
         }
 
-        // 15...Nxd7 (ply 30) walks into forced mate in 2 and must be blunder or mistake
+        // 15.Bxd7+ (ply 29) was reanalyzed at higher depth and gets class 'best'
+        const move29 = operaSf.moves[28];
+        expect(move29.ply).toBe(29);
+        expect(move29.san).toBe('Bxd7+');
+        expect(move29.class).toBe('best');
+
+        // 15...Nxd7 (ply 30) walks into mate in an already lost position: bestMove is Qxd7, class is excellent/good (not blunder)
         const move30 = operaSf.moves[29];
         expect(move30.ply).toBe(30);
         expect(move30.san).toBe('Nxd7');
-        expect(['blunder', 'mistake']).toContain(move30.class);
+        expect(move30.bestSan).toBe('Qxd7');
+        expect(['excellent', 'good']).toContain(move30.class);
+        expect(move30.class).not.toBe('blunder');
 
         // Final move 17.Rd8# (ply 33) must have class 'best'
         const move33 = operaSf.moves[32];

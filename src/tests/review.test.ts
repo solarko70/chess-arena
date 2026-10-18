@@ -19,6 +19,7 @@ import {
   gameAccuracy,
   THRESHOLDS,
   classifyMove,
+  isSameMove,
   parseUCIInfoLine,
   parseUCIBestMove,
   parseUCIIdName,
@@ -35,6 +36,26 @@ import {
 } from '@/analysis';
 
 const VALID_CLASSES: MoveClass[] = ['best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder'];
+
+const MORPHY_SAN_MOVES = [
+  'e4', 'e5',
+  'Nf3', 'd6',
+  'd4', 'Bg4',
+  'dxe5', 'Bxf3',
+  'Qxf3', 'dxe5',
+  'Bc4', 'Nf6',
+  'Qb3', 'Qe7',
+  'Nc3', 'c6',
+  'Bg5', 'b5',
+  'Nxb5', 'cxb5',
+  'Bxb5+', 'Nbd7',
+  'O-O-O', 'Rd8',
+  'Rxd7', 'Rxd7',
+  'Rd1', 'Qe6',
+  'Bxd7+', 'Nxd7',
+  'Qb8+', 'Nxb8',
+  'Rd8#',
+];
 
 function buildGameFromSan(sans: readonly string[]): GameState {
   let state = classicalRuleSet.getInitialState();
@@ -485,4 +506,174 @@ describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () =
       engine.dispose();
     }
   });
+
+  it('test (a): stub engine with false eval at depth 14 (+360, Nxd7) and true eval at depth 18 (+1090, Qxd7) triggers re-analysis', async () => {
+    const state28 = buildGameFromSan(MORPHY_SAN_MOVES.slice(0, 28));
+    const state29 = applyMove(state28, sanToMove(state28, 'Bxd7+')!);
+    const state30 = applyMove(state29, sanToMove(state29, 'Nxd7')!);
+
+    const stubEngine: AnalysisEngine = {
+      name: 'StockfishStub',
+      async analyze(st: GameState, opts: EngineAnalyzeOptions): Promise<AnalysisEngineResult> {
+        // State 28 (White to move before 15.Bxd7+): White is winning +1115 cp, bestMove is Bxd7+
+        if (st.history.length === 28) {
+          const best = sanToMove(st, 'Bxd7+')!;
+          return {
+            bestMove: best,
+            score: { type: 'cp', value: 1115 },
+            depth: opts.depth ?? 14,
+            nodes: 1000,
+            timeMs: 5,
+            pv: [best],
+            lines: [{ move: best, san: 'Bxd7+', score: { type: 'cp', value: 1115 }, pv: [best], pvSan: ['Bxd7+'] }],
+            engineName: 'StockfishStub',
+          };
+        }
+        // State 29 (Black to move after 15.Bxd7+):
+        // At depth 14: false shallow horizon eval (+360 cp, bestMove Nxd7)
+        // At depth 18: true eval (+1090 cp, bestMove Qxd7)
+        if (st.history.length === 29) {
+          if ((opts.depth ?? 14) < 18) {
+            const best = sanToMove(st, 'Nxd7')!;
+            return {
+              bestMove: best,
+              score: { type: 'cp', value: 360 },
+              depth: opts.depth ?? 14,
+              nodes: 1000,
+              timeMs: 5,
+              pv: [best],
+              lines: [{ move: best, san: 'Nxd7', score: { type: 'cp', value: 360 }, pv: [best], pvSan: ['Nxd7'] }],
+              engineName: 'StockfishStub',
+            };
+          } else {
+            const best = sanToMove(st, 'Qxd7')!;
+            return {
+              bestMove: best,
+              score: { type: 'cp', value: 1090 },
+              depth: opts.depth ?? 18,
+              nodes: 5000,
+              timeMs: 15,
+              pv: [best],
+              lines: [{ move: best, san: 'Qxd7', score: { type: 'cp', value: 1090 }, pv: [best], pvSan: ['Qxd7'] }],
+              engineName: 'StockfishStub',
+            };
+          }
+        }
+        // State 30 (White to move after 15...Nxd7): White has M3
+        const best = sanToMove(st, 'Qb8+')!;
+        return {
+          bestMove: best,
+          score: { type: 'mate', value: 3 },
+          depth: opts.depth ?? 14,
+          nodes: 1000,
+          timeMs: 5,
+          pv: [best],
+          lines: [{ move: best, san: 'Qb8+', score: { type: 'mate', value: 3 }, pv: [best], pvSan: ['Qb8+'] }],
+          engineName: 'StockfishStub',
+        };
+      },
+      dispose() {},
+    };
+
+    const review = await reviewGame([state28, state29, state30], stubEngine, { depth: 14 });
+    expect(review.moves.length).toBe(2);
+    // 15.Bxd7+ gets class 'best'
+    expect(review.moves[0].san).toBe('Bxd7+');
+    expect(review.moves[0].class).toBe('best');
+    // Best move after 15.Bxd7+ is Qxd7
+    expect(review.moves[1].san).toBe('Nxd7');
+    expect(review.moves[1].bestSan).toBe('Qxd7');
+    // Reanalyzed count > 0
+    expect(review.reanalyzed).toBeGreaterThan(0);
+    expect(review.reanalyzed).toBe(1);
+    // Cascading eval: evalAfter of move 1 equals evalBefore of move 2
+    expect(review.moves[0].evalAfter).toEqual(review.moves[1].evalBefore);
+    expect(review.moves[0].evalAfter).toEqual({ type: 'cp', value: 1090 });
+  });
+
+  it('test (c): invariant: no reviewed move with class mistake or blunder has bestMove matching playedMove', async () => {
+    const startState = classicalRuleSet.getInitialState();
+    const badMove = sanToMove(startState, 'f3')!;
+    const goodMove = sanToMove(startState, 'e4')!;
+    const stateAfterBad = applyMove(startState, badMove);
+
+    // Stub engine that insists on recommending the bad move as bestMove in line 1, but has a 2nd line
+    const stubPersistentBlunder: AnalysisEngine = {
+      name: 'StubPersistentBlunder',
+      async analyze(st: GameState): Promise<AnalysisEngineResult> {
+        if (st.history.length === 0) {
+          return {
+            bestMove: badMove,
+            score: { type: 'cp', value: 50 },
+            depth: 6,
+            nodes: 100,
+            timeMs: 2,
+            pv: [badMove],
+            lines: [
+              { move: badMove, san: 'f3', score: { type: 'cp', value: 50 }, pv: [badMove], pvSan: ['f3'] },
+              { move: goodMove, san: 'e4', score: { type: 'cp', value: 45 }, pv: [goodMove], pvSan: ['e4'] },
+            ],
+            engineName: 'StubPersistentBlunder',
+          };
+        }
+        return {
+          bestMove: null,
+          score: { type: 'cp', value: -300 },
+          depth: 6,
+          nodes: 100,
+          timeMs: 2,
+          pv: [],
+          lines: [],
+          engineName: 'StubPersistentBlunder',
+        };
+      },
+      dispose() {},
+    };
+
+    const review = await reviewGame([startState, stateAfterBad], stubPersistentBlunder, {
+      depth: 6,
+      autoReanalyze: false,
+    });
+    expect(review.moves.length).toBe(1);
+    const m = review.moves[0];
+    expect(m.san).toBe('f3');
+    expect(['mistake', 'blunder']).toContain(m.class);
+    // Invariant check: playedMove and bestMove must NOT be the same
+    expect(isSameMove(m.move, m.bestMove)).toBe(false);
+    expect(m.bestSan).toBe('e4');
+  });
+
+  it('test (e): real Stockfish: 15.Bxd7+ gets best, 15...Nxd7 has bestMove Qxd7 and class excellent/good (not blunder)', async (ctx) => {
+    if (!hasStockfishFiles) {
+      ctx.skip();
+      return;
+    }
+
+    const state28 = buildGameFromSan(MORPHY_SAN_MOVES.slice(0, 28));
+    const state29 = applyMove(state28, sanToMove(state28, 'Bxd7+')!);
+    const state30 = applyMove(state29, sanToMove(state29, 'Nxd7')!);
+
+    const sf = new StockfishEngine();
+    try {
+      const review = await reviewGame([state28, state29, state30], sf, { depth: 14 });
+      expect(review.moves.length).toBe(2);
+
+      // 15.Bxd7+ gets 'best'
+      const move29 = review.moves[0];
+      expect(move29.san).toBe('Bxd7+');
+      expect(move29.class).toBe('best');
+
+      // 15...Nxd7 has bestMove 'Qxd7' and class excellent or good (not blunder)
+      const move30 = review.moves[1];
+      expect(move30.san).toBe('Nxd7');
+      expect(move30.bestSan).toBe('Qxd7');
+      expect(['excellent', 'good']).toContain(move30.class);
+      expect(move30.class).not.toBe('blunder');
+
+      // Re-analysis was triggered
+      expect(review.reanalyzed).toBeGreaterThan(0);
+    } finally {
+      sf.dispose();
+    }
+  }, 30000);
 });
