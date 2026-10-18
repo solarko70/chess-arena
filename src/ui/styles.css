@@ -18,6 +18,10 @@
   --board-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
   --border-radius: 12px;
 
+  /* Solar System center coordinates (editable in DevTools) */
+  --sun-x: 50%;
+  --sun-y: 34vh;
+
   /* Solar Background & Depth variables (editable in DevTools) */
   /* 1. Frosted glass blur behind hero menu block (default 10px) */
   --glass-blur: 10px;
@@ -30,7 +34,7 @@
 
   /* Solar Chess theme variables */
   --solar-bg-edge: #040814;
-  --solar-bg-base: radial-gradient(circle at 50% 30%, #0d1a36 0%, #080f22 55%, var(--solar-bg-edge) 100%);
+  --solar-bg-base: radial-gradient(circle at var(--sun-x) var(--sun-y), #0d1a36 0%, #080f22 55%, var(--solar-bg-edge) 100%);
   --solar-sun-core: rgba(251, 191, 36, 0.42);
   --solar-sun-mid: rgba(245, 158, 11, 0.20);
   --solar-sun-glow: rgba(217, 119, 6, 0.08);
@@ -66,7 +70,7 @@
 
   /* Solar Chess light theme variables */
   --solar-bg-edge: #eae0ca;
-  --solar-bg-base: radial-gradient(circle at 50% 30%, #fcf7ec 0%, #f5ecd8 55%, var(--solar-bg-edge) 100%);
+  --solar-bg-base: radial-gradient(circle at var(--sun-x) var(--sun-y), #fcf7ec 0%, #f5ecd8 55%, var(--solar-bg-edge) 100%);
   --solar-sun-core: rgba(245, 158, 11, 0.24);
   --solar-sun-mid: rgba(217, 119, 6, 0.12);
   --solar-sun-glow: rgba(180, 83, 9, 0.04);
@@ -99,6 +103,9 @@ body {
 
 body.home-active {
   background-color: var(--solar-bg-edge);
+  align-items: flex-start;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 #app {
@@ -1214,10 +1221,13 @@ body.home-active {
 /* Home Screen */
 .screen-home {
   position: relative;
-  min-height: 85vh;
-  justify-content: center;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 32px 16px;
+  justify-content: flex-start;
+  padding: 0 16px 40px;
   background: transparent;
   overflow: visible;
 }
@@ -1330,11 +1340,11 @@ body.home-active {
 .star-2 { animation: starTwinkle 6s ease-in-out infinite 1.5s; }
 .star-3 { animation: starTwinkle 5s ease-in-out infinite 3s; }
 
-/* 2. The Sun: soft radial amber glow behind the title */
+/* 2. The Sun: soft radial amber glow centered exactly at (--sun-x, --sun-y) */
 .solar-sun {
   position: absolute;
-  top: 30%;
-  left: 50%;
+  top: var(--sun-y);
+  left: var(--sun-x);
   transform: translate(-50%, -50%);
   width: clamp(280px, 46vmin, 580px);
   height: clamp(280px, 46vmin, 580px);
@@ -1357,11 +1367,11 @@ body.home-active {
   }
 }
 
-/* 3. Orbits & Counter-rotating chess piece silhouettes */
+/* 3. Orbits & Counter-rotating chess piece silhouettes revolving around (--sun-x, --sun-y) */
 .solar-orbits {
   position: absolute;
-  top: 30%;
-  left: 50%;
+  top: var(--sun-y);
+  left: var(--sun-x);
   transform: translate(-50%, -50%);
   width: 0;
   height: 0;
@@ -1484,47 +1494,41 @@ body.home-active {
   background-size: clamp(28px, 4vmin, 44px) clamp(28px, 4vmin, 44px);
 }
 
-/* Home Content with Frosted Glass Container */
-.home-hero {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 420px;
-  text-align: center;
-  padding: 36px 28px;
-  border-radius: 24px;
-  background: var(--hero-glass-bg);
-  border: 1px solid var(--hero-glass-border);
-  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .home-hero {
-    background: var(--hero-fallback-bg);
+/* Title & Queen: Centered exactly at the sun center (--sun-x, --sun-y) */
+@keyframes homeTitleAppear {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
 .home-title-wrapper {
-  position: relative;
+  position: absolute;
+  top: var(--sun-y);
+  left: var(--sun-x);
+  transform: translate(-50%, -50%);
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: 28px;
+  z-index: 2;
+  font-size: clamp(2.6rem, 9vmin, 7rem);
+  text-align: center;
+  white-space: nowrap;
+  animation: homeTitleAppear 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .home-title-queen {
   position: absolute;
-  top: -36px;
+  top: -0.55em;
   left: 50%;
   transform: translateX(-50%);
-  width: 52px;
-  height: 52px;
+  width: 1.2em;
+  height: 1.2em;
   z-index: 1;
   pointer-events: none;
   opacity: 0.95;
@@ -1538,15 +1542,49 @@ body.home-active {
 
 .home-title {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: 2.5rem;
+  font-size: clamp(2.6rem, 9vmin, 7rem);
   font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0;
   color: var(--text-primary);
-  text-shadow: none;
-  line-height: 1.1;
+  line-height: 1.05;
   position: relative;
   z-index: 2;
+  text-shadow: 
+    0 0 24px rgba(251, 191, 36, 0.28),
+    0 0 50px rgba(245, 158, 11, 0.16);
+}
+
+[data-theme='light'] .home-title {
+  text-shadow: 
+    0 0 20px rgba(245, 158, 11, 0.25),
+    0 0 45px rgba(217, 119, 6, 0.14);
+}
+
+/* Home Buttons Container: Placed below the title with Frosted Glass */
+.home-hero {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  margin-top: calc(var(--sun-y) + 12vh);
+  padding: 24px 20px;
+  border-radius: 24px;
+  background: var(--hero-glass-bg);
+  border: 1px solid var(--hero-glass-border);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .home-hero {
+    background: var(--hero-fallback-bg);
+  }
 }
 
 .home-menu {
@@ -1571,11 +1609,11 @@ body.home-active {
   animation: menuButtonAppear 0.4s ease-out forwards;
 }
 
-.btn-menu:nth-child(1) { animation-delay: 0.05s; }
-.btn-menu:nth-child(2) { animation-delay: 0.12s; }
-.btn-menu:nth-child(3) { animation-delay: 0.19s; }
-.btn-menu:nth-child(4) { animation-delay: 0.26s; }
-.btn-menu:nth-child(5) { animation-delay: 0.33s; }
+.btn-menu:nth-child(1) { animation-delay: 0.35s; }
+.btn-menu:nth-child(2) { animation-delay: 0.43s; }
+.btn-menu:nth-child(3) { animation-delay: 0.51s; }
+.btn-menu:nth-child(4) { animation-delay: 0.59s; }
+.btn-menu:nth-child(5) { animation-delay: 0.67s; }
 
 .btn-menu:hover {
   background: var(--bg-tertiary);
@@ -1690,11 +1728,38 @@ body.home-active {
   }
 }
 
+@media (max-height: 600px) {
+  .screen-home {
+    min-height: auto;
+    padding: 24px 16px 40px;
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+  .home-title-wrapper {
+    position: static;
+    transform: none;
+    margin: 16px auto 20px;
+    font-size: clamp(1.8rem, 6vmin, 2.8rem);
+    animation: none;
+    opacity: 1;
+  }
+  .home-title {
+    font-size: clamp(1.8rem, 6vmin, 2.8rem);
+  }
+  .home-hero {
+    position: static;
+    margin: 0 auto;
+    padding: 16px 14px;
+    max-width: 360px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .solar-sun,
   .solar-orbit,
   .solar-piece-counter,
   .solar-star,
+  .home-title-wrapper,
   .btn-menu,
   .home-toast,
   .btn-back-to-main,
@@ -1704,6 +1769,9 @@ body.home-active {
     transition: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+  .home-title-wrapper {
+    transform: translate(-50%, -50%) !important;
   }
 }
 

@@ -304,5 +304,53 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*1;/);
     expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*2;/);
   });
+
+  it('home title is outside .home-hero and hero contains exactly 5 buttons', () => {
+    const heroEl = document.querySelector('.home-hero');
+    const titleEl = document.getElementById('home-app-title');
+    expect(heroEl).not.toBeNull();
+    expect(titleEl).not.toBeNull();
+    expect(heroEl?.contains(titleEl)).toBe(false);
+
+    const buttons = heroEl?.querySelectorAll('.btn-menu');
+    expect(buttons?.length).toBe(5);
+  });
+
+  it('sun-x and sun-y variables are declared and used by sun, orbits and title', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/--sun-x:\s*50%;/);
+    expect(css).toMatch(/--sun-y:\s*34vh;/);
+
+    expect(css).toMatch(/\.solar-sun\s*\{[^}]*top:\s*var\(--sun-y\);/);
+    expect(css).toMatch(/\.solar-sun\s*\{[^}]*left:\s*var\(--sun-x\);/);
+
+    expect(css).toMatch(/\.solar-orbits\s*\{[^}]*top:\s*var\(--sun-y\);/);
+    expect(css).toMatch(/\.solar-orbits\s*\{[^}]*left:\s*var\(--sun-x\);/);
+
+    expect(css).toMatch(/\.home-title-wrapper\s*\{[^}]*top:\s*var\(--sun-y\);/);
+    expect(css).toMatch(/\.home-title-wrapper\s*\{[^}]*left:\s*var\(--sun-x\);/);
+  });
+
+  it('home title font-size uses clamp and queen icon uses em sizing with lower z-index', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/\.home-title\s*\{[^}]*font-size:\s*clamp\(2\.6rem,\s*9vmin,\s*7rem\);/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*1;/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*2;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*width:\s*1\.2em;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*height:\s*1\.2em;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*top:\s*-0\.55em;/);
+  });
+
+  it('prefers-reduced-motion disables title wrapper and button animations', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+    const reducedMotionBlock = css.split('@media (prefers-reduced-motion: reduce)')[1];
+    expect(reducedMotionBlock).toContain('animation: none !important');
+    expect(reducedMotionBlock).toContain('.home-title-wrapper');
+    expect(reducedMotionBlock).toContain('.btn-menu');
+  });
 });
 

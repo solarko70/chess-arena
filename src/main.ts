@@ -127,11 +127,11 @@ export function initApp(): void {
 
     <!-- Screen 1: Home -->
     <div class="screen screen-home" id="screen-home">
+      <div class="home-title-wrapper" id="home-title-wrapper">
+        <div class="home-title-queen" aria-hidden="true">${getPieceSvg('queen', 'white')}</div>
+        <h1 class="home-title" id="home-app-title">${APP_NAME}</h1>
+      </div>
       <div class="home-hero">
-        <div class="home-title-wrapper">
-          <div class="home-title-queen" aria-hidden="true">${getPieceSvg('queen', 'white')}</div>
-          <h1 class="home-title" id="home-app-title">${APP_NAME}</h1>
-        </div>
         <div class="home-menu">
           <button class="btn-menu" id="btn-play-local">${t('menu.playLocal')}</button>
           <button class="btn-menu" id="btn-play-bot">${t('menu.playBot')}</button>

@@ -79,3 +79,13 @@
 - [x] Mobile responsiveness: reduced orbits and stars on narrow screens ($\le 600\text{px}$) via media query.
 - [x] Crown positioning: white queen icon placed strictly behind title text (`z-index: 1` vs `2`), crown completely elevated above letters with lower body hidden behind text.
 - [x] Tests: added 5 tests in `src/tests/screens-navigation.test.ts` verifying fullscreen fixed layer, absence on game screen, CSS variables declaration, reduced motion blur preservation, and queen z-index.
+
+## Stage A1.3: Main Screen Recomposition & Layout Polishing (Completed)
+- [x] Unified solar center: declared `--sun-x: 50%` and `--sun-y: 34vh` on `:root`; centered sun glow (`.solar-sun`), orbital system (`.solar-orbits`), and title (`.home-title-wrapper`) precisely at this focal point.
+- [x] Title outside hero container: moved `.home-title-wrapper` out of `.home-hero` into `.screen-home`, styled as absolute overlay centered at (`--sun-x`, `--sun-y`) with smooth entrance animation (`homeTitleAppear`).
+- [x] Large title typography: increased size to `clamp(2.6rem, 9vmin, 7rem)` with `line-height: 1.05`, `letter-spacing: -0.03em`, and soft warm solar glow `text-shadow`.
+- [x] Queen crown proportions: scaled queen icon with relative units (`1.2em`, top `-0.55em`, `z-index: 1`), keeping crown protruding over uppercase letters.
+- [x] Frosted glass buttons block: `.home-hero` strictly contains 5 menu buttons and toast; positioned below title with `margin-top: calc(var(--sun-y) + 12vh)` with zero overlap across viewports; staggered button appearance delays (0.35s to 0.67s).
+- [x] Landscape & low-height adaptation: added `@media (max-height: 600px)` switching to static flow layout with scrollability and smaller title sizing.
+- [x] Accessibility: `prefers-reduced-motion` cleanly disables title animation and preserves center alignment.
+- [x] Tests: added 4 tests in `src/tests/screens-navigation.test.ts` covering title separation, hero 5 buttons, CSS coordinates variables, clamp/em sizing, and reduced motion.
