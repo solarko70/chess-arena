@@ -18,6 +18,7 @@ export interface AnalysisOptions {
   timeMs?: number;
   nodes?: number;
   multiPV?: number;
+  quiescence?: boolean | number;
 }
 
 export interface AnalysisLine {
@@ -99,7 +100,13 @@ export function analyzePosition(state: GameState, options: AnalysisOptions = {})
   // Keep a small reserve for converting the PV back to core moves
   const timeMs =
     options.timeMs === undefined ? undefined : Math.max(1, options.timeMs * 0.95 - (Date.now() - start));
-  const res = searchPosition(pos, { depth, timeMs, nodes: options.nodes, multiPV });
+  const res = searchPosition(pos, {
+    depth,
+    timeMs,
+    nodes: options.nodes,
+    multiPV,
+    quiescence: options.quiescence,
+  });
 
   const lines: AnalysisLine[] = [];
   for (const line of res.lines) {

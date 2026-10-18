@@ -46,6 +46,8 @@ export interface SearchLimits {
   timeMs?: number;
   nodes?: number;
   multiPV?: number;
+  /** true/undefined = full quiescence, false/0 = disabled, number = max quiescence plies */
+  quiescence?: boolean | number;
 }
 
 export interface SearchLine {
@@ -75,6 +77,7 @@ export class Searcher {
   private startTime = 0;
   private hardDeadline = Infinity;
   private nodeLimit = Infinity;
+  private maxQuiesceDepth = MAX_PLY;
   private completedDepth = 0;
 
   // Transposition table
@@ -115,6 +118,13 @@ export class Searcher {
     this.startTime = now();
     this.hardDeadline = limits.timeMs !== undefined ? this.startTime + limits.timeMs : Infinity;
     this.nodeLimit = limits.nodes ?? Infinity;
+    if (limits.quiescence === false || limits.quiescence === 0) {
+      this.maxQuiesceDepth = 0;
+    } else if (typeof limits.quiescence === 'number') {
+      this.maxQuiesceDepth = Math.max(0, limits.quiescence);
+    } else {
+      this.maxQuiesceDepth = MAX_PLY;
+    }
     this.nodes = 0;
     this.stopped = false;
     this.completedDepth = 0;
@@ -137,6 +147,18 @@ export class Searcher {
       } catch (e) {
         if (e instanceof StopSearch) {
           this.pos.rewind(rootPly);
+          if (lines.length > 0) {
+            lines.sort((a, b) => b.score - a.score);
+            const worstNew = lines[lines.length - 1].score;
+            for (const prev of completed) {
+              if (lines.length >= multiPV) break;
+              if (!lines.some((l) => l.move === prev.move)) {
+                lines.push({ move: prev.move, score: Math.min(prev.score, worstNew - 1), pv: prev.pv });
+              }
+            }
+            completed = lines;
+            this.completedDepth = depth;
+          }
           break;
         }
         throw e;
@@ -149,6 +171,7 @@ export class Searcher {
       const best = lines[0].score;
       // A forced mate within the searched horizon cannot be improved by going deeper
       if (multiPV === 1 && Math.abs(best) >= MATE_BOUND && MATE - Math.abs(best) <= depth) break;
+      if (this.nodes >= this.nodeLimit) break;
       // Soft time limit: the next iteration would most likely not finish
       if (limits.timeMs !== undefined && now() - this.startTime > limits.timeMs * 0.5) break;
     }
@@ -255,7 +278,7 @@ export class Searcher {
     }
 
     const inCheck = pos.inCheck();
-    if (inCheck) depth++; // check extension
+    if (inCheck && (this.maxQuiesceDepth > 0 || ply <= 1)) depth++; // check extension
     if (depth <= 0) return this.quiesce(alpha, beta, ply);
 
     this.nodes++;
@@ -354,14 +377,14 @@ export class Searcher {
   }
 
   /** Quiescence search: captures and (queen) promotions only. */
-  private quiesce(alpha: number, beta: number, ply: number): number {
+  private quiesce(alpha: number, beta: number, ply: number, qply = 0): number {
     const pos = this.pos;
     this.pvLen[ply] = ply;
     this.checkLimits();
     this.nodes++;
 
     const stand = evaluatePosition(pos);
-    if (ply >= MAX_PLY - 1) return stand;
+    if (qply >= this.maxQuiesceDepth || ply >= MAX_PLY - 1) return stand;
     if (stand >= beta) return stand;
     if (stand > alpha) alpha = stand;
 
@@ -381,7 +404,7 @@ export class Searcher {
         pos.unmake(m);
         continue;
       }
-      const score = -this.quiesce(-beta, -alpha, ply + 1);
+      const score = -this.quiesce(-beta, -alpha, ply + 1, qply + 1);
       pos.unmake(m);
       if (score >= beta) return score;
       if (score > alpha) alpha = score;
