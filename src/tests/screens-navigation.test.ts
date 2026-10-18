@@ -239,5 +239,70 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(reducedMotionBlock).toContain('.solar-sun');
     expect(reducedMotionBlock).toContain('.solar-orbit');
   });
+
+  it('solar background layer has position fixed, inset 0, aria-hidden and pointer-events none', () => {
+    const solarBg = document.getElementById('solar-bg');
+    expect(solarBg).not.toBeNull();
+    expect(solarBg?.getAttribute('aria-hidden')).toBe('true');
+    expect((solarBg as HTMLElement)?.style.pointerEvents).toBe('none');
+
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/\.solar-background\s*\{[^}]*position:\s*fixed;/);
+    expect(css).toMatch(/\.solar-background\s*\{[^}]*inset:\s*0;/);
+    expect(css).toMatch(/\.solar-background\s*\{[^}]*pointer-events:\s*none;/);
+  });
+
+  it('solar background is absent on game screen', () => {
+    const solarBg = document.getElementById('solar-bg');
+    expect(solarBg).not.toBeNull();
+    expect(solarBg?.style.display).not.toBe('none');
+    expect(solarBg?.classList.contains('active')).toBe(true);
+
+    // Navigate to game
+    window.location.hash = '#/game';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    expect(solarBg?.style.display).toBe('none');
+    expect(solarBg?.classList.contains('active')).toBe(false);
+
+    // Navigate back to home
+    window.location.hash = '#/';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    expect(solarBg?.style.display).toBe('block');
+    expect(solarBg?.classList.contains('active')).toBe(true);
+  });
+
+  it('css variables for glass blur, vignette strength and far blur are declared', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/--glass-blur:\s*10px;/);
+    expect(css).toMatch(/--vignette-strength:\s*0\.55;/);
+    expect(css).toMatch(/--far-blur:\s*1px;/);
+  });
+
+  it('prefers-reduced-motion disables animations while blur is preserved in styles.css', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+    const reducedMotionBlock = css.split('@media (prefers-reduced-motion: reduce)')[1];
+    expect(reducedMotionBlock).toContain('animation: none !important');
+    expect(reducedMotionBlock).not.toContain('blur(0)');
+    expect(reducedMotionBlock).not.toContain('backdrop-filter: none');
+    expect(reducedMotionBlock).not.toContain('filter: none');
+  });
+
+  it('queen icon has lower z-index than title text', () => {
+    const queenEl = document.querySelector('.home-title-queen');
+    const titleEl = document.querySelector('.home-title');
+    expect(queenEl).not.toBeNull();
+    expect(titleEl).not.toBeNull();
+
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*1;/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*2;/);
+  });
 });
 

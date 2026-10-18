@@ -69,5 +69,13 @@
 - [x] Accessibility: all background animations and transitions cleanly disabled under `prefers-reduced-motion: reduce`.
 - [x] Tests: added 4 tests in `src/tests/screens-navigation.test.ts` covering title emoji absence, `APP_NAME` equality, solar background attributes, fixed theme toggle, and reduced motion.
 
-
-
+## Stage A1.2: Fullscreen Background, Glass Blur & Vignette (Completed)
+- [x] Fullscreen background layer: moved `.solar-background` into fixed layer (`position: fixed; inset: 0; z-index: -1; pointer-events: none; aria-hidden="true"`) scaling across all viewports (mobile 390x844 to ultrawide 2560x1080+); matching body background color with seamless edges.
+- [x] Zero resource leakage: background hidden via `display: none` and all animations stopped when leaving the home screen.
+- [x] Frosted glass hero container: `.home-hero` styled with `backdrop-filter: blur(var(--glass-blur))` (default 10px), translucent theme-colored background, rounded corners (24px), and `@supports not` fallback.
+- [x] Vignette overlay: radial gradient darkening edges controlled by `var(--vignette-strength)` (0.55 dark theme, 0.25 light theme).
+- [x] Depth blur: static distant orbits and stars blurred with `filter: blur(var(--far-blur))` (default 1px); animations preserved on transform and opacity only.
+- [x] CSS variables: `--glass-blur`, `--vignette-strength`, `--far-blur` defined on `:root` with descriptive comments.
+- [x] Mobile responsiveness: reduced orbits and stars on narrow screens ($\le 600\text{px}$) via media query.
+- [x] Crown positioning: white queen icon placed strictly behind title text (`z-index: 1` vs `2`), crown completely elevated above letters with lower body hidden behind text.
+- [x] Tests: added 5 tests in `src/tests/screens-navigation.test.ts` verifying fullscreen fixed layer, absence on game screen, CSS variables declaration, reduced motion blur preservation, and queen z-index.

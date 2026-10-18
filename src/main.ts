@@ -55,62 +55,78 @@ export function initApp(): void {
       ${MOON_ICON}
     </button>
 
-    <!-- Screen 1: Home -->
-    <div class="screen screen-home" id="screen-home">
-      <!-- Solar Chess background -->
-      <div class="solar-background" aria-hidden="true" style="pointer-events: none;">
-        <svg class="solar-stars" viewBox="0 0 800 500" preserveAspectRatio="none">
-          <circle cx="75" cy="45" r="1.5" class="solar-star star-1" />
-          <circle cx="160" cy="110" r="1" class="solar-star star-2" />
-          <circle cx="280" cy="60" r="2" class="solar-star star-3" />
-          <circle cx="390" cy="120" r="1.2" class="solar-star star-1" />
-          <circle cx="510" cy="40" r="1.8" class="solar-star star-2" />
-          <circle cx="630" cy="95" r="1.2" class="solar-star star-3" />
-          <circle cx="720" cy="50" r="1.5" class="solar-star star-1" />
-          <circle cx="120" cy="180" r="1.3" class="solar-star star-3" />
-          <circle cx="670" cy="170" r="1.4" class="solar-star star-2" />
-          <circle cx="230" cy="220" r="1" class="solar-star star-1" />
-          <circle cx="580" cy="210" r="1.6" class="solar-star star-3" />
-        </svg>
+    <!-- Fullscreen Solar Chess background -->
+    <div class="solar-background active" id="solar-bg" aria-hidden="true" style="pointer-events: none;">
+      <!-- Vignette overlay -->
+      <div class="solar-vignette" aria-hidden="true"></div>
 
-        <div class="solar-sun"></div>
+      <!-- Twinkling stars -->
+      <svg class="solar-stars" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <circle cx="75" cy="45" r="1.5" class="solar-star star-1" />
+        <circle cx="160" cy="110" r="1" class="solar-star star-2" />
+        <circle cx="280" cy="60" r="2" class="solar-star star-3 star-extra" />
+        <circle cx="390" cy="120" r="1.2" class="solar-star star-1" />
+        <circle cx="510" cy="40" r="1.8" class="solar-star star-2 star-extra" />
+        <circle cx="630" cy="95" r="1.2" class="solar-star star-3" />
+        <circle cx="720" cy="50" r="1.5" class="solar-star star-1 star-extra" />
+        <circle cx="850" cy="70" r="1.3" class="solar-star star-2" />
+        <circle cx="920" cy="130" r="1.6" class="solar-star star-3 star-extra" />
+        <circle cx="80" cy="220" r="1.4" class="solar-star star-1 star-extra" />
+        <circle cx="120" cy="180" r="1.3" class="solar-star star-3" />
+        <circle cx="670" cy="170" r="1.4" class="solar-star star-2" />
+        <circle cx="820" cy="240" r="1.2" class="solar-star star-1" />
+        <circle cx="230" cy="280" r="1" class="solar-star star-1 star-extra" />
+        <circle cx="580" cy="260" r="1.6" class="solar-star star-3" />
+        <circle cx="910" cy="320" r="1.5" class="solar-star star-2 star-extra" />
+        <circle cx="150" cy="380" r="1.2" class="solar-star star-3" />
+        <circle cx="790" cy="390" r="1.4" class="solar-star star-1 star-extra" />
+        <circle cx="350" cy="420" r="1.1" class="solar-star star-2" />
+        <circle cx="620" cy="450" r="1.3" class="solar-star star-3 star-extra" />
+      </svg>
 
-        <div class="solar-orbits">
-          <div class="solar-orbit solar-orbit-1">
-            <div class="solar-piece-wrapper">
-              <div class="solar-piece-counter">
-                ${getPieceSvg('pawn', 'white')}
-              </div>
-            </div>
-          </div>
-          <div class="solar-orbit solar-orbit-2">
-            <div class="solar-piece-wrapper">
-              <div class="solar-piece-counter">
-                ${getPieceSvg('knight', 'white')}
-              </div>
-            </div>
-          </div>
-          <div class="solar-orbit solar-orbit-3">
-            <div class="solar-piece-wrapper">
-              <div class="solar-piece-counter">
-                ${getPieceSvg('bishop', 'white')}
-              </div>
-            </div>
-          </div>
-          <div class="solar-orbit solar-orbit-4">
-            <div class="solar-piece-wrapper">
-              <div class="solar-piece-counter">
-                ${getPieceSvg('rook', 'white')}
-              </div>
+      <!-- The Sun -->
+      <div class="solar-sun" aria-hidden="true"></div>
+
+      <!-- Orbits & piece silhouettes -->
+      <div class="solar-orbits" aria-hidden="true">
+        <div class="solar-orbit solar-orbit-1">
+          <div class="solar-piece-wrapper">
+            <div class="solar-piece-counter">
+              ${getPieceSvg('pawn', 'white')}
             </div>
           </div>
         </div>
-
-        <div class="solar-surface">
-          <div class="solar-surface-grid"></div>
+        <div class="solar-orbit solar-orbit-2">
+          <div class="solar-piece-wrapper">
+            <div class="solar-piece-counter">
+              ${getPieceSvg('knight', 'white')}
+            </div>
+          </div>
+        </div>
+        <div class="solar-orbit solar-orbit-3">
+          <div class="solar-piece-wrapper">
+            <div class="solar-piece-counter">
+              ${getPieceSvg('bishop', 'white')}
+            </div>
+          </div>
+        </div>
+        <div class="solar-orbit solar-orbit-4">
+          <div class="solar-piece-wrapper">
+            <div class="solar-piece-counter">
+              ${getPieceSvg('rook', 'white')}
+            </div>
+          </div>
         </div>
       </div>
 
+      <!-- Chessboard surface at bottom with perspective -->
+      <div class="solar-surface" aria-hidden="true">
+        <div class="solar-surface-grid"></div>
+      </div>
+    </div>
+
+    <!-- Screen 1: Home -->
+    <div class="screen screen-home" id="screen-home">
       <div class="home-hero">
         <div class="home-title-wrapper">
           <div class="home-title-queen" aria-hidden="true">${getPieceSvg('queen', 'white')}</div>
@@ -204,10 +220,18 @@ export function initApp(): void {
     const homeScreen = document.getElementById('screen-home');
     const gameScreen = document.getElementById('screen-game');
     const analysisScreen = document.getElementById('screen-analysis');
+    const solarBg = document.getElementById('solar-bg');
+
+    const isHome = route === 'home';
+    document.body.classList.toggle('home-active', isHome);
 
     if (homeScreen) {
-      homeScreen.style.display = route === 'home' ? 'flex' : 'none';
-      homeScreen.classList.toggle('active', route === 'home');
+      homeScreen.style.display = isHome ? 'flex' : 'none';
+      homeScreen.classList.toggle('active', isHome);
+    }
+    if (solarBg) {
+      solarBg.style.display = isHome ? 'block' : 'none';
+      solarBg.classList.toggle('active', isHome);
     }
     if (gameScreen) {
       gameScreen.style.display = route === 'game' ? 'flex' : 'none';
