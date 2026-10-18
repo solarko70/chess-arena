@@ -38,7 +38,7 @@ export class ReviewPanelUI {
       <div class="review-panel">
         <div class="review-toolbar">
           <div class="review-toolbar-left">
-            <button class="btn-action btn-review" id="btn-start-review">🔍 Разбор партии</button>
+            <button class="btn-action btn-review" id="btn-start-review">Разбор партии</button>
             <label class="review-deep-label" for="review-deep-toggle">
               <input type="checkbox" id="review-deep-toggle" />
               <span>Глубокий анализ</span>
@@ -87,7 +87,7 @@ export class ReviewPanelUI {
           </div>
 
           <div class="review-actions">
-            <button class="btn-action" id="btn-copy-reviewed-pgn">📋 Копировать PGN с оценками</button>
+            <button class="btn-action" id="btn-copy-reviewed-pgn">Копировать PGN с оценками</button>
           </div>
         </div>
       </div>

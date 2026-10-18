@@ -15,9 +15,9 @@ export class ImportExportUI {
         <textarea id="io-textarea" class="io-textarea" placeholder="Вставьте FEN или PGN сюда..."></textarea>
         <div id="io-error" class="io-error" style="display: none;"></div>
         <div class="io-buttons">
-          <button id="btn-load" class="btn-action">📥 Загрузить</button>
-          <button id="btn-copy-fen" class="btn-action">📋 Копировать FEN</button>
-          <button id="btn-copy-pgn" class="btn-action">📋 Копировать PGN</button>
+          <button id="btn-load" class="btn-action">Загрузить</button>
+          <button id="btn-copy-fen" class="btn-action">Копировать FEN</button>
+          <button id="btn-copy-pgn" class="btn-action">Копировать PGN</button>
         </div>
       </div>
     `;

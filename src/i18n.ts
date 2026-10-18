@@ -9,9 +9,9 @@ export const translations: Record<string, string> = {
   'menu.playVariants': 'Играть в вариации',
   'menu.analysis': 'Анализ',
   'common.soon': 'Скоро',
-  'common.themeToggleDark': '🌙 Тёмная тема',
-  'common.themeToggleLight': '☀️ Светлая тема',
-  'header.backToMain': '← На главный',
+  'common.themeToggleDark': 'Тёмная тема',
+  'common.themeToggleLight': 'Светлая тема',
+  'header.backToMain': 'На главный',
   'game.leaveConfirm': 'Партия будет потеряна',
 };
 

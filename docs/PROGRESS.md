@@ -61,4 +61,13 @@
 - [x] App icons: generated `public/favicon.svg` (white queen on light board square background) and raster PNGs `favicon-32x32.png` and `apple-touch-icon.png` (180x180), linked in `index.html`.
 - [x] Unit & integration tests: created `src/tests/screens-navigation.test.ts` (9 tests with titles <= 100 chars).
 
+## Stage A1.1: Main Screen Polish & Solar Chess Background (Completed)
+- [x] Clean typography: strictly `APP_NAME` ("Chess Arena") without emojis across all screens and UI buttons; removed text-shadow/fringing; clean system font stack.
+- [x] Queen silhouette: centered white queen icon behind title on `z-index: 1` peeking out above letters (`z-index: 2`).
+- [x] Solar Chess Background: pure SVG & CSS background on home screen (`aria-hidden="true"`, `pointer-events: none`, no layout shifts) with cosmic/warm gradients, radial pulsing amber sun, 4 counter-rotating piece orbits (pawn, knight, bishop, rook), twinkling star dust, and fading perspective chessboard plane.
+- [x] Fixed theme toggle: positioned at `top: 16px; right: 16px; z-index: 1000;` with crisp SVG moon/sun icons.
+- [x] Accessibility: all background animations and transitions cleanly disabled under `prefers-reduced-motion: reduce`.
+- [x] Tests: added 4 tests in `src/tests/screens-navigation.test.ts` covering title emoji absence, `APP_NAME` equality, solar background attributes, fixed theme toggle, and reduced motion.
+
+
 

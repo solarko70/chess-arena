@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { initApp, getRouter } from '@/main';
 import { globalStore } from '@/state/store';
 import { APP_NAME } from '@/config';
@@ -192,6 +194,50 @@ describe('Screens & Navigation (Stage A1)', () => {
 
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(window.location.hash).toBe('#/');
+  });
+
+  it('home screen title has no emojis and equals APP_NAME', () => {
+    const homeTitle = document.getElementById('home-app-title');
+    expect(homeTitle).not.toBeNull();
+    expect(homeTitle?.textContent?.trim()).toBe(APP_NAME);
+    expect(homeTitle?.textContent).not.toMatch(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}]/u);
+
+    const gameTitle = document.getElementById('game-app-title');
+    expect(gameTitle?.textContent?.trim()).toBe(APP_NAME);
+    expect(gameTitle?.textContent).not.toMatch(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}]/u);
+  });
+
+  it('solar background has aria-hidden true and pointer-events none', () => {
+    const solarBg = document.querySelector('.solar-background');
+    expect(solarBg).not.toBeNull();
+    expect(solarBg?.getAttribute('aria-hidden')).toBe('true');
+    expect((solarBg as HTMLElement)?.style.pointerEvents).toBe('none');
+
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/\.solar-background\s*\{[^}]*pointer-events:\s*none;/);
+  });
+
+  it('theme toggle button is fixed in top right corner of viewport', () => {
+    const themeBtn = document.getElementById('theme-btn');
+    expect(themeBtn).not.toBeNull();
+    expect(themeBtn?.classList.contains('theme-toggle-btn')).toBe(true);
+
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/\.theme-toggle-btn\s*\{[^}]*position:\s*fixed;/);
+    expect(css).toMatch(/\.theme-toggle-btn\s*\{[^}]*top:\s*16px;/);
+    expect(css).toMatch(/\.theme-toggle-btn\s*\{[^}]*right:\s*16px;/);
+  });
+
+  it('prefers-reduced-motion media query disables animations in styles.css', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+    const reducedMotionBlock = css.split('@media (prefers-reduced-motion: reduce)')[1];
+    expect(reducedMotionBlock).toContain('animation: none !important');
+    expect(reducedMotionBlock).toContain('.solar-sun');
+    expect(reducedMotionBlock).toContain('.solar-orbit');
   });
 });
 

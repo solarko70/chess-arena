@@ -10,6 +10,27 @@ import { ClockWidget } from './ui/clockwidget';
 import { ReviewPanelUI } from './ui/reviewpanel';
 import { GameOverModalUI } from './ui/gameovermodal';
 import { LEVELS, LEVEL_ORDER, type LevelId } from './ai';
+import { getPieceSvg } from './ui/pieces';
+
+const MOON_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+  </svg>
+`;
+
+const SUN_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="5"></circle>
+    <line x1="12" y1="1" x2="12" y2="3"></line>
+    <line x1="12" y1="21" x2="12" y2="23"></line>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+    <line x1="1" y1="12" x2="3" y2="12"></line>
+    <line x1="21" y1="12" x2="23" y2="12"></line>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+  </svg>
+`;
 
 let currentRouter: HashRouter | null = null;
 
@@ -29,13 +50,72 @@ export function initApp(): void {
   ).join('');
 
   app.innerHTML = `
+    <!-- Fixed Theme Toggle in top-right corner of viewport -->
+    <button class="theme-toggle-btn" id="theme-btn" aria-label="${t('common.themeToggleDark')}" title="${t('common.themeToggleDark')}">
+      ${MOON_ICON}
+    </button>
+
     <!-- Screen 1: Home -->
     <div class="screen screen-home" id="screen-home">
-      <div class="home-top-bar">
-        <button class="theme-toggle-icon-btn" id="home-theme-btn" aria-label="Переключить тему" title="Переключить тему">🌙</button>
+      <!-- Solar Chess background -->
+      <div class="solar-background" aria-hidden="true" style="pointer-events: none;">
+        <svg class="solar-stars" viewBox="0 0 800 500" preserveAspectRatio="none">
+          <circle cx="75" cy="45" r="1.5" class="solar-star star-1" />
+          <circle cx="160" cy="110" r="1" class="solar-star star-2" />
+          <circle cx="280" cy="60" r="2" class="solar-star star-3" />
+          <circle cx="390" cy="120" r="1.2" class="solar-star star-1" />
+          <circle cx="510" cy="40" r="1.8" class="solar-star star-2" />
+          <circle cx="630" cy="95" r="1.2" class="solar-star star-3" />
+          <circle cx="720" cy="50" r="1.5" class="solar-star star-1" />
+          <circle cx="120" cy="180" r="1.3" class="solar-star star-3" />
+          <circle cx="670" cy="170" r="1.4" class="solar-star star-2" />
+          <circle cx="230" cy="220" r="1" class="solar-star star-1" />
+          <circle cx="580" cy="210" r="1.6" class="solar-star star-3" />
+        </svg>
+
+        <div class="solar-sun"></div>
+
+        <div class="solar-orbits">
+          <div class="solar-orbit solar-orbit-1">
+            <div class="solar-piece-wrapper">
+              <div class="solar-piece-counter">
+                ${getPieceSvg('pawn', 'white')}
+              </div>
+            </div>
+          </div>
+          <div class="solar-orbit solar-orbit-2">
+            <div class="solar-piece-wrapper">
+              <div class="solar-piece-counter">
+                ${getPieceSvg('knight', 'white')}
+              </div>
+            </div>
+          </div>
+          <div class="solar-orbit solar-orbit-3">
+            <div class="solar-piece-wrapper">
+              <div class="solar-piece-counter">
+                ${getPieceSvg('bishop', 'white')}
+              </div>
+            </div>
+          </div>
+          <div class="solar-orbit solar-orbit-4">
+            <div class="solar-piece-wrapper">
+              <div class="solar-piece-counter">
+                ${getPieceSvg('rook', 'white')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="solar-surface">
+          <div class="solar-surface-grid"></div>
+        </div>
       </div>
+
       <div class="home-hero">
-        <h1 class="home-title" id="home-app-title">⚔️ ${APP_NAME}</h1>
+        <div class="home-title-wrapper">
+          <div class="home-title-queen" aria-hidden="true">${getPieceSvg('queen', 'white')}</div>
+          <h1 class="home-title" id="home-app-title">${APP_NAME}</h1>
+        </div>
         <div class="home-menu">
           <button class="btn-menu" id="btn-play-local">${t('menu.playLocal')}</button>
           <button class="btn-menu" id="btn-play-bot">${t('menu.playBot')}</button>
@@ -52,9 +132,8 @@ export function initApp(): void {
       <header class="chess-header">
         <button class="btn-back-to-main" id="btn-back-to-main">${t('header.backToMain')}</button>
         <div class="chess-title">
-          <span id="game-app-title">⚔️ ${APP_NAME}</span>
+          <span id="game-app-title">${APP_NAME}</span>
         </div>
-        <button class="theme-toggle-btn" id="theme-btn">🌙 Тёмная тема</button>
       </header>
 
       <div class="game-setup-panel" id="game-setup-panel">
@@ -93,10 +172,10 @@ export function initApp(): void {
       <div id="io-mount"></div>
 
       <div class="controls-bar">
-        <button class="btn-action" id="btn-new-game">🔄 Новая партия</button>
-        <button class="btn-action" id="btn-undo">↩️ Отменить ход</button>
-        <button class="btn-action" id="btn-flip">🔃 Перевернуть</button>
-        <button class="btn-action" id="btn-show-summary" style="display: none;">📊 Показать итог</button>
+        <button class="btn-action" id="btn-new-game">Новая партия</button>
+        <button class="btn-action" id="btn-undo">Отменить ход</button>
+        <button class="btn-action" id="btn-flip">Перевернуть</button>
+        <button class="btn-action" id="btn-show-summary" style="display: none;">Показать итог</button>
       </div>
     </div>
 
@@ -357,16 +436,21 @@ export function initApp(): void {
 
   let isDark = !document.documentElement.getAttribute('data-theme');
   const updateThemeUI = (): void => {
-    const gameThemeBtn = document.getElementById('theme-btn');
-    const homeThemeBtn = document.getElementById('home-theme-btn');
+    const themeBtn = document.getElementById('theme-btn');
     if (isDark) {
       document.documentElement.removeAttribute('data-theme');
-      if (gameThemeBtn) gameThemeBtn.textContent = '🌙 Тёмная тема';
-      if (homeThemeBtn) homeThemeBtn.textContent = '🌙';
+      if (themeBtn) {
+        themeBtn.innerHTML = MOON_ICON;
+        themeBtn.setAttribute('title', t('common.themeToggleDark'));
+        themeBtn.setAttribute('aria-label', t('common.themeToggleDark'));
+      }
     } else {
       document.documentElement.setAttribute('data-theme', 'light');
-      if (gameThemeBtn) gameThemeBtn.textContent = '☀️ Светлая тема';
-      if (homeThemeBtn) homeThemeBtn.textContent = '☀️';
+      if (themeBtn) {
+        themeBtn.innerHTML = SUN_ICON;
+        themeBtn.setAttribute('title', t('common.themeToggleLight'));
+        themeBtn.setAttribute('aria-label', t('common.themeToggleLight'));
+      }
     }
   };
   updateThemeUI();
@@ -377,7 +461,6 @@ export function initApp(): void {
   };
 
   document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);
-  document.getElementById('home-theme-btn')?.addEventListener('click', toggleTheme);
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
