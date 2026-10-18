@@ -1,0 +1,86 @@
+import type { GameState } from '@/core';
+import type { GameReviewResult, ReviewedMove } from './review';
+import { scoreToCp } from './winchance';
+
+export function classToNAG(moveClass: ReviewedMove['class']): string {
+  switch (moveClass) {
+    case 'blunder':
+      return '??';
+    case 'mistake':
+      return '?';
+    case 'inaccuracy':
+      return '?!';
+    default:
+      return '';
+  }
+}
+
+export function formatEvalComment(score: ReviewedMove['evalAfter']): string {
+  if (score.type === 'mate') {
+    return `{[%eval #${score.value}]}`;
+  }
+  const cp = scoreToCp(score);
+  const pawns = (cp / 100).toFixed(2);
+  return `{[%eval ${pawns}]}`;
+}
+
+export function exportReviewedPGN(
+  _state: GameState,
+  review: GameReviewResult,
+  metadata?: Record<string, string>,
+): string {
+  const headers: Record<string, string> = {
+    Event: metadata?.Event ?? 'Casual Game',
+    Site: metadata?.Site ?? 'Chess Arena',
+    Date: metadata?.Date ?? new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
+    Round: metadata?.Round ?? '1',
+    White: metadata?.White ?? 'Player 1',
+    Black: metadata?.Black ?? 'Player 2',
+    Result: metadata?.Result ?? '*',
+    WhiteAccuracy: review.accuracy.white.toFixed(1),
+    BlackAccuracy: review.accuracy.black.toFixed(1),
+    Annotator: review.engineName,
+    ...metadata,
+  };
+
+  let pgn = '';
+  for (const [key, val] of Object.entries(headers)) {
+    pgn += `[${key} "${val}"]\n`;
+  }
+  pgn += '\n';
+
+  const tokens: string[] = [];
+  for (let i = 0; i < review.moves.length; i++) {
+    const m = review.moves[i];
+    const moveNum = Math.floor(i / 2) + 1;
+    const nag = classToNAG(m.class);
+    const evalComment = formatEvalComment(m.evalAfter);
+
+    if (i % 2 === 0) {
+      tokens.push(`${moveNum}.`);
+      tokens.push(`${m.san}${nag}`);
+      tokens.push(evalComment);
+    } else {
+      tokens.push(`${moveNum}...`);
+      tokens.push(`${m.san}${nag}`);
+      tokens.push(evalComment);
+    }
+  }
+
+  tokens.push(headers['Result'] ?? '*');
+
+  const lines: string[] = [];
+  let currentLine = '';
+  for (const token of tokens) {
+    if ((currentLine + ' ' + token).trim().length > 80) {
+      lines.push(currentLine.trim());
+      currentLine = token;
+    } else {
+      currentLine = currentLine ? currentLine + ' ' + token : token;
+    }
+  }
+  if (currentLine) lines.push(currentLine.trim());
+
+  pgn += lines.join('\n') + '\n';
+  return pgn;
+}

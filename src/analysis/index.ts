@@ -59,3 +59,27 @@ export type {
   GameReviewResult,
   GameInput,
 } from './review';
+
+export {
+  runGameReview,
+} from './service';
+export type {
+  ReviewRunOptions,
+  ReviewRunResult,
+  ReviewWorkerLike,
+} from './service';
+
+export {
+  handleReviewWorkerMessage,
+} from './worker';
+export type {
+  ReviewWorkerRequest,
+  ReviewWorkerResponse,
+} from './worker';
+
+export {
+  exportReviewedPGN,
+  classToNAG,
+  formatEvalComment,
+} from './pgn-export';
+

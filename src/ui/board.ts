@@ -7,6 +7,10 @@ export class ChessBoardUI {
   private store: ChessStore;
   private boardEl: HTMLElement;
   private promoOverlayEl: HTMLElement;
+  private evalBarWrapperEl: HTMLElement;
+  private evalBarFillEl: HTMLElement;
+  private evalBarTextEl: HTMLElement;
+  private arrowLayerEl: SVGElement;
 
   // Drag state
   private isDragging = false;
@@ -18,14 +22,27 @@ export class ChessBoardUI {
     this.store = store;
 
     this.container.innerHTML = `
-      <div class="board-container">
-        <div class="chess-board"></div>
-        <div class="promo-overlay" style="display: none;"></div>
+      <div class="board-area">
+        <div class="eval-bar-wrapper" id="eval-bar-wrapper" style="display: none;">
+          <div class="eval-bar-track">
+            <div class="eval-bar-fill" id="eval-bar-fill"></div>
+            <span class="eval-bar-text" id="eval-bar-text">50%</span>
+          </div>
+        </div>
+        <div class="board-container">
+          <div class="chess-board"></div>
+          <svg class="board-arrow-layer" viewBox="0 0 800 800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;"></svg>
+          <div class="promo-overlay" style="display: none;"></div>
+        </div>
       </div>
     `;
 
     this.boardEl = this.container.querySelector('.chess-board') as HTMLElement;
     this.promoOverlayEl = this.container.querySelector('.promo-overlay') as HTMLElement;
+    this.evalBarWrapperEl = this.container.querySelector('#eval-bar-wrapper') as HTMLElement;
+    this.evalBarFillEl = this.container.querySelector('#eval-bar-fill') as HTMLElement;
+    this.evalBarTextEl = this.container.querySelector('#eval-bar-text') as HTMLElement;
+    this.arrowLayerEl = this.container.querySelector('.board-arrow-layer') as SVGElement;
 
     this.initEvents();
     this.store.subscribe(() => this.render());
@@ -121,6 +138,102 @@ export class ChessBoardUI {
       this.promoOverlayEl.style.display = 'none';
       this.promoOverlayEl.innerHTML = '';
     }
+
+    this.renderEvalBar(flipped);
+    this.renderBestMoveArrow(flipped);
+  }
+
+  private renderEvalBar(flipped: boolean): void {
+    const review = this.store.getReviewResult();
+    const isReviewActive = this.store.isReviewMode() || review !== null;
+    if (!isReviewActive || !review || !review.evalHistory || review.evalHistory.length === 0) {
+      this.evalBarWrapperEl.style.display = 'none';
+      return;
+    }
+
+    this.evalBarWrapperEl.style.display = 'flex';
+    const viewIdx = this.store.getViewIndex();
+    let ply = 0;
+    if (viewIdx === null) {
+      ply = review.evalHistory.length - 1;
+    } else if (viewIdx >= 0) {
+      ply = Math.min(viewIdx + 1, review.evalHistory.length - 1);
+    }
+
+    const evalPoint = review.evalHistory[ply];
+    if (!evalPoint) return;
+
+    const whiteChance = Math.max(0, Math.min(100, evalPoint.whiteWinChance));
+    const fillHeight = flipped ? 100 - whiteChance : whiteChance;
+    this.evalBarFillEl.style.height = `${fillHeight}%`;
+
+    if (evalPoint.score.type === 'mate') {
+      this.evalBarTextEl.textContent = 'Мат';
+    } else {
+      this.evalBarTextEl.textContent = `${Math.round(whiteChance)}%`;
+    }
+  }
+
+  private renderBestMoveArrow(flipped: boolean): void {
+    if (!this.arrowLayerEl) return;
+    this.arrowLayerEl.innerHTML = '';
+
+    const review = this.store.getReviewResult();
+    if (!review) return;
+
+    const viewIndex = this.store.getViewIndex();
+    if (viewIndex === null || viewIndex < 0 || viewIndex >= review.moves.length) {
+      return;
+    }
+
+    const reviewedMove = review.moves[viewIndex];
+    if (!reviewedMove || !reviewedMove.bestMove) return;
+
+    const { width, height } = this.store.getState().board;
+    const bestMove = reviewedMove.bestMove;
+
+    const sqW = 800 / width;
+    const sqH = 800 / height;
+
+    const fromX = bestMove.from % width;
+    const fromY = Math.floor(bestMove.from / width);
+    const toX = bestMove.to % width;
+    const toY = Math.floor(bestMove.to / width);
+
+    const fromCol = flipped ? width - 1 - fromX : fromX;
+    const fromRow = flipped ? height - 1 - fromY : fromY;
+    const toCol = flipped ? width - 1 - toX : toX;
+    const toRow = flipped ? height - 1 - toY : toY;
+
+    const x1 = fromCol * sqW + sqW / 2;
+    const y1 = fromRow * sqH + sqH / 2;
+    const x2 = toCol * sqW + sqW / 2;
+    const y2 = toRow * sqH + sqH / 2;
+
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const shorten = sqW * 0.22;
+    const endX = x2 - Math.cos(angle) * shorten;
+    const endY = y2 - Math.sin(angle) * shorten;
+
+    this.arrowLayerEl.innerHTML = `
+      <defs>
+        <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+          <polygon points="0 0, 6 3, 0 6" fill="#22c55e" />
+        </marker>
+      </defs>
+      <line
+        class="best-move-arrow-line"
+        x1="${x1}"
+        y1="${y1}"
+        x2="${endX}"
+        y2="${endY}"
+        stroke="#22c55e"
+        stroke-width="14"
+        stroke-linecap="round"
+        opacity="0.85"
+        marker-end="url(#arrowhead)"
+      />
+    `;
   }
 
   private renderPromotionModal(promo: { from: Square; to: Square }): void {

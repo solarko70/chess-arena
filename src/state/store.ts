@@ -9,6 +9,7 @@ import type {
 } from '@/core';
 import { classicalRuleSet, parseFEN, parsePGN, serializeFEN, exportPGN } from '@/core';
 import { LEVELS, LEVEL_ORDER, type LevelId, type WorkerRequest, type WorkerResponse } from '@/ai';
+import type { ReviewProgress, ReviewRunResult, ReviewWorkerLike, AnalysisEngine } from '@/analysis';
 
 export type TimeControlMode = 'none' | 'bullet-1-0' | 'blitz-3-2' | 'blitz-5-0' | 'rapid-10-0' | 'rapid-15-10';
 export type GameMode = 'pvp' | 'ai';
@@ -82,6 +83,14 @@ export class ChessStore {
   private workerFactory?: () => AIWorkerLike;
   private aiDelayTimer: ReturnType<typeof setTimeout> | null = null;
   private aiMinDelayMs: number = 0;
+  private reviewResult: ReviewRunResult | null = null;
+  private isReviewModeActive: boolean = false;
+  private isReviewing: boolean = false;
+  private reviewProgress: ReviewProgress | null = null;
+  private reviewDepth: number = 16;
+  private reviewFallbackNote: string | null = null;
+  private reviewWorkerFactory?: () => ReviewWorkerLike;
+  private reviewEngine?: AnalysisEngine;
 
   constructor(ruleSet: RuleSet = classicalRuleSet) {
     this.ruleSet = ruleSet;
@@ -169,6 +178,7 @@ export class ChessStore {
   }
 
   isPlayerTurn(): boolean {
+    if (this.isReviewModeActive || this.isReviewing) return false;
     if (this.timedOutLoser !== null) return false;
     if (this.gameMode === 'pvp') return true;
     return !this.aiThinking && this.state.turn === this.playerColor;
@@ -334,6 +344,7 @@ export class ChessStore {
   }
 
   private maybeTriggerAIMove(): void {
+    if (this.isReviewModeActive || this.isReviewing) return;
     if (this.gameMode !== 'ai') return;
     if (this.aiThinking) return;
     if (this.timedOutLoser !== null) return;
@@ -404,7 +415,7 @@ export class ChessStore {
   }
 
   public tickClock(): void {
-    if (!this.clockActive || this.clockMode === 'none') return;
+    if (!this.clockActive || this.clockMode === 'none' || this.isReviewModeActive || this.isReviewing) return;
     const now = Date.now();
     const elapsed = now - this.lastTickTime;
     if (elapsed <= 0) return;
@@ -438,7 +449,7 @@ export class ChessStore {
       return;
     }
 
-    if (this.timedOutLoser !== null) {
+    if (this.timedOutLoser !== null || this.isReviewModeActive || this.isReviewing) {
       this.clockActive = false;
       return;
     }
@@ -540,6 +551,11 @@ export class ChessStore {
     this.pendingPromotion = null;
     this.lastError = null;
     this.timedOutLoser = null;
+    this.reviewResult = null;
+    this.isReviewModeActive = false;
+    this.isReviewing = false;
+    this.reviewProgress = null;
+    this.reviewFallbackNote = null;
 
     const cfg = TIME_CONTROLS[this.clockMode];
     this.whiteMs = cfg.initialMs;
@@ -558,6 +574,7 @@ export class ChessStore {
   }
 
   selectSquare(sq: Square | null): void {
+    if (this.isReviewModeActive || this.isReviewing) return;
     if (this.isViewingHistory()) return;
     if (this.timedOutLoser !== null) return;
     if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
@@ -573,6 +590,9 @@ export class ChessStore {
   }
 
   makeMove(from: Square, to: Square, promoPiece?: PieceType): boolean {
+    if (this.isReviewModeActive || this.isReviewing) {
+      return false;
+    }
     if (this.timedOutLoser !== null) {
       return false;
     }
@@ -748,6 +768,11 @@ export class ChessStore {
       this.pendingPromotion = null;
       this.lastError = null;
       this.timedOutLoser = null;
+      this.reviewResult = null;
+      this.isReviewModeActive = false;
+      this.isReviewing = false;
+      this.reviewProgress = null;
+      this.reviewFallbackNote = null;
 
       const cfg = TIME_CONTROLS[this.clockMode];
       this.whiteMs = cfg.initialMs;
@@ -779,6 +804,7 @@ export class ChessStore {
   }
 
   getValidDestinationsFor(sq: Square): Square[] {
+    if (this.isReviewModeActive || this.isReviewing) return [];
     if (this.isViewingHistory()) return [];
     if (this.timedOutLoser !== null) return [];
     if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
@@ -796,6 +822,89 @@ export class ChessStore {
 
   coordsToSquare(x: number, y: number): Square {
     return toCoordsSquare(x, y, this.state.board.width);
+  }
+
+  // ── Review methods ─────────────────────────────────────────────────────────
+
+  getReviewResult(): ReviewRunResult | null {
+    return this.reviewResult;
+  }
+
+  setReviewResult(result: ReviewRunResult | null, fallbackNote?: string | null): void {
+    this.reviewResult = result;
+    this.reviewFallbackNote = fallbackNote ?? result?.fallbackNote ?? null;
+    this.notify();
+  }
+
+  getReviewFallbackNote(): string | null {
+    return this.reviewFallbackNote;
+  }
+
+  isReviewMode(): boolean {
+    return this.isReviewModeActive;
+  }
+
+  setReviewMode(active: boolean): void {
+    this.isReviewModeActive = active;
+    if (!active) {
+      this.syncClock();
+      if (!this.isViewingHistory()) {
+        this.maybeTriggerAIMove();
+      }
+    } else {
+      this.syncClock();
+    }
+    this.notify();
+  }
+
+  isReviewInProgress(): boolean {
+    return this.isReviewing;
+  }
+
+  setReviewInProgress(inProgress: boolean): void {
+    this.isReviewing = inProgress;
+    this.syncClock();
+    this.notify();
+  }
+
+  getReviewProgress(): ReviewProgress | null {
+    return this.reviewProgress;
+  }
+
+  setReviewProgress(progress: ReviewProgress | null): void {
+    this.reviewProgress = progress;
+    this.notify();
+  }
+
+  getReviewDepth(): number {
+    return this.reviewDepth;
+  }
+
+  setReviewDepth(depth: number): void {
+    this.reviewDepth = depth;
+    this.notify();
+  }
+
+  setReviewWorkerFactory(factory?: () => ReviewWorkerLike): void {
+    this.reviewWorkerFactory = factory;
+  }
+
+  getReviewWorkerFactory(): (() => ReviewWorkerLike) | undefined {
+    return this.reviewWorkerFactory;
+  }
+
+  setReviewEngine(engine?: AnalysisEngine): void {
+    this.reviewEngine = engine;
+  }
+
+  getReviewEngine(): AnalysisEngine | undefined {
+    return this.reviewEngine;
+  }
+
+  canReview(): boolean {
+    if (this.isReviewing) return false;
+    const isEnded = this.getGameResult().type !== 'ongoing' || this.timedOutLoser !== null;
+    return this.state.history.length >= 2 || (isEnded && this.state.history.length > 0);
   }
 }
 

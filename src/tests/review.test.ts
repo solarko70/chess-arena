@@ -159,7 +159,7 @@ describe('classifyMove boundaries & special rules', () => {
     expect(classifyMove({ winBefore: 60, winAfter: 10 }).moveClass).toBe('blunder');
   });
 
-  it('sets onlyMove flag when gap between 1st and 2nd multiPV exceeds 15 points and caps decided positions at good', () => {
+  it('sets onlyMove flag for gap > 15 points and caps decided positions at good', () => {
     expect(THRESHOLDS.onlyMoveGap).toBe(15);
     expect(classifyMove({ winBefore: 50, winAfter: 50, secondBestGap: 15.1 }).onlyMove).toBe(true);
     expect(classifyMove({ winBefore: 50, winAfter: 50, secondBestGap: 15.0 }).onlyMove).toBe(false);
@@ -169,7 +169,7 @@ describe('classifyMove boundaries & special rules', () => {
     expect(classifyMove({ winBefore: 98.5, winAfter: 91.0 }).moveClass).toBe('good');
   });
 
-  it('never classifies a move that leads to forced mate against the mover as best when a non-mating reply exists', () => {
+  it('never classifies walking into forced mate as best when non-mating move exists', () => {
     // When the position before the move was already decided (winBefore <= 3%), walking into mate cannot be 'best',
     // but the minimum class 'mistake' is NOT enforced — the move is classified normally by loss.
     const resFromDecided = classifyMove({
@@ -413,7 +413,7 @@ describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () =
     }
   }, 15000);
 
-  it('after 15.Bxd7+ in Morphy Opera Game: 15...Nxd7 is blunder/mistake and 15...Qxd7 is at least good; injected queen blunder is blunder', async () => {
+  it('Morphy 15.Bxd7+: 15...Nxd7 not blunder, 15...Qxd7 at least good, queen blunder', async () => {
     // Position after 15.Bxd7+ (ply 29) in Morphy's Opera Game:
     // Black can recapture 15...Qxd7 (staying in the game without being mated) or 15...Nxd7?? (allowing 16.Qb8+! Nxb8 17.Rd8#)
     const afterBxd7 = parseFEN('4kb1r/p2B1ppp/4qn2/4p1B1/4P3/1Q6/PPP2PPP/2KR4 b k - 0 15');
@@ -507,7 +507,7 @@ describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () =
     }
   });
 
-  it('test (a): stub engine with false eval at depth 14 (+360, Nxd7) and true eval at depth 18 (+1090, Qxd7) triggers re-analysis', async () => {
+  it('test (a): stub with false eval at d=14 and true eval at d=18 triggers re-analysis', async () => {
     const state28 = buildGameFromSan(MORPHY_SAN_MOVES.slice(0, 28));
     const state29 = applyMove(state28, sanToMove(state28, 'Bxd7+')!);
     const state30 = applyMove(state29, sanToMove(state29, 'Nxd7')!);
@@ -591,7 +591,7 @@ describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () =
     expect(review.moves[0].evalAfter).toEqual({ type: 'cp', value: 1090 });
   });
 
-  it('test (c): invariant: no reviewed move with class mistake or blunder has bestMove matching playedMove', async () => {
+  it('test (c): invariant: move with class mistake/blunder never has bestMove == playedMove', async () => {
     const startState = classicalRuleSet.getInitialState();
     const badMove = sanToMove(startState, 'f3')!;
     const goodMove = sanToMove(startState, 'e4')!;
@@ -643,7 +643,7 @@ describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () =
     expect(m.bestSan).toBe('e4');
   });
 
-  it('test (e): real Stockfish: 15.Bxd7+ gets best, 15...Nxd7 has bestMove Qxd7 and class excellent/good (not blunder)', async (ctx) => {
+  it('test (e): Stockfish: 15.Bxd7+ is best, 15...Nxd7 has bestMove Qxd7 and class good/excellent', async (ctx) => {
     if (!hasStockfishFiles) {
       ctx.skip();
       return;

@@ -299,20 +299,25 @@ export class OwnEngine implements AnalysisEngine {
  * (written by `scripts/copy-stockfish.mjs` for `stockfish-*-lite-single.js`).
  */
 async function resolveBrowserStockfishUrl(): Promise<string> {
+  const meta = import.meta as unknown as { env?: { BASE_URL?: string } };
+  const baseUrl = meta?.env?.BASE_URL || '/';
+  const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const manifestUrl = `${prefix}stockfish/manifest.json`;
+
   if (typeof fetch === 'function') {
     try {
-      const resp = await fetch('/stockfish/manifest.json', { credentials: 'same-origin' });
+      const resp = await fetch(manifestUrl, { credentials: 'same-origin' });
       if (resp.ok) {
         const data = (await resp.json()) as { js?: string };
         if (data?.js && /^stockfish-.*-lite-single\.js$/.test(data.js)) {
-          return `/stockfish/${data.js}`;
+          return `${prefix}stockfish/${data.js}`;
         }
       }
     } catch {
       // Fall through to default discovery error if manifest cannot be fetched
     }
   }
-  throw new Error('Stockfish manifest (/stockfish/manifest.json) could not be loaded');
+  throw new Error(`Stockfish manifest (${manifestUrl}) could not be loaded`);
 }
 
 /**

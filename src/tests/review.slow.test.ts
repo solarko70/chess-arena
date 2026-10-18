@@ -59,7 +59,7 @@ describe('Morphy Opera Game (1858) full review with OwnEngine and StockfishEngin
     fs.existsSync(publicDir) &&
     findStockfishLiteSingleInDir(fs.readdirSync(publicDir)) !== null;
 
-  it('reviews Morphy Opera Game with both OwnEngine (depth 6) and StockfishEngine (depth 14): every move has a class, Rd8# is best, 15...Nxd7 is blunder/mistake, and injected queen blunder is blunder', async () => {
+  it('OwnEngine: reviews Morphy game, 15...Nxd7 is mistake, queen blunder is blunder', async () => {
     const operaGame = buildGameFromSan(MORPHY_SAN_MOVES);
     const own = new OwnEngine();
 
@@ -72,6 +72,12 @@ describe('Morphy Opera Game (1858) full review with OwnEngine and StockfishEngin
     for (const m of operaOwn.moves) {
       expect(VALID_CLASSES).toContain(m.class);
     }
+    // 15...Nxd7 (ply 30) for OwnEngine is 'mistake'
+    const move30Own = operaOwn.moves[29];
+    expect(move30Own.san).toBe('Nxd7');
+    expect(move30Own.class).toBe('mistake');
+
+    // Final move 17.Rd8# is 'best'
     expect(operaOwn.moves[operaOwn.moves.length - 1].san).toBe('Rd8#');
     expect(operaOwn.moves[operaOwn.moves.length - 1].class).toBe('best');
     expect(operaOwn.reanalyzed).toBe(0);
@@ -89,59 +95,100 @@ describe('Morphy Opera Game (1858) full review with OwnEngine and StockfishEngin
     const blunderReview = await reviewGame([stateBefore8, stateAfter8], own, { depth: 6 });
     expect(blunderReview.moves[0].san).toBe('Qb6');
     expect(blunderReview.moves[0].class).toBe('blunder');
+  }, 60000);
 
-    if (hasStockfishFiles) {
-      const sf = new StockfishEngine();
-      try {
-        const sfStart = Date.now();
-        const operaSf = await reviewGame(operaGame, sf, { depth: 14 });
-        const sfMs = Date.now() - sfStart;
+  it('Stockfish default (16): Morphy review, 15...Nxd7 not blunder, Rd8# is best', async () => {
+    if (!hasStockfishFiles) return;
 
-        expect(operaSf.engineName).toMatch(/Stockfish/i);
-        expect(operaSf.moves.length).toBe(33);
-        expect(operaSf.reanalyzed).toBeGreaterThan(0);
-        for (const m of operaSf.moves) {
-          expect(VALID_CLASSES).toContain(m.class);
-        }
+    const operaGame = buildGameFromSan(MORPHY_SAN_MOVES);
+    const sf = new StockfishEngine();
+    try {
+      const sfStart = Date.now();
+      const operaSf = await reviewGame(operaGame, sf);
+      const sfMs = Date.now() - sfStart;
 
-        // 15.Bxd7+ (ply 29) was reanalyzed at higher depth and gets class 'best'
-        const move29 = operaSf.moves[28];
-        expect(move29.ply).toBe(29);
-        expect(move29.san).toBe('Bxd7+');
-        expect(move29.class).toBe('best');
-
-        // 15...Nxd7 (ply 30) walks into mate in an already lost position: bestMove is Qxd7, class is excellent/good (not blunder)
-        const move30 = operaSf.moves[29];
-        expect(move30.ply).toBe(30);
-        expect(move30.san).toBe('Nxd7');
-        expect(move30.bestSan).toBe('Qxd7');
-        expect(['excellent', 'good']).toContain(move30.class);
-        expect(move30.class).not.toBe('blunder');
-
-        // Final move 17.Rd8# (ply 33) must have class 'best'
-        const move33 = operaSf.moves[32];
-        expect(move33.ply).toBe(33);
-        expect(move33.san).toBe('Rd8#');
-        expect(move33.class).toBe('best');
-
-        console.log(
-          `[opera-sf] engine="${operaSf.engineName}" | 33 plies (34 positions) reviewed in ${sfMs} ms | ` +
-            `White acc=${operaSf.accuracy.white.toFixed(1)}%, Black acc=${operaSf.accuracy.black.toFixed(1)}%`,
-        );
-
-        for (let i = 0; i < operaOwn.moves.length; i++) {
-          const om = operaOwn.moves[i];
-          const sm = operaSf.moves[i];
-          console.log(
-            `[opera-table] ${om.ply} | ${om.san} | ` +
-              `Own: ${fmtScore(om.evalBefore)} -> ${fmtScore(om.evalAfter)} (best: ${om.bestSan ?? '-'}, class: ${om.class}) | ` +
-              `SF: ${fmtScore(sm.evalBefore)} -> ${fmtScore(sm.evalAfter)} (best: ${sm.bestSan ?? '-'}, class: ${sm.class})`,
-          );
-        }
-      } finally {
-        sf.dispose();
+      expect(operaSf.engineName).toMatch(/Stockfish/i);
+      expect(operaSf.moves.length).toBe(33);
+      for (const m of operaSf.moves) {
+        expect(VALID_CLASSES).toContain(m.class);
       }
+
+      // 15.Bxd7+ (ply 29) is 'best'
+      const move29 = operaSf.moves[28];
+      expect(move29.ply).toBe(29);
+      expect(move29.san).toBe('Bxd7+');
+      expect(move29.class).toBe('best');
+
+      // 15...Nxd7 (ply 30) for Stockfish is NOT blunder: bestMove is Qxd7, class is excellent/good
+      const move30 = operaSf.moves[29];
+      expect(move30.ply).toBe(30);
+      expect(move30.san).toBe('Nxd7');
+      expect(move30.bestSan).toBe('Qxd7');
+      expect(['excellent', 'good']).toContain(move30.class);
+      expect(move30.class).not.toBe('blunder');
+
+      // Final move 17.Rd8# (ply 33) must have class 'best'
+      const move33 = operaSf.moves[32];
+      expect(move33.ply).toBe(33);
+      expect(move33.san).toBe('Rd8#');
+      expect(move33.class).toBe('best');
+
+      console.log(
+        `[opera-sf-default-16] time=${sfMs} ms | ` +
+          `White acc=${operaSf.accuracy.white.toFixed(1)}%, Black acc=${operaSf.accuracy.black.toFixed(1)}% | ` +
+          `reanalyzed=${operaSf.reanalyzed}`,
+      );
+
+      for (let i = 0; i < operaSf.moves.length; i++) {
+        const sm = operaSf.moves[i];
+        console.log(
+          `[opera-table-sf-16] ${sm.ply} | ${sm.san} | ` +
+            `SF(16): ${fmtScore(sm.evalBefore)} -> ${fmtScore(sm.evalAfter)} (best: ${sm.bestSan ?? '-'}, class: ${sm.class})`,
+        );
+      }
+    } finally {
+      sf.dispose();
     }
-  }, 90000);
+  }, 60000);
+
+  it('Stockfish deep (20): Morphy review, 15...Nxd7 not blunder, Rd8# is best', async () => {
+    if (!hasStockfishFiles) return;
+
+    const operaGame = buildGameFromSan(MORPHY_SAN_MOVES);
+    const sf = new StockfishEngine();
+    try {
+      const deepStart = Date.now();
+      const operaSfDeep = await reviewGame(operaGame, sf, { mode: 'deep' });
+      const deepMs = Date.now() - deepStart;
+
+      console.log(
+        `[opera-sf-deep-20] time=${deepMs} ms | ` +
+          `White acc=${operaSfDeep.accuracy.white.toFixed(1)}%, Black acc=${operaSfDeep.accuracy.black.toFixed(1)}% | ` +
+          `reanalyzed=${operaSfDeep.reanalyzed}`,
+      );
+
+      expect(operaSfDeep.engineName).toMatch(/Stockfish/i);
+      expect(operaSfDeep.moves.length).toBe(33);
+      for (const m of operaSfDeep.moves) {
+        expect(VALID_CLASSES).toContain(m.class);
+      }
+
+      const move29Deep = operaSfDeep.moves[28];
+      expect(move29Deep.san).toBe('Bxd7+');
+      expect(['best', 'excellent']).toContain(move29Deep.class);
+
+      const move30Deep = operaSfDeep.moves[29];
+      expect(move30Deep.san).toBe('Nxd7');
+      expect(move30Deep.bestSan).toBe('Qxd7');
+      expect(['excellent', 'good']).toContain(move30Deep.class);
+      expect(move30Deep.class).not.toBe('blunder');
+
+      const move33Deep = operaSfDeep.moves[32];
+      expect(move33Deep.san).toBe('Rd8#');
+      expect(move33Deep.class).toBe('best');
+    } finally {
+      sf.dispose();
+    }
+  }, 300000);
 });
 

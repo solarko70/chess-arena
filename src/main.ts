@@ -4,6 +4,7 @@ import { ChessBoardUI } from './ui/board';
 import { HistoryUI } from './ui/history';
 import { ImportExportUI } from './ui/importexport';
 import { ClockWidget } from './ui/clockwidget';
+import { ReviewPanelUI } from './ui/reviewpanel';
 import { LEVELS, LEVEL_ORDER, type LevelId } from './ai';
 
 export function initApp(): void {
@@ -56,6 +57,7 @@ export function initApp(): void {
     <div id="clock-mount"></div>
     <div id="board-mount"></div>
     <div id="history-mount"></div>
+    <div id="review-mount"></div>
     <div id="io-mount"></div>
 
     <div class="controls-bar">
@@ -110,6 +112,9 @@ export function initApp(): void {
   const historyMount = document.getElementById('history-mount') as HTMLElement;
   new HistoryUI(historyMount, globalStore);
 
+  const reviewMount = document.getElementById('review-mount') as HTMLElement;
+  new ReviewPanelUI(reviewMount, globalStore);
+
   const ioMount = document.getElementById('io-mount') as HTMLElement;
   new ImportExportUI(ioMount, globalStore);
 
@@ -122,10 +127,17 @@ export function initApp(): void {
     const inCheck = store.isInCheck();
     const isWhite = state.turn === 'white';
     const isViewing = store.isViewingHistory();
+    const isReview = store.isReviewMode();
     const timedOutLoser = store.getTimedOutLoser();
     const lastError = store.getLastError();
 
-    undoBtn.disabled = (state.history.length === 0 && !store.isAIThinking()) || isViewing;
+    undoBtn.disabled = (state.history.length === 0 && !store.isAIThinking()) || isViewing || isReview || store.isReviewInProgress();
+
+    if (isReview) {
+      statusText.textContent = 'Разбор партии';
+      badgeContainer.innerHTML = '<span class="status-badge badge-turn-white">Разбор</span>';
+      return;
+    }
 
     if (lastError && lastError.startsWith('Ошибка ИИ:')) {
       statusText.textContent = lastError;

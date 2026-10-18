@@ -26,4 +26,20 @@
 - [x] Store integration (`src/state/store.ts`): automatic AI move, input lock during AI turn, auto-flip by player color, two-ply undo vs AI, search cancellation on undo/new game/FEN/PGN/timeout, clock support for AI, and worker error handling.
 - [x] Unit & integration tests with synchronous/deferred Worker stubs (`src/tests/ai-ui.test.ts`).
 
+## Stage 4c-1: Game Review Logic (Stockfish & OwnEngine) (Completed)
+- [x] Win chance formula & Lichess model (`src/analysis/winchance.ts`).
+- [x] Lichess accuracy calculation (`src/analysis/accuracy.ts`).
+- [x] Move classifier: best, excellent, good, inaccuracy, mistake, blunder, onlyMove (`src/analysis/classify.ts`).
+- [x] Analysis engines: Stockfish (UCI over Web Worker / Node) and OwnEngine (`src/analysis/engine.ts`).
+- [x] Game review pipeline `reviewGame` with horizon inconsistency re-analysis (`src/analysis/review.ts`).
+- [x] Unit & regression tests for Stockfish & Opera game (`src/tests/review.test.ts`, `src/tests/review.slow.test.ts`).
+
+## Stage 4c-2: Game Review UI (Completed)
+- [x] Review Web Worker `src/analysis/worker.ts` for running OwnEngine off the main thread.
+- [x] Service `src/analysis/service.ts` managing engine selection, fallback, progress, and cancellation.
+- [x] Review Panel UI (`src/ui/reviewpanel.ts`): "Разбор партии" button, deep mode toggle, progress bar & cancellation, engine info badge, white/black accuracies, move classification table, interactive SVG win chance graph, key moments list, and PGN export with `[%eval]` & NAGs (`src/analysis/pgn-export.ts`).
+- [x] Board & History UI enhancements (`src/ui/board.ts`, `src/ui/history.ts`, `src/ui/styles.css`): vertical evaluation bar with mate detection, move class color badges in move list, move selection detail panel, and SVG best move arrow overlay.
+- [x] Store integration (`src/state/store.ts`): clocks and move input paused during review mode, arrow key navigation enabled, automatic cleanup on exit/new game.
+- [x] Integration tests in `src/tests/review-ui.test.ts` (all 8 scenarios with titles <= 100 chars).
+
 

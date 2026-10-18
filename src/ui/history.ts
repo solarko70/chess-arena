@@ -1,10 +1,12 @@
 import { ChessStore } from '@/state/store';
 import { moveToSAN, classicalRuleSet } from '@/core';
+import { scoreToCp, MOVE_CLASS_LABELS, type MoveClass } from '@/analysis';
 
 export class HistoryUI {
   private container: HTMLElement;
   private store: ChessStore;
   private listEl!: HTMLElement;
+  private detailEl!: HTMLElement;
 
   constructor(container: HTMLElement, store: ChessStore) {
     this.container = container;
@@ -13,6 +15,7 @@ export class HistoryUI {
     this.container.innerHTML = `
       <div class="history-panel">
         <div class="history-header">История ходов</div>
+        <div class="history-detail-panel" id="history-detail-panel" style="display: none;"></div>
         <div class="history-list"></div>
         <div class="history-nav">
           <button id="hist-first" title="В начало (Home)">|&lt;</button>
@@ -24,6 +27,7 @@ export class HistoryUI {
     `;
 
     this.listEl = this.container.querySelector('.history-list') as HTMLElement;
+    this.detailEl = this.container.querySelector('#history-detail-panel') as HTMLElement;
     this.initEvents();
     this.store.subscribe(() => this.render());
   }
@@ -78,8 +82,27 @@ export class HistoryUI {
     const liveState = this.store.getLiveState();
     const history = liveState.history;
     const viewIndex = this.store.getViewIndex();
+    const review = this.store.getReviewResult();
 
     this.listEl.innerHTML = '';
+
+    // Render detail panel for selected move if review exists
+    if (viewIndex !== null && viewIndex >= 0 && review && review.moves[viewIndex]) {
+      const m = review.moves[viewIndex];
+      this.detailEl.style.display = 'flex';
+      const evalFormatted = m.evalAfter.type === 'mate'
+        ? `Мат ${m.evalAfter.value > 0 ? '+' : ''}${m.evalAfter.value}`
+        : `${(scoreToCp(m.evalAfter) / 100).toFixed(2)}`;
+      const bestSan = m.bestSan || '—';
+      this.detailEl.innerHTML = `
+        <span class="detail-badge badge-${m.class}" data-class="${m.class}">${MOVE_CLASS_LABELS[m.class]}</span>
+        <span class="detail-eval">Оценка: <strong>${evalFormatted}</strong></span>
+        <span class="detail-best">Лучший ход: <strong>${bestSan}</strong></span>
+      `;
+    } else {
+      this.detailEl.style.display = 'none';
+      this.detailEl.innerHTML = '';
+    }
 
     let replayState = classicalRuleSet.getInitialState();
     const sans: string[] = [];
@@ -103,7 +126,23 @@ export class HistoryUI {
 
       const whiteSpan = document.createElement('span');
       whiteSpan.className = 'history-move';
-      whiteSpan.textContent = whiteSan;
+      whiteSpan.dataset.moveIndex = i.toString();
+
+      const whiteSanText = document.createElement('span');
+      whiteSanText.className = 'san-text';
+      whiteSanText.textContent = whiteSan;
+      whiteSpan.appendChild(whiteSanText);
+
+      const whiteReview = review?.moves[i];
+      if (whiteReview) {
+        const badge = document.createElement('span');
+        badge.className = `move-class-badge badge-${whiteReview.class}`;
+        badge.dataset.class = whiteReview.class;
+        badge.title = MOVE_CLASS_LABELS[whiteReview.class];
+        badge.textContent = getMoveClassSymbol(whiteReview.class);
+        whiteSpan.appendChild(badge);
+      }
+
       if (viewIndex === i) whiteSpan.classList.add('active');
       whiteSpan.addEventListener('click', () => this.store.setViewIndex(i));
       row.appendChild(whiteSpan);
@@ -111,7 +150,23 @@ export class HistoryUI {
       if (blackSan) {
         const blackSpan = document.createElement('span');
         blackSpan.className = 'history-move';
-        blackSpan.textContent = blackSan;
+        blackSpan.dataset.moveIndex = (i + 1).toString();
+
+        const blackSanText = document.createElement('span');
+        blackSanText.className = 'san-text';
+        blackSanText.textContent = blackSan;
+        blackSpan.appendChild(blackSanText);
+
+        const blackReview = review?.moves[i + 1];
+        if (blackReview) {
+          const badge = document.createElement('span');
+          badge.className = `move-class-badge badge-${blackReview.class}`;
+          badge.dataset.class = blackReview.class;
+          badge.title = MOVE_CLASS_LABELS[blackReview.class];
+          badge.textContent = getMoveClassSymbol(blackReview.class);
+          blackSpan.appendChild(badge);
+        }
+
         if (viewIndex === i + 1) blackSpan.classList.add('active');
         blackSpan.addEventListener('click', () => this.store.setViewIndex(i + 1));
         row.appendChild(blackSpan);
@@ -121,5 +176,22 @@ export class HistoryUI {
     }
 
     this.listEl.scrollTop = this.listEl.scrollHeight;
+  }
+}
+
+function getMoveClassSymbol(cls: MoveClass): string {
+  switch (cls) {
+    case 'best':
+      return '★';
+    case 'excellent':
+      return '★';
+    case 'good':
+      return '✓';
+    case 'inaccuracy':
+      return '?!';
+    case 'mistake':
+      return '?';
+    case 'blunder':
+      return '??';
   }
 }
