@@ -50,5 +50,15 @@
 - [x] Accessibility: `role="dialog"`, `aria-modal="true"`, focus trap cycling with Tab/Shift+Tab, focus restore upon close, lightweight fade/pop animation disabled on `prefers-reduced-motion`.
 - [x] Build hygiene: eliminated all dynamic `node:fs` warnings in Vite client bundle via `src/analysis/node-stockfish.ts` and test setup hook (`src/tests/setup.ts`).
 - [x] Unit & integration tests in `src/tests/game-over-modal.test.ts` (11 tests with titles <= 100 chars).
+ 
+## Stage A1: Screen Skeleton & Main Screen (Completed)
+- [x] Documentation: created `docs/UX.md` and `docs/ROADMAP.md` describing UX flows, design system, and multi-stage roadmap.
+- [x] Global configuration: created `src/config.ts` with single `APP_NAME = 'Chess Arena'`; tab title and headers derive from it.
+- [x] Localization: created `src/i18n.ts` with minimal layer and `t(key)` helper for new screen text.
+- [x] Hash router: implemented `HashRouter` (`src/router.ts`) supporting `#/`, `#/game`, `#/analysis`, browser back/forward buttons, and smooth fade transitions with `prefers-reduced-motion` support.
+- [x] Main screen: created home screen with large `APP_NAME` title, staggered button appearance animations, corner theme toggle, and "Скоро" toasts for online, variants, and analysis stubs.
+- [x] Game screen navigation: added "На главный" button with confirmation check ("Партия будет потеряна") during ongoing games.
+- [x] App icons: generated `public/favicon.svg` (white queen on light board square background) and raster PNGs `favicon-32x32.png` and `apple-touch-icon.png` (180x180), linked in `index.html`.
+- [x] Unit & integration tests: created `src/tests/screens-navigation.test.ts` (9 tests with titles <= 100 chars).
 
 
