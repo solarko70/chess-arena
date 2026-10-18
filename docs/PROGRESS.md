@@ -89,3 +89,14 @@
 - [x] Landscape & low-height adaptation: added `@media (max-height: 600px)` switching to static flow layout with scrollability and smaller title sizing.
 - [x] Accessibility: `prefers-reduced-motion` cleanly disables title animation and preserves center alignment.
 - [x] Tests: added 4 tests in `src/tests/screens-navigation.test.ts` covering title separation, hero 5 buttons, CSS coordinates variables, clamp/em sizing, and reduced motion.
+
+## Stage A2: Game Setup Modals, Game Launch & Resignation (Part 1 Completed)
+- [x] Game setup modals: created `GameSetupModalUI` in `src/ui/setupmodals.ts` with accessible dialog (`role="dialog"`, `aria-modal="true"`, focus trap, default focus on start button, smooth fade-in/pop-in, Esc/backdrop/close button handling, `prefers-reduced-motion` support).
+- [x] Local game modal: time controls cards grouped by category («Без часов», «Пуля 1+0», «Блиц 3+2 и 5+0», «Рапид 10+0 и 15+10»); no level or color fields.
+- [x] Bot game modal: time controls groups plus 5 difficulty levels with strength guidelines (Novice, Amateur, Club, Expert, Master with ~Elo ratings) and player color selection (White, Random, Black).
+- [x] Storage persistence: user choices remembered across sessions via `localStorage` independently (`chess_arena_setup_local` and `chess_arena_setup_bot`).
+- [x] Game launch & route protection: starting game configures store (`setClockMode`, `newGame`), sets active game state, and transitions to `#/game`. Opening or reloading `#/game` without an active game redirects to home screen (`#/`).
+- [x] Resignation flow: added `resignedPlayer` state to `ChessStore`, with `resign(color)` stopping clocks, cancelling AI search, and triggering game over modal («Вы сдались», «Вы проиграли» vs bot; «Белые/Чёрные сдались. Победили ...» in local game).
+- [x] Resignation dialogs: temporary button «Сдаться» (`#btn-resign`) on game screen with confirmation dialog for bot games («Вы уверены, что хотите сдаться?») and side picker for local games («Кто сдаётся?»). Disabled when game is over.
+- [x] Undo restoration: clicking «Отменить ход» after resignation clears `resignedPlayer` and restores game to ongoing status.
+- [x] Tests: created `src/tests/setup-modals.test.ts` (11 new tests $\le 100$ chars) and updated 2 navigation tests in `src/tests/screens-navigation.test.ts` to test the full modal-to-game flow. All 17 test suites (172 tests) passing.

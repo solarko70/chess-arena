@@ -75,6 +75,8 @@ export class ChessStore {
   private lastTickTime: number = 0;
   private onTimeOutCallback?: (loser: Color) => void;
   private timedOutLoser: Color | null = null;
+  private resignedPlayer: Color | null = null;
+  private hasActiveGame: boolean = false;
 
   // AI state inside store
   private gameMode: GameMode = 'pvp';
@@ -465,7 +467,7 @@ export class ChessStore {
       return;
     }
 
-    if (this.timedOutLoser !== null || this.isReviewModeActive || this.isReviewing) {
+    if (this.timedOutLoser !== null || this.resignedPlayer !== null || this.isReviewModeActive || this.isReviewing) {
       this.clockActive = false;
       return;
     }
@@ -571,6 +573,8 @@ export class ChessStore {
     this.pendingPromotion = null;
     this.lastError = null;
     this.timedOutLoser = null;
+    this.resignedPlayer = null;
+    this.hasActiveGame = true;
     this.reviewResult = null;
     this.isReviewModeActive = false;
     this.isReviewing = false;
@@ -596,7 +600,7 @@ export class ChessStore {
   selectSquare(sq: Square | null): void {
     if (this.isReviewModeActive || this.isReviewing) return;
     if (this.isViewingHistory()) return;
-    if (this.timedOutLoser !== null) return;
+    if (this.timedOutLoser !== null || this.resignedPlayer !== null) return;
     if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
       return;
     }
@@ -613,7 +617,7 @@ export class ChessStore {
     if (this.isReviewModeActive || this.isReviewing) {
       return false;
     }
-    if (this.timedOutLoser !== null) {
+    if (this.timedOutLoser !== null || this.resignedPlayer !== null) {
       return false;
     }
     if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
@@ -627,7 +631,7 @@ export class ChessStore {
       this.viewIndex = null;
     }
 
-    if (this.timedOutLoser !== null || this.getGameResult().type !== 'ongoing') {
+    if (this.timedOutLoser !== null || this.resignedPlayer !== null || this.getGameResult().type !== 'ongoing') {
       return false;
     }
 
@@ -737,6 +741,7 @@ export class ChessStore {
     }
 
     this.timedOutLoser = null;
+    this.resignedPlayer = null;
     this.gameEndTime = null;
     this.gameOverModalDismissed = false;
     if (this.state.history.length === 0) {
@@ -809,6 +814,8 @@ export class ChessStore {
       this.pendingPromotion = null;
       this.lastError = null;
       this.timedOutLoser = null;
+      this.resignedPlayer = null;
+      this.hasActiveGame = true;
       this.reviewResult = null;
       this.isReviewModeActive = false;
       this.isReviewing = false;
@@ -847,7 +854,7 @@ export class ChessStore {
   getValidDestinationsFor(sq: Square): Square[] {
     if (this.isReviewModeActive || this.isReviewing) return [];
     if (this.isViewingHistory()) return [];
-    if (this.timedOutLoser !== null) return [];
+    if (this.timedOutLoser !== null || this.resignedPlayer !== null) return [];
     if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
       return [];
     }
@@ -944,12 +951,35 @@ export class ChessStore {
 
   canReview(): boolean {
     if (this.isReviewing) return false;
-    const isEnded = this.getGameResult().type !== 'ongoing' || this.timedOutLoser !== null;
+    const isEnded = this.isGameOver();
     return this.state.history.length >= 2 || (isEnded && this.state.history.length > 0);
   }
 
   isGameOver(): boolean {
-    return this.getGameResult().type !== 'ongoing' || this.timedOutLoser !== null;
+    return this.getGameResult().type !== 'ongoing' || this.timedOutLoser !== null || this.resignedPlayer !== null;
+  }
+
+  resign(color: Color): void {
+    if (this.isGameOver()) return;
+    this.resignedPlayer = color;
+    if (this.gameEndTime === null) {
+      this.gameEndTime = Date.now();
+    }
+    this.cancelAISearch();
+    this.clockActive = false;
+    this.notify();
+  }
+
+  getResignedPlayer(): Color | null {
+    return this.resignedPlayer;
+  }
+
+  isGameActive(): boolean {
+    return this.hasActiveGame;
+  }
+
+  setActiveGame(active: boolean): void {
+    this.hasActiveGame = active;
   }
 
   isGameLoadedNotation(): boolean {

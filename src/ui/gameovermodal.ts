@@ -218,6 +218,7 @@ export class GameOverModalUI {
   public renderContent(): void {
     const result = this.store.getGameResult();
     const timedOutLoser = this.store.getTimedOutLoser();
+    const resignedPlayer = this.store.getResignedPlayer();
     const gameMode = this.store.getGameMode();
 
     // 1. AI Verdict banner
@@ -228,7 +229,15 @@ export class GameOverModalUI {
       let verdict = '';
       let verdictClass = '';
 
-      if (timedOutLoser !== null) {
+      if (resignedPlayer !== null) {
+        if (resignedPlayer === playerColor) {
+          verdict = 'Вы проиграли';
+          verdictClass = 'verdict-loss';
+        } else {
+          verdict = 'Вы выиграли';
+          verdictClass = 'verdict-win';
+        }
+      } else if (timedOutLoser !== null) {
         if (timedOutLoser !== playerColor) {
           verdict = 'Вы выиграли';
           verdictClass = 'verdict-win';
@@ -259,7 +268,25 @@ export class GameOverModalUI {
     let title = '';
     let reason = '';
 
-    if (timedOutLoser !== null) {
+    if (resignedPlayer !== null) {
+      if (gameMode === 'ai') {
+        if (resignedPlayer === this.store.getPlayerColor()) {
+          title = 'Вы сдались';
+          reason = 'Вы признали поражение';
+        } else {
+          title = 'Компьютер сдался';
+          reason = 'Соперник признал поражение';
+        }
+      } else {
+        if (resignedPlayer === 'white') {
+          title = 'Белые сдались. Победили чёрные';
+          reason = 'Белые признали поражение';
+        } else {
+          title = 'Чёрные сдались. Победили белые';
+          reason = 'Чёрные признали поражение';
+        }
+      }
+    } else if (timedOutLoser !== null) {
       if (timedOutLoser === 'black') {
         title = 'Время чёрных истекло. Победили белые';
         reason = 'У чёрных закончилось время на обдумывание';

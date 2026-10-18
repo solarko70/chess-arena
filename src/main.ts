@@ -9,6 +9,7 @@ import { ImportExportUI } from './ui/importexport';
 import { ClockWidget } from './ui/clockwidget';
 import { ReviewPanelUI } from './ui/reviewpanel';
 import { GameOverModalUI } from './ui/gameovermodal';
+import { GameSetupModalUI } from './ui/setupmodals';
 import { LEVELS, LEVEL_ORDER, type LevelId } from './ai';
 import { getPieceSvg } from './ui/pieces';
 
@@ -191,7 +192,17 @@ export function initApp(): void {
         <button class="btn-action" id="btn-new-game">Новая партия</button>
         <button class="btn-action" id="btn-undo">Отменить ход</button>
         <button class="btn-action" id="btn-flip">Перевернуть</button>
+        <button class="btn-action btn-danger" id="btn-resign">Сдаться</button>
         <button class="btn-action" id="btn-show-summary" style="display: none;">Показать итог</button>
+      </div>
+
+      <!-- Resign Modal Dialog (Stage A2) -->
+      <div class="resign-modal-overlay" id="resign-modal-overlay" style="display: none;">
+        <div class="resign-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="resign-modal-title">
+          <h3 class="resign-modal-title" id="resign-modal-title">Сдаться</h3>
+          <p class="resign-modal-text" id="resign-modal-text"></p>
+          <div class="resign-modal-actions" id="resign-modal-actions"></div>
+        </div>
       </div>
     </div>
 
@@ -217,6 +228,12 @@ export function initApp(): void {
   }
 
   currentRouter = new HashRouter((route: AppRoute) => {
+    // Redirect to home if opening game screen without an active game
+    if (route === 'game' && !globalStore.isGameActive()) {
+      currentRouter?.navigate('home');
+      return;
+    }
+
     const homeScreen = document.getElementById('screen-home');
     const gameScreen = document.getElementById('screen-game');
     const analysisScreen = document.getElementById('screen-analysis');
@@ -274,17 +291,34 @@ export function initApp(): void {
   levelSelect.addEventListener('change', applySetupAndStartNewGame);
   colorSelect.addEventListener('change', applySetupAndStartNewGame);
 
-  // Home screen menu actions
-  document.getElementById('btn-play-local')?.addEventListener('click', () => {
-    modeSelect.value = 'pvp';
-    applySetupAndStartNewGame();
+  // Setup modal for local and bot games
+  const setupModalMount = document.createElement('div');
+  setupModalMount.id = 'setup-modal-mount';
+  document.body.appendChild(setupModalMount);
+
+  const setupModal = new GameSetupModalUI(setupModalMount, (params) => {
+    globalStore.setClockMode(params.timeControl);
+    modeSelect.value = params.mode;
+    if (params.level) levelSelect.value = params.level;
+    if (params.playerColor) colorSelect.value = params.playerColor;
+    syncSetupVisibility();
+    globalStore.newGame(undefined, {
+      mode: params.mode,
+      level: params.level,
+      playerColor: params.playerColor,
+    });
     currentRouter?.navigate('game');
   });
 
-  document.getElementById('btn-play-bot')?.addEventListener('click', () => {
-    modeSelect.value = 'ai';
-    applySetupAndStartNewGame();
-    currentRouter?.navigate('game');
+  // Home screen menu actions
+  const playLocalBtn = document.getElementById('btn-play-local') as HTMLButtonElement | null;
+  playLocalBtn?.addEventListener('click', () => {
+    setupModal.open('local', playLocalBtn);
+  });
+
+  const playBotBtn = document.getElementById('btn-play-bot') as HTMLButtonElement | null;
+  playBotBtn?.addEventListener('click', () => {
+    setupModal.open('bot', playBotBtn);
   });
 
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -314,12 +348,14 @@ export function initApp(): void {
     const isOngoing =
       globalStore.getGameResult().type === 'ongoing' &&
       globalStore.getLiveState().history.length > 0 &&
-      globalStore.getTimedOutLoser() === null;
+      globalStore.getTimedOutLoser() === null &&
+      globalStore.getResignedPlayer() === null;
 
     if (isOngoing) {
       const ok = window.confirm(t('game.leaveConfirm'));
       if (!ok) return;
     }
+    globalStore.setActiveGame(false);
     currentRouter?.navigate('home');
   };
 
@@ -369,6 +405,7 @@ export function initApp(): void {
   const statusText = document.getElementById('status-text') as HTMLElement;
   const badgeContainer = document.getElementById('status-badge-container') as HTMLElement;
   const undoBtn = document.getElementById('btn-undo') as HTMLButtonElement;
+  const resignBtn = document.getElementById('btn-resign') as HTMLButtonElement | null;
 
   globalStore.subscribe((state, store) => {
     const result = store.getGameResult();
@@ -377,9 +414,13 @@ export function initApp(): void {
     const isViewing = store.isViewingHistory();
     const isReview = store.isReviewMode();
     const timedOutLoser = store.getTimedOutLoser();
+    const resignedPlayer = store.getResignedPlayer();
     const lastError = store.getLastError();
 
     undoBtn.disabled = (state.history.length === 0 && !store.isAIThinking()) || isViewing || isReview || store.isReviewInProgress();
+    if (resignBtn) {
+      resignBtn.disabled = store.isGameOver() || isViewing || isReview || store.isReviewInProgress();
+    }
 
     if (showSummaryBtn) {
       const isEnded = store.isGameOver();
@@ -396,6 +437,19 @@ export function initApp(): void {
     if (lastError && lastError.startsWith('Ошибка ИИ:')) {
       statusText.textContent = lastError;
       badgeContainer.innerHTML = '<span class="status-badge badge-check">Ошибка</span>';
+      return;
+    }
+
+    if (resignedPlayer !== null) {
+      if (store.getGameMode() === 'ai') {
+        statusText.textContent = resignedPlayer === store.getPlayerColor()
+          ? 'Вы сдались. Компьютер победил.'
+          : 'Компьютер сдался. Вы победили!';
+      } else {
+        const winner = resignedPlayer === 'white' ? 'Чёрные победили' : 'Белые победили';
+        statusText.textContent = `${resignedPlayer === 'white' ? 'Белые сдались' : 'Чёрные сдались'}. ${winner}.`;
+      }
+      badgeContainer.innerHTML = '<span class="status-badge badge-over">Сдача</span>';
       return;
     }
 
@@ -442,10 +496,6 @@ export function initApp(): void {
     badgeContainer.innerHTML = badgeHtml;
   });
 
-  if (globalStore.getGameMode() === 'ai') {
-    globalStore.newGame();
-  }
-
   document.getElementById('btn-new-game')?.addEventListener('click', () => {
     applySetupAndStartNewGame();
   });
@@ -456,6 +506,74 @@ export function initApp(): void {
 
   document.getElementById('btn-flip')?.addEventListener('click', () => {
     globalStore.toggleFlip();
+  });
+
+  const resignOverlay = document.getElementById('resign-modal-overlay') as HTMLElement;
+  const resignTitle = document.getElementById('resign-modal-title') as HTMLElement;
+  const resignText = document.getElementById('resign-modal-text') as HTMLElement;
+  const resignActions = document.getElementById('resign-modal-actions') as HTMLElement;
+
+  const closeResignModal = (): void => {
+    if (resignOverlay) resignOverlay.style.display = 'none';
+    resignBtn?.focus();
+  };
+
+  resignOverlay?.addEventListener('click', (e) => {
+    if (e.target === resignOverlay) {
+      closeResignModal();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && resignOverlay && resignOverlay.style.display !== 'none') {
+      closeResignModal();
+    }
+  });
+
+  resignBtn?.addEventListener('click', () => {
+    if (globalStore.isGameOver()) return;
+    const mode = globalStore.getGameMode();
+
+    if (mode === 'ai') {
+      resignTitle.textContent = 'Сдаться';
+      resignText.textContent = 'Вы уверены, что хотите сдаться?';
+      resignActions.innerHTML = `
+        <button class="btn-action btn-danger" id="btn-confirm-resign">Сдаться</button>
+        <button class="btn-action btn-secondary" id="btn-cancel-resign">Отмена</button>
+      `;
+      resignOverlay.style.display = 'flex';
+      document.getElementById('btn-confirm-resign')?.focus();
+
+      document.getElementById('btn-confirm-resign')?.addEventListener('click', () => {
+        closeResignModal();
+        globalStore.resign(globalStore.getPlayerColor());
+      });
+      document.getElementById('btn-cancel-resign')?.addEventListener('click', () => {
+        closeResignModal();
+      });
+    } else {
+      resignTitle.textContent = 'Сдаться';
+      resignText.textContent = 'Кто сдаётся?';
+      resignActions.innerHTML = `
+        <button class="btn-action" id="btn-resign-white">Белые</button>
+        <button class="btn-action" id="btn-resign-black">Чёрные</button>
+        <button class="btn-action btn-secondary" id="btn-cancel-resign">Отмена</button>
+      `;
+      resignOverlay.style.display = 'flex';
+      document.getElementById('btn-resign-white')?.focus();
+
+      document.getElementById('btn-resign-white')?.addEventListener('click', () => {
+        closeResignModal();
+        globalStore.resign('white');
+      });
+      document.getElementById('btn-resign-black')?.addEventListener('click', () => {
+        closeResignModal();
+        globalStore.resign('black');
+      });
+      document.getElementById('btn-cancel-resign')?.addEventListener('click', () => {
+        closeResignModal();
+      });
+    }
   });
 
   let isDark = !document.documentElement.getAttribute('data-theme');

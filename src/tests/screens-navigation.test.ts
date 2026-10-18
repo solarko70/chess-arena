@@ -104,9 +104,13 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(analysisScreen?.style.display).toBe('none');
   });
 
-  it('play local button navigates to game screen with pvp mode', () => {
+  it('play local button opens setup modal and starts game in pvp mode', () => {
     const playLocalBtn = document.getElementById('btn-play-local');
     playLocalBtn?.click();
+
+    const startBtn = document.getElementById('btn-setup-start') as HTMLButtonElement | null;
+    expect(startBtn).not.toBeNull();
+    startBtn?.click();
 
     expect(window.location.hash).toBe('#/game');
     expect(globalStore.getGameMode()).toBe('pvp');
@@ -115,9 +119,13 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(gameScreen?.style.display).toBe('flex');
   });
 
-  it('play bot button navigates to game screen with ai mode', () => {
+  it('play bot button opens setup modal and starts game in ai mode', () => {
     const playBotBtn = document.getElementById('btn-play-bot');
     playBotBtn?.click();
+
+    const startBtn = document.getElementById('btn-setup-start') as HTMLButtonElement | null;
+    expect(startBtn).not.toBeNull();
+    startBtn?.click();
 
     expect(window.location.hash).toBe('#/game');
     expect(globalStore.getGameMode()).toBe('ai');

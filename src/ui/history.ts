@@ -54,7 +54,7 @@ export class HistoryUI {
     });
 
     window.addEventListener('keydown', (e) => {
-      if (['input', 'textarea'].includes((e.target as HTMLElement).tagName.toLowerCase())) return;
+      if (['input', 'textarea'].includes((e.target as HTMLElement)?.tagName?.toLowerCase())) return;
       const historyLen = this.store.getLiveState().history.length;
       if (historyLen === 0) return;
 
