@@ -100,3 +100,17 @@
 - [x] Resignation dialogs: temporary button «Сдаться» (`#btn-resign`) on game screen with confirmation dialog for bot games («Вы уверены, что хотите сдаться?») and side picker for local games («Кто сдаётся?»). Disabled when game is over.
 - [x] Undo restoration: clicking «Отменить ход» after resignation clears `resignedPlayer` and restores game to ongoing status.
 - [x] Tests: created `src/tests/setup-modals.test.ts` (11 new tests $\le 100$ chars) and updated 2 navigation tests in `src/tests/screens-navigation.test.ts` to test the full modal-to-game flow. All 17 test suites (172 tests) passing.
+
+## Stage A2b: New Game Screen Layout & Review Overlay (Completed)
+- [x] Bot level descriptions without Elo: updated `BOT_LEVELS` in `src/ui/setupmodals.ts` to concise descriptions («часто ошибается», «ошибается реже», «играет уверенно», «играет сильно», «полная сила движка») and removed `.setup-level-elo` badges.
+- [x] Chess.com-style two-column game screen (`#/game` in `src/main.ts`, `src/ui/styles.css`):
+  - Left column: top opponent bar (`#player-bar-top`), large square board (`clamp(320px, min(calc(100vh - 164px), calc(100vw - 436px)), 840px)`), bottom player bar (`#player-bar-bottom`).
+  - Player bars display color indicator and side label («Компьютер: <уровень>» / «Вы» in AI mode; «Белые» / «Чёрные» in local mode) on the left and clock timer on the right; flipping the board swaps top and bottom bars along with their clocks.
+  - Clocks hidden in `'none'` mode and visible in timed modes with tenths of a second and `.low-time` highlight below 10s.
+  - Right column (`340–400px`): header with status and icon button «Перевернуть доску» (`#btn-flip`, shortcut key `F`), 2-column move list with click-to-jump and auto-scroll, navigation buttons (`|<`, `←`, `→`, `>|`), and action buttons «Отменить ход», «Сдаться», and «Показать итог».
+  - Clean game topbar: compact «← На главный» button on the left, no app title or emojis, solid theme background.
+- [x] Mobile adaptation ($\le 800\text{px}$): single-column layout with full-width board (`calc(100vw - 24px)`), opponent/player bars above and below, compact horizontal scrollable move ribbon, and action buttons row without horizontal overflow.
+- [x] Removed legacy elements from `#/game`: mode/level/color/clock dropdowns, FEN/PGN textarea & copy/load buttons (`ImportExportUI` preserved in codebase for Stage A4 `#/analysis`), inline review start button & deep toggle, and live-game evaluation bar (`#eval-bar-wrapper` only shown in review mode).
+- [x] Post-game summary modal & review overlay: renamed `#btn-modal-new-game` to «Играть снова» (navigates to `#/`); clicking «Разбор партии» (`#btn-modal-review`) opens fullscreen `#review-overlay` hosting the board (with eval bar and best-move arrow), move history, and `ReviewPanelUI`; closing overlay via `✕` (`#btn-close-review-overlay`) or `Escape` restores the summary modal.
+- [x] Tests: added `src/tests/game-screen-a2b.test.ts` (7 tests) and updated 6 existing assertions in `screens-navigation.test.ts`, `setup-modals.test.ts`, and `review-ui.test.ts`.
+

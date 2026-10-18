@@ -78,7 +78,7 @@ export class GameOverModalUI {
 
             <div class="game-over-actions">
               <button class="btn-action btn-modal-primary" id="btn-modal-review">Разбор партии</button>
-              <button class="btn-action btn-modal-secondary" id="btn-modal-new-game">Новая партия</button>
+              <button class="btn-action btn-modal-secondary" id="btn-modal-new-game">Играть снова</button>
             </div>
           </div>
         </div>

@@ -145,7 +145,7 @@ export class ChessBoardUI {
 
   private renderEvalBar(flipped: boolean): void {
     const review = this.store.getReviewResult();
-    const isReviewActive = this.store.isReviewMode() || review !== null;
+    const isReviewActive = this.store.isReviewMode();
     if (!isReviewActive || !review || !review.evalHistory || review.evalHistory.length === 0) {
       this.evalBarWrapperEl.style.display = 'none';
       return;

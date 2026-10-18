@@ -56,16 +56,15 @@ export const TIME_GROUPS: TimeGroup[] = [
 export interface BotLevelOption {
   id: LevelId;
   name: string;
-  elo: string;
   desc: string;
 }
 
 export const BOT_LEVELS: BotLevelOption[] = [
-  { id: 'novice', name: 'Новичок', elo: '~700 Elo', desc: 'Случайные ошибки, для начинающих' },
-  { id: 'amateur', name: 'Любитель', elo: '~1100 Elo', desc: 'Базовая тактика, редкие зевки' },
-  { id: 'club', name: 'Клубный', elo: '~1500 Elo', desc: 'Тактическое зрение, средний уровень' },
-  { id: 'expert', name: 'Эксперт', elo: '~1900 Elo', desc: 'Глубокий расчёт и дебют' },
-  { id: 'master', name: 'Мастер', elo: '~2400+ Elo', desc: 'Максимальная глубина расчёта' },
+  { id: 'novice', name: 'Новичок', desc: 'часто ошибается' },
+  { id: 'amateur', name: 'Любитель', desc: 'ошибается реже' },
+  { id: 'club', name: 'Клубный', desc: 'играет уверенно' },
+  { id: 'expert', name: 'Эксперт', desc: 'играет сильно' },
+  { id: 'master', name: 'Мастер', desc: 'полная сила движка' },
 ];
 
 export interface LocalSetupState {
@@ -363,7 +362,6 @@ export class GameSetupModalUI {
           <button type="button" class="setup-level-card ${isSelected ? 'selected' : ''}" data-level-id="${lvl.id}">
             <div class="setup-level-header">
               <span class="setup-level-name">${lvl.name}</span>
-              <span class="setup-level-elo">${lvl.elo}</span>
             </div>
             <span class="setup-level-desc">${lvl.desc}</span>
           </button>

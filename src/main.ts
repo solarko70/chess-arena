@@ -2,16 +2,38 @@ import './ui/styles.css';
 import { APP_NAME } from './config';
 import { t } from './i18n';
 import { HashRouter, type AppRoute } from './router';
-import { globalStore, type GameMode, type PlayerColorChoice } from './state/store';
+import { globalStore, type ChessStore } from './state/store';
 import { ChessBoardUI } from './ui/board';
 import { HistoryUI } from './ui/history';
-import { ImportExportUI } from './ui/importexport';
-import { ClockWidget } from './ui/clockwidget';
 import { ReviewPanelUI } from './ui/reviewpanel';
 import { GameOverModalUI } from './ui/gameovermodal';
 import { GameSetupModalUI } from './ui/setupmodals';
-import { LEVELS, LEVEL_ORDER, type LevelId } from './ai';
+import { LEVELS } from './ai';
 import { getPieceSvg } from './ui/pieces';
+import type { Color } from './core';
+
+function formatClockMs(ms: number): { text: string; isLow: boolean } {
+  if (ms <= 0) return { text: '00:00.0', isLow: true };
+  const isLow = ms < 10000;
+  const totalSec = ms / 1000;
+  if (isLow) {
+    const sec = Math.floor(totalSec);
+    const tenths = Math.floor((ms % 1000) / 100);
+    const min = Math.floor(sec / 60);
+    const s = sec % 60;
+    return {
+      text: `${min > 0 ? min + ':' : ''}${s.toString().padStart(2, '0')}.${tenths}`,
+      isLow: true,
+    };
+  }
+  const totalSecCeil = Math.ceil(totalSec);
+  const min = Math.floor(totalSecCeil / 60);
+  const sec = totalSecCeil % 60;
+  return {
+    text: `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`,
+    isLow: false,
+  };
+}
 
 const MOON_ICON = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -33,22 +55,54 @@ const SUN_ICON = `
   </svg>
 `;
 
+const FLIP_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="17 1 21 5 17 9"></polyline>
+    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+    <polyline points="7 23 3 19 7 15"></polyline>
+    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+  </svg>
+`;
+
 let currentRouter: HashRouter | null = null;
+let clockIntervalId: ReturnType<typeof setInterval> | null = null;
+let keydownCleanup: (() => void) | null = null;
 
 export function getRouter(): HashRouter | null {
   return currentRouter;
+}
+
+function getSideLabel(store: ChessStore, sideColor: Color): string {
+  if (store.getGameMode() === 'ai') {
+    const playerColor = store.getPlayerColor();
+    if (sideColor === playerColor) {
+      return 'Вы';
+    }
+    const levelName = LEVELS[store.getAILevel()]?.name ?? 'Бот';
+    return `Компьютер: ${levelName}`;
+  }
+  return sideColor === 'white' ? 'Белые' : 'Чёрные';
 }
 
 export function initApp(): void {
   const app = document.getElementById('app');
   if (!app) return;
 
+  if (clockIntervalId !== null) {
+    clearInterval(clockIntervalId);
+    clockIntervalId = null;
+  }
+  if (keydownCleanup) {
+    keydownCleanup();
+    keydownCleanup = null;
+  }
+
+  // Remove old modals mounted on document.body on re-init
+  document.getElementById('setup-modal-mount')?.remove();
+  document.getElementById('game-over-modal-mount')?.remove();
+
   document.title = APP_NAME;
   globalStore.loadSettingsFromStorage();
-
-  const levelOptionsHtml = LEVEL_ORDER.map(
-    (id) => `<option value="${id}">${LEVELS[id].name}</option>`,
-  ).join('');
 
   app.innerHTML = `
     <!-- Fixed Theme Toggle in top-right corner of viewport -->
@@ -146,54 +200,67 @@ export function initApp(): void {
 
     <!-- Screen 2: Game -->
     <div class="screen screen-game" id="screen-game" style="display: none;">
-      <header class="chess-header">
-        <button class="btn-back-to-main" id="btn-back-to-main">${t('header.backToMain')}</button>
-        <div class="chess-title">
-          <span id="game-app-title">${APP_NAME}</span>
-        </div>
+      <header class="game-topbar">
+        <button class="btn-back-to-main" id="btn-back-to-main" aria-label="На главный">← На главный</button>
       </header>
 
-      <div class="game-setup-panel" id="game-setup-panel">
-        <div class="setup-field">
-          <label for="game-mode-select">Режим:</label>
-          <select id="game-mode-select" class="clock-select">
-            <option value="pvp">Двое на одном экране</option>
-            <option value="ai">Против компьютера</option>
-          </select>
+      <div class="game-layout" id="game-layout">
+        <!-- Left column: Top player bar, Board, Bottom player bar -->
+        <div class="game-board-col" id="game-board-col">
+          <div class="player-bar player-bar-top" id="player-bar-top" data-side="black">
+            <div class="player-info">
+              <span class="player-color-indicator black" id="player-indicator-top"></span>
+              <span class="player-name" id="player-name-top">Чёрные</span>
+            </div>
+            <div class="player-clock clock-time" id="player-clock-top" style="display: none;">10:00</div>
+          </div>
+
+          <div id="board-mount" class="game-board-mount"></div>
+
+          <div class="player-bar player-bar-bottom" id="player-bar-bottom" data-side="white">
+            <div class="player-info">
+              <span class="player-color-indicator white" id="player-indicator-bottom"></span>
+              <span class="player-name" id="player-name-bottom">Белые</span>
+            </div>
+            <div class="player-clock clock-time" id="player-clock-bottom" style="display: none;">10:00</div>
+          </div>
         </div>
-        <div class="setup-field" id="ai-level-field">
-          <label for="ai-level-select">Уровень:</label>
-          <select id="ai-level-select" class="clock-select">
-            ${levelOptionsHtml}
-          </select>
-        </div>
-        <div class="setup-field" id="player-color-field">
-          <label for="player-color-select">Цвет:</label>
-          <select id="player-color-select" class="clock-select">
-            <option value="white">Белые</option>
-            <option value="black">Чёрные</option>
-            <option value="random">Случайно</option>
-          </select>
-        </div>
+
+        <!-- Right column: Side panel -->
+        <aside class="game-side-panel" id="game-side-panel">
+          <div class="side-panel-header">
+            <div class="status-info">
+              <div class="status-text" id="status-text">Ход белых</div>
+              <div id="status-badge-container"></div>
+            </div>
+            <button class="btn-icon-flip" id="btn-flip" title="Перевернуть доску (F)" aria-label="Перевернуть доску">
+              ${FLIP_ICON}
+            </button>
+          </div>
+
+          <div id="history-mount" class="game-history-mount"></div>
+
+          <div class="side-panel-actions">
+            <button class="btn-action" id="btn-undo">Отменить ход</button>
+            <button class="btn-action btn-danger" id="btn-resign">Сдаться</button>
+            <button class="btn-action" id="btn-show-summary" style="display: none;">Показать итог</button>
+          </div>
+        </aside>
       </div>
 
-      <div class="status-bar">
-        <div class="status-text" id="status-text">Ход белых</div>
-        <div id="status-badge-container"></div>
-      </div>
-
-      <div id="clock-mount"></div>
-      <div id="board-mount"></div>
-      <div id="history-mount"></div>
-      <div id="review-mount"></div>
-      <div id="io-mount"></div>
-
-      <div class="controls-bar">
-        <button class="btn-action" id="btn-new-game">Новая партия</button>
-        <button class="btn-action" id="btn-undo">Отменить ход</button>
-        <button class="btn-action" id="btn-flip">Перевернуть</button>
-        <button class="btn-action btn-danger" id="btn-resign">Сдаться</button>
-        <button class="btn-action" id="btn-show-summary" style="display: none;">Показать итог</button>
+      <!-- Temporary Review Overlay (Stage A2b) -->
+      <div class="review-overlay" id="review-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Разбор партии">
+        <div class="review-overlay-header">
+          <h2 class="review-overlay-title">Разбор партии</h2>
+          <button class="review-overlay-close" id="btn-close-review-overlay" aria-label="Закрыть разбор">✕</button>
+        </div>
+        <div class="review-overlay-body">
+          <div class="review-overlay-board-col" id="review-overlay-board-slot"></div>
+          <div class="review-overlay-side-col">
+            <div id="review-overlay-history-slot" class="review-overlay-history-slot"></div>
+            <div id="review-mount" class="review-overlay-panel-slot"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Resign Modal Dialog (Stage A2) -->
@@ -241,6 +308,7 @@ export function initApp(): void {
 
     const isHome = route === 'home';
     document.body.classList.toggle('home-active', isHome);
+    document.body.classList.toggle('game-active', route === 'game');
 
     if (homeScreen) {
       homeScreen.style.display = isHome ? 'flex' : 'none';
@@ -261,36 +329,6 @@ export function initApp(): void {
   });
   currentRouter.init();
 
-  const modeSelect = document.getElementById('game-mode-select') as HTMLSelectElement;
-  const levelSelect = document.getElementById('ai-level-select') as HTMLSelectElement;
-  const colorSelect = document.getElementById('player-color-select') as HTMLSelectElement;
-  const aiLevelField = document.getElementById('ai-level-field') as HTMLElement;
-  const playerColorField = document.getElementById('player-color-field') as HTMLElement;
-
-  modeSelect.value = globalStore.getGameMode();
-  levelSelect.value = globalStore.getAILevel();
-  colorSelect.value = globalStore.getPlayerColorChoice();
-
-  const syncSetupVisibility = (): void => {
-    const isAI = modeSelect.value === 'ai';
-    aiLevelField.style.display = isAI ? 'flex' : 'none';
-    playerColorField.style.display = isAI ? 'flex' : 'none';
-  };
-  syncSetupVisibility();
-
-  const applySetupAndStartNewGame = (): void => {
-    syncSetupVisibility();
-    globalStore.newGame(undefined, {
-      mode: modeSelect.value as GameMode,
-      level: levelSelect.value as LevelId,
-      playerColor: colorSelect.value as PlayerColorChoice,
-    });
-  };
-
-  modeSelect.addEventListener('change', applySetupAndStartNewGame);
-  levelSelect.addEventListener('change', applySetupAndStartNewGame);
-  colorSelect.addEventListener('change', applySetupAndStartNewGame);
-
   // Setup modal for local and bot games
   const setupModalMount = document.createElement('div');
   setupModalMount.id = 'setup-modal-mount';
@@ -298,10 +336,6 @@ export function initApp(): void {
 
   const setupModal = new GameSetupModalUI(setupModalMount, (params) => {
     globalStore.setClockMode(params.timeControl);
-    modeSelect.value = params.mode;
-    if (params.level) levelSelect.value = params.level;
-    if (params.playerColor) colorSelect.value = params.playerColor;
-    syncSetupVisibility();
     globalStore.newGame(undefined, {
       mode: params.mode,
       level: params.level,
@@ -343,6 +377,52 @@ export function initApp(): void {
     showToast(t('common.soon'));
   });
 
+  // Mount Board, History, and Review Panel
+  const boardMount = document.getElementById('board-mount') as HTMLElement;
+  new ChessBoardUI(boardMount, globalStore);
+
+  const historyMount = document.getElementById('history-mount') as HTMLElement;
+  new HistoryUI(historyMount, globalStore);
+
+  const reviewMount = document.getElementById('review-mount') as HTMLElement;
+  const reviewPanel = new ReviewPanelUI(reviewMount, globalStore);
+
+  // Review Overlay open/close logic
+  const reviewOverlay = document.getElementById('review-overlay') as HTMLElement;
+  const reviewBoardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement;
+  const reviewHistorySlot = document.getElementById('review-overlay-history-slot') as HTMLElement;
+  const gameBoardCol = document.getElementById('game-board-col') as HTMLElement;
+  const playerBarBottom = document.getElementById('player-bar-bottom') as HTMLElement;
+  const gameSidePanel = document.getElementById('game-side-panel') as HTMLElement;
+  const sidePanelActions = gameSidePanel.querySelector('.side-panel-actions') as HTMLElement;
+  let isReviewOverlayOpen = false;
+
+  const openReviewOverlay = (): void => {
+    if (isReviewOverlayOpen) return;
+    isReviewOverlayOpen = true;
+    reviewBoardSlot.appendChild(boardMount);
+    reviewHistorySlot.appendChild(historyMount);
+    reviewOverlay.style.display = 'flex';
+    void reviewPanel.startReview();
+  };
+
+  const closeReviewOverlay = (returnToSummary = true): void => {
+    if (!isReviewOverlayOpen) return;
+    isReviewOverlayOpen = false;
+    reviewPanel.cancelReview();
+    globalStore.setReviewMode(false);
+    gameBoardCol.insertBefore(boardMount, playerBarBottom);
+    gameSidePanel.insertBefore(historyMount, sidePanelActions);
+    reviewOverlay.style.display = 'none';
+    if (returnToSummary && globalStore.isGameOver()) {
+      gameOverModal.show();
+    }
+  };
+
+  document.getElementById('btn-close-review-overlay')?.addEventListener('click', () => {
+    closeReviewOverlay(true);
+  });
+
   // Back to main actions
   const handleBackToMain = (): void => {
     const isOngoing =
@@ -355,6 +435,10 @@ export function initApp(): void {
       const ok = window.confirm(t('game.leaveConfirm'));
       if (!ok) return;
     }
+    if (isReviewOverlayOpen) {
+      closeReviewOverlay(false);
+    }
+    gameOverModal.hide(true);
     globalStore.setActiveGame(false);
     currentRouter?.navigate('home');
   };
@@ -364,36 +448,20 @@ export function initApp(): void {
     currentRouter?.navigate('home');
   });
 
-  const clockMount = document.getElementById('clock-mount') as HTMLElement;
-  new ClockWidget(clockMount, globalStore, (loser) => {
-    const statusText = document.getElementById('status-text') as HTMLElement;
-    const badgeContainer = document.getElementById('status-badge-container') as HTMLElement;
-    const winner = loser === 'white' ? 'Чёрные победили' : 'Белые победили';
-    statusText.textContent = `Время истекло! ${winner} по времени.`;
-    badgeContainer.innerHTML = '<span class="status-badge badge-over">Время истекло</span>';
-  });
-
-  const boardMount = document.getElementById('board-mount') as HTMLElement;
-  new ChessBoardUI(boardMount, globalStore);
-
-  const historyMount = document.getElementById('history-mount') as HTMLElement;
-  new HistoryUI(historyMount, globalStore);
-
-  const reviewMount = document.getElementById('review-mount') as HTMLElement;
-  new ReviewPanelUI(reviewMount, globalStore);
-
-  const ioMount = document.getElementById('io-mount') as HTMLElement;
-  new ImportExportUI(ioMount, globalStore);
-
+  // Post-Game Summary Modal
   const modalMount = document.createElement('div');
   modalMount.id = 'game-over-modal-mount';
   document.body.appendChild(modalMount);
   const gameOverModal = new GameOverModalUI(modalMount, globalStore, {
     onStartReview: () => {
-      (document.getElementById('btn-start-review') as HTMLButtonElement | null)?.click();
+      openReviewOverlay();
     },
     onNewGame: () => {
-      applySetupAndStartNewGame();
+      if (isReviewOverlayOpen) {
+        closeReviewOverlay(false);
+      }
+      globalStore.setActiveGame(false);
+      currentRouter?.navigate('home');
     },
   });
 
@@ -402,12 +470,74 @@ export function initApp(): void {
     gameOverModal.show();
   });
 
+  // Player bars & Clocks rendering
+  const playerBarTop = document.getElementById('player-bar-top') as HTMLElement;
+  const playerIndicatorTop = document.getElementById('player-indicator-top') as HTMLElement;
+  const playerNameTop = document.getElementById('player-name-top') as HTMLElement;
+  const playerClockTop = document.getElementById('player-clock-top') as HTMLElement;
+
+  const playerIndicatorBottom = document.getElementById('player-indicator-bottom') as HTMLElement;
+  const playerNameBottom = document.getElementById('player-name-bottom') as HTMLElement;
+  const playerClockBottom = document.getElementById('player-clock-bottom') as HTMLElement;
+
+  const updatePlayerBars = (): void => {
+    const flipped = globalStore.isFlipped();
+    const topColor: Color = flipped ? 'white' : 'black';
+    const bottomColor: Color = flipped ? 'black' : 'white';
+
+    playerBarTop.dataset.side = topColor;
+    playerBarBottom.dataset.side = bottomColor;
+
+    playerIndicatorTop.className = `player-color-indicator ${topColor}`;
+    playerIndicatorBottom.className = `player-color-indicator ${bottomColor}`;
+
+    playerNameTop.textContent = getSideLabel(globalStore, topColor);
+    playerNameBottom.textContent = getSideLabel(globalStore, bottomColor);
+
+    const clockMode = globalStore.getClockMode();
+    if (clockMode === 'none') {
+      playerClockTop.style.display = 'none';
+      playerClockBottom.style.display = 'none';
+    } else {
+      playerClockTop.style.display = 'inline-flex';
+      playerClockBottom.style.display = 'inline-flex';
+
+      const wMs = globalStore.getTime('white');
+      const bMs = globalStore.getTime('black');
+      const topMs = topColor === 'white' ? wMs : bMs;
+      const bottomMs = bottomColor === 'white' ? wMs : bMs;
+
+      const topRes = formatClockMs(topMs);
+      const bottomRes = formatClockMs(bottomMs);
+
+      playerClockTop.textContent = topRes.text;
+      playerClockBottom.textContent = bottomRes.text;
+
+      const turn = globalStore.getLiveState().turn;
+      const isActiveClock = globalStore.isClockActive() && !globalStore.isGameOver();
+
+      playerClockTop.classList.toggle('low-time', topRes.isLow);
+      playerClockBottom.classList.toggle('low-time', bottomRes.isLow);
+      playerClockTop.classList.toggle('active-clock', isActiveClock && turn === topColor);
+      playerClockBottom.classList.toggle('active-clock', isActiveClock && turn === bottomColor);
+    }
+  };
+
+  clockIntervalId = setInterval(() => {
+    if (globalStore.isClockActive()) {
+      globalStore.tickClock();
+      updatePlayerBars();
+    }
+  }, 100);
+
   const statusText = document.getElementById('status-text') as HTMLElement;
   const badgeContainer = document.getElementById('status-badge-container') as HTMLElement;
   const undoBtn = document.getElementById('btn-undo') as HTMLButtonElement;
   const resignBtn = document.getElementById('btn-resign') as HTMLButtonElement | null;
 
   globalStore.subscribe((state, store) => {
+    updatePlayerBars();
+
     const result = store.getGameResult();
     const inCheck = store.isInCheck();
     const isWhite = state.turn === 'white';
@@ -496,10 +626,6 @@ export function initApp(): void {
     badgeContainer.innerHTML = badgeHtml;
   });
 
-  document.getElementById('btn-new-game')?.addEventListener('click', () => {
-    applySetupAndStartNewGame();
-  });
-
   document.getElementById('btn-undo')?.addEventListener('click', () => {
     globalStore.undo();
   });
@@ -524,11 +650,34 @@ export function initApp(): void {
     }
   });
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && resignOverlay && resignOverlay.style.display !== 'none') {
-      closeResignModal();
+  const handleGlobalKeydown = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      if (resignOverlay && resignOverlay.style.display !== 'none') {
+        closeResignModal();
+        return;
+      }
+      if (isReviewOverlayOpen) {
+        closeReviewOverlay(true);
+        return;
+      }
     }
-  });
+
+    // F key shortcut to flip the board on the game screen
+    const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+    const isFKey = e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А';
+    if (isFKey && currentRouter?.getRoute() === 'game') {
+      e.preventDefault();
+      globalStore.toggleFlip();
+    }
+  };
+
+  document.addEventListener('keydown', handleGlobalKeydown);
+  keydownCleanup = () => {
+    document.removeEventListener('keydown', handleGlobalKeydown);
+  };
 
   resignBtn?.addEventListener('click', () => {
     if (globalStore.isGameOver()) return;

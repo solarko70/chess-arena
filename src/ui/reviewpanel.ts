@@ -13,10 +13,7 @@ export class ReviewPanelUI {
   private abortController: AbortController | null = null;
 
   // DOM elements
-  private startBtn!: HTMLButtonElement;
-  private closeBtn!: HTMLButtonElement;
   private cancelBtn!: HTMLButtonElement;
-  private deepCheckbox!: HTMLInputElement;
   private progressSection!: HTMLElement;
   private progressBar!: HTMLProgressElement;
   private progressText!: HTMLElement;
@@ -36,17 +33,6 @@ export class ReviewPanelUI {
 
     this.container.innerHTML = `
       <div class="review-panel">
-        <div class="review-toolbar">
-          <div class="review-toolbar-left">
-            <button class="btn-action btn-review" id="btn-start-review">Разбор партии</button>
-            <label class="review-deep-label" for="review-deep-toggle">
-              <input type="checkbox" id="review-deep-toggle" />
-              <span>Глубокий анализ</span>
-            </label>
-          </div>
-          <button class="btn-action btn-close-review" id="btn-close-review" style="display: none;">✕ Закрыть разбор</button>
-        </div>
-
         <div class="review-progress-section" id="review-progress-section" style="display: none;">
           <div class="review-progress-header">
             <span class="review-progress-text" id="review-progress-text">Проанализировано 0 из 0 позиций (0%)</span>
@@ -93,10 +79,7 @@ export class ReviewPanelUI {
       </div>
     `;
 
-    this.startBtn = this.container.querySelector('#btn-start-review') as HTMLButtonElement;
-    this.closeBtn = this.container.querySelector('#btn-close-review') as HTMLButtonElement;
     this.cancelBtn = this.container.querySelector('#btn-cancel-review') as HTMLButtonElement;
-    this.deepCheckbox = this.container.querySelector('#review-deep-toggle') as HTMLInputElement;
     this.progressSection = this.container.querySelector('#review-progress-section') as HTMLElement;
     this.progressBar = this.container.querySelector('#review-progress-bar') as HTMLProgressElement;
     this.progressText = this.container.querySelector('#review-progress-text') as HTMLElement;
@@ -115,20 +98,8 @@ export class ReviewPanelUI {
   }
 
   private initEvents(): void {
-    this.startBtn.addEventListener('click', () => {
-      void this.startReview();
-    });
-
     this.cancelBtn.addEventListener('click', () => {
       this.cancelReview();
-    });
-
-    this.closeBtn.addEventListener('click', () => {
-      this.store.setReviewMode(false);
-    });
-
-    this.deepCheckbox.addEventListener('change', () => {
-      this.store.setReviewDepth(this.deepCheckbox.checked ? 20 : 16);
     });
 
     this.copyPgnBtn.addEventListener('click', () => {
@@ -143,7 +114,7 @@ export class ReviewPanelUI {
     this.store.setReviewInProgress(true);
     this.store.setReviewMode(true);
 
-    const isDeep = this.deepCheckbox.checked || this.store.getReviewDepth() === 20;
+    const isDeep = this.store.getReviewDepth() === 20;
     const historyLen = this.store.getLiveState().history.length;
     this.store.setReviewProgress({ completed: 0, total: historyLen + 1, ply: 0 });
 
@@ -206,19 +177,11 @@ export class ReviewPanelUI {
   }
 
   private render(): void {
-    const canReview = this.store.canReview();
     const isReviewing = this.store.isReviewInProgress();
     const isReviewMode = this.store.isReviewMode();
     const reviewResult = this.store.getReviewResult();
     const progress = this.store.getReviewProgress();
     const fallbackNote = this.store.getReviewFallbackNote() || reviewResult?.fallbackNote;
-
-    this.startBtn.disabled = !canReview || isReviewing;
-    this.deepCheckbox.disabled = isReviewing;
-    this.deepCheckbox.checked = this.store.getReviewDepth() === 20;
-
-    // Close button visibility
-    this.closeBtn.style.display = isReviewMode ? 'inline-block' : 'none';
 
     // Progress section
     if (isReviewing && progress) {

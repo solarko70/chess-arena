@@ -131,10 +131,8 @@ describe('Game Review UI Integration Tests', () => {
   });
 
   it('Кнопка разбора партии становится доступной после мата', () => {
-    const reviewBtn = document.getElementById('btn-start-review') as HTMLButtonElement;
-    expect(reviewBtn).toBeTruthy();
     // At initial position (0 moves), review is not available
-    expect(reviewBtn.disabled).toBe(true);
+    expect(globalStore.canReview()).toBe(false);
 
     // Play Fool's mate: 1. f3 e5 2. g4 Qh4#
     // Square indexes in classical 8x8: sq = y * 8 + x (where y=0 is rank 8, y=7 is rank 1)
@@ -154,7 +152,10 @@ describe('Game Review UI Integration Tests', () => {
 
     expect(globalStore.getGameResult().type).toBe('checkmate');
     expect(globalStore.canReview()).toBe(true);
-    expect(reviewBtn.disabled).toBe(false);
+
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    expect(modalReviewBtn).toBeTruthy();
+    expect(modalReviewBtn.disabled).toBe(false);
   });
 
   it('Индикатор прогресса разбора корректно доходит до 100%', async () => {
@@ -194,8 +195,7 @@ describe('Game Review UI Integration Tests', () => {
     };
     globalStore.setReviewEngine(mockEngine);
 
-    const reviewBtn = document.getElementById('btn-start-review') as HTMLButtonElement;
-    expect(reviewBtn.disabled).toBe(false);
+    expect(globalStore.canReview()).toBe(true);
 
     // Simulate progress updates
     globalStore.setReviewInProgress(true);
@@ -325,14 +325,48 @@ describe('Game Review UI Integration Tests', () => {
   });
 
   it('Закрытие панели разбора восстанавливает обычный режим игры', () => {
-    globalStore.setReviewMode(true);
-    expect(globalStore.isReviewMode()).toBe(true);
+    globalStore.setReviewEngine({
+      name: 'StubEngine',
+      analyze: async () => ({
+        engineName: 'StubEngine',
+        bestMove: null,
+        score: { type: 'cp', value: 0 },
+        depth: 1,
+        nodes: 1,
+        timeMs: 1,
+        pv: [],
+        lines: [],
+      }),
+      dispose: () => {},
+    });
 
-    const closeBtn = document.getElementById('btn-close-review') as HTMLButtonElement;
-    expect(closeBtn.style.display).not.toBe('none');
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    // Open review overlay via summary modal button
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    modalReviewBtn.click();
+
+    expect(globalStore.isReviewMode()).toBe(true);
+    const reviewOverlay = document.getElementById('review-overlay') as HTMLElement;
+    expect(reviewOverlay.style.display).toBe('flex');
+
+    const closeBtn = document.getElementById('btn-close-review-overlay') as HTMLButtonElement;
     closeBtn.click();
 
     expect(globalStore.isReviewMode()).toBe(false);
+    expect(reviewOverlay.style.display).toBe('none');
     const resultsSection = document.getElementById('review-results-section') as HTMLElement;
     expect(resultsSection.style.display).toBe('none');
   });

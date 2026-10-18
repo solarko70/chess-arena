@@ -41,7 +41,7 @@ describe('Screens & Navigation (Stage A1)', () => {
     const gameTitle = document.getElementById('game-app-title');
 
     expect(homeTitle?.textContent).toContain(APP_NAME);
-    expect(gameTitle?.textContent).toContain(APP_NAME);
+    expect(gameTitle).toBeNull();
   });
 
   it('stub menu buttons show soon toast message without navigating', () => {
@@ -211,8 +211,9 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(homeTitle?.textContent).not.toMatch(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}]/u);
 
     const gameTitle = document.getElementById('game-app-title');
-    expect(gameTitle?.textContent?.trim()).toBe(APP_NAME);
-    expect(gameTitle?.textContent).not.toMatch(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}]/u);
+    expect(gameTitle).toBeNull();
+    const gameTopbar = document.querySelector('.game-topbar');
+    expect(gameTopbar?.textContent).not.toMatch(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}]/u);
   });
 
   it('solar background has aria-hidden true and pointer-events none', () => {
