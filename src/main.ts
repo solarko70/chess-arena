@@ -546,16 +546,20 @@ export function initApp(): void {
     const timedOutLoser = store.getTimedOutLoser();
     const resignedPlayer = store.getResignedPlayer();
     const lastError = store.getLastError();
+    const canUndo = store.canUndo();
+    undoBtn.disabled = !canUndo;
+    if (store.isGameOver()) {
+      undoBtn.title = 'Партия окончена';
+    } else {
+      undoBtn.removeAttribute('title');
+    }
 
-    undoBtn.disabled = (state.history.length === 0 && !store.isAIThinking()) || isViewing || isReview || store.isReviewInProgress();
     if (resignBtn) {
       resignBtn.disabled = store.isGameOver() || isViewing || isReview || store.isReviewInProgress();
     }
 
     if (showSummaryBtn) {
-      const isEnded = store.isGameOver();
-      const canShowSummary = isEnded && !isViewing && !isReview && !store.isReviewInProgress() && !gameOverModal.isOpen();
-      showSummaryBtn.style.display = canShowSummary ? 'inline-flex' : 'none';
+      showSummaryBtn.style.display = store.isGameOver() ? 'inline-flex' : 'none';
     }
 
     if (isReview) {
@@ -627,7 +631,9 @@ export function initApp(): void {
   });
 
   document.getElementById('btn-undo')?.addEventListener('click', () => {
-    globalStore.undo();
+    if (globalStore.canUndo()) {
+      globalStore.undo();
+    }
   });
 
   document.getElementById('btn-flip')?.addEventListener('click', () => {
@@ -662,11 +668,23 @@ export function initApp(): void {
       }
     }
 
-    // F key shortcut to flip the board on the game screen
     const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    // Ctrl+Z or Cmd+Z shortcut to undo move on game screen
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'я' || e.key === 'Я') && !e.shiftKey) {
+      if (currentRouter?.getRoute() === 'game') {
+        e.preventDefault();
+        if (globalStore.canUndo()) {
+          globalStore.undo();
+        }
+      }
+      return;
+    }
+
     if (e.ctrlKey || e.altKey || e.metaKey) return;
 
+    // F key shortcut to flip the board on the game screen
     const isFKey = e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А';
     if (isFKey && currentRouter?.getRoute() === 'game') {
       e.preventDefault();

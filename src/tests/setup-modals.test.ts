@@ -246,7 +246,7 @@ describe('Game Setup Modals & Resignation (Stage A2)', () => {
     expect(titleEl?.textContent).toBe('Белые сдались. Победили чёрные');
   });
 
-  it('undo after resignation restores game to ongoing and re-enables resign button', () => {
+  it('undo is forbidden after resignation and undo button is disabled', () => {
     globalStore.newGame(undefined, { mode: 'pvp' });
     window.location.hash = '#/game';
     window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -258,16 +258,20 @@ describe('Game Setup Modals & Resignation (Stage A2)', () => {
     globalStore.resign('white');
     expect(globalStore.isGameOver()).toBe(true);
     expect(globalStore.getResignedPlayer()).toBe('white');
+    expect(globalStore.canUndo()).toBe(false);
 
     const resignBtn = document.getElementById('btn-resign') as HTMLButtonElement;
     expect(resignBtn.disabled).toBe(true);
 
     const undoBtn = document.getElementById('btn-undo') as HTMLButtonElement;
-    undoBtn.click();
+    expect(undoBtn.disabled).toBe(true);
+    expect(undoBtn.title).toBe('Партия окончена');
 
-    expect(globalStore.getResignedPlayer()).toBeNull();
-    expect(globalStore.isGameOver()).toBe(false);
-    expect(resignBtn.disabled).toBe(false);
+    undoBtn.click();
+    expect(globalStore.getResignedPlayer()).toBe('white');
+    expect(globalStore.isGameOver()).toBe(true);
+    expect(resignBtn.disabled).toBe(true);
+    expect(undoBtn.disabled).toBe(true);
   });
 
   it('resign button is disabled when game is over', () => {

@@ -63,7 +63,7 @@ describe('Chess Clock Integration & Navigation Tests', () => {
     expect(store.getTime('black')).toBe(startBlackTime - 4000);
   });
 
-  it('undoing from checkmate resumes clock', () => {
+  it('undo is forbidden after checkmate and clock stays stopped', () => {
     const pgn = `
 [Event "Scholar's Mate"]
 [Site "Chess Arena"]
@@ -79,11 +79,14 @@ describe('Chess Clock Integration & Navigation Tests', () => {
     store.setClockMode('blitz-3-2');
 
     expect(store.getGameResult().type).toBe('checkmate');
+    expect(store.isGameOver()).toBe(true);
+    expect(store.canUndo()).toBe(false);
     expect(store.isClockActive()).toBe(false);
 
-    store.undo();
-    expect(store.getGameResult().type).toBe('ongoing');
-    expect(store.isClockActive()).toBe(true);
+    const undone = store.undo();
+    expect(undone).toBe(false);
+    expect(store.getGameResult().type).toBe('checkmate');
+    expect(store.isClockActive()).toBe(false);
   });
 
   it('time freezes after checkmate and viewing history after mate does not start clock', () => {

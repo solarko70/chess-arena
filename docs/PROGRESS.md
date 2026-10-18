@@ -112,5 +112,9 @@
 - [x] Mobile adaptation ($\le 800\text{px}$): single-column layout with full-width board (`calc(100vw - 24px)`), opponent/player bars above and below, compact horizontal scrollable move ribbon, and action buttons row without horizontal overflow.
 - [x] Removed legacy elements from `#/game`: mode/level/color/clock dropdowns, FEN/PGN textarea & copy/load buttons (`ImportExportUI` preserved in codebase for Stage A4 `#/analysis`), inline review start button & deep toggle, and live-game evaluation bar (`#eval-bar-wrapper` only shown in review mode).
 - [x] Post-game summary modal & review overlay: renamed `#btn-modal-new-game` to «Играть снова» (navigates to `#/`); clicking «Разбор партии» (`#btn-modal-review`) opens fullscreen `#review-overlay` hosting the board (with eval bar and best-move arrow), move history, and `ReviewPanelUI`; closing overlay via `✕` (`#btn-close-review-overlay`) or `Escape` restores the summary modal.
-- [x] Tests: added `src/tests/game-screen-a2b.test.ts` (7 tests) and updated 6 existing assertions in `screens-navigation.test.ts`, `setup-modals.test.ts`, and `review-ui.test.ts`.
-
+## Stage A2c-1: Post-Game Undo Prohibition & Summary Button Polish (Completed)
+- [x] Post-game undo prohibition: when a game is over (checkmate, stalemate, any draw, clock timeout, resignation), "Отменить ход" button is permanently disabled with `disabled` attribute and tooltip `title="Партия окончена"`. `store.undo()` returns `false` and does not revert positions (including Ctrl+Z / Cmd+Z keyboard shortcut).
+- [x] Store API `store.canUndo()`: introduced method returning `true` only when the game is ongoing, not reviewing, not in review mode, not viewing history, and history has moves.
+- [x] Live game state check `store.getLiveGameResult()`: checks termination on current game state `this.state` rather than historical `viewIndex` state so that `isGameOver()` remains `true` while viewing past moves.
+- [x] Summary button (`#btn-show-summary`): visible whenever the game is finished (`store.isGameOver() === true`), allowing users to reopen the post-game summary modal (`GameOverModalUI`) at any time, even while reviewing past moves. Hidden during ongoing games.
+- [x] Tests: added `src/tests/undo-and-summary.test.ts` (9 comprehensive tests) and updated 3 existing test suites for the new post-game undo prohibition.

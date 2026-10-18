@@ -202,7 +202,7 @@ describe('GameOverModalUI', () => {
     expect(verdictEl?.classList.contains('verdict-draw')).toBe(true);
   });
 
-  it('undo closes modal and completing game again shows modal', () => {
+  it('undo is forbidden after checkmate and modal stays open', () => {
     modal = new GameOverModalUI(container, store);
 
     const f2 = store.coordsToSquare(5, 6);
@@ -220,14 +220,11 @@ describe('GameOverModalUI', () => {
     store.makeMove(d8, h4); // Mate
 
     expect(modal.isOpen()).toBe(true);
+    expect(store.canUndo()).toBe(false);
 
-    // Undo move -> modal must hide
-    store.undo();
-    expect(store.getGameResult().type).toBe('ongoing');
-    expect(modal.isOpen()).toBe(false);
-
-    // Deliver mate again -> modal must show again
-    store.makeMove(d8, h4);
+    // Undo is forbidden after game over -> returns false, game stays over, modal stays open
+    const undone = store.undo();
+    expect(undone).toBe(false);
     expect(store.getGameResult().type).toBe('checkmate');
     expect(modal.isOpen()).toBe(true);
   });

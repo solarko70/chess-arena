@@ -216,7 +216,7 @@ export class GameOverModalUI {
   }
 
   public renderContent(): void {
-    const result = this.store.getGameResult();
+    const result = this.store.getLiveGameResult();
     const timedOutLoser = this.store.getTimedOutLoser();
     const resignedPlayer = this.store.getResignedPlayer();
     const gameMode = this.store.getGameMode();

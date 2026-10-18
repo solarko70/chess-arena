@@ -517,6 +517,10 @@ export class ChessStore {
     return this.ruleSet.getGameResult(this.getState());
   }
 
+  getLiveGameResult(): GameResult {
+    return this.ruleSet.getGameResult(this.state);
+  }
+
   isInCheck(): boolean {
     const currentState = this.getState();
     return this.ruleSet.isInCheck(currentState, currentState.turn);
@@ -706,7 +710,17 @@ export class ChessStore {
     return true;
   }
 
+  canUndo(): boolean {
+    if (this.isGameOver()) return false;
+    if (this.isReviewModeActive || this.isReviewing) return false;
+    if (this.isViewingHistory()) return false;
+    return this.state.history.length > 0;
+  }
+
   undo(): boolean {
+    if (!this.canUndo()) {
+      return false;
+    }
     const wasThinking = this.aiThinking;
     this.cancelAISearch();
 
@@ -956,7 +970,7 @@ export class ChessStore {
   }
 
   isGameOver(): boolean {
-    return this.getGameResult().type !== 'ongoing' || this.timedOutLoser !== null || this.resignedPlayer !== null;
+    return this.getLiveGameResult().type !== 'ongoing' || this.timedOutLoser !== null || this.resignedPlayer !== null;
   }
 
   resign(color: Color): void {
