@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/copy-stockfish.mjs",
+    "predev": "node scripts/copy-stockfish.mjs",
+    "prebuild": "node scripts/copy-stockfish.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
@@ -14,6 +17,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "stockfish": "^19.0.1",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
