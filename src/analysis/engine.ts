@@ -332,6 +332,12 @@ export function findStockfishLiteSingleInDir(
   return { jsFile, wasmFile };
 }
 
+let nodeWorkerFactory: UCIWorkerFactory | null = null;
+
+export function registerNodeStockfishWorkerFactory(factory: UCIWorkerFactory): void {
+  nodeWorkerFactory = factory;
+}
+
 /**
  * Create a default UCIWorkerLike for either the browser (Web Worker loading
  * `/stockfish/stockfish-*-lite-single.js`) or Node.js (spawning `stockfish-*-lite-single.js`).
@@ -348,8 +354,16 @@ async function createDefaultStockfishWorker(): Promise<UCIWorkerLike> {
       typeof (window as unknown as { document?: unknown }).document === 'undefined' ||
       Boolean(process.env?.VITEST));
 
-  // In a real browser environment (not Vitest/Node), spawn a Web Worker
-  if (!isNode && typeof Worker !== 'undefined') {
+  // In Node.js environment: delegate to registered Node worker adapter
+  if (isNode) {
+    if (nodeWorkerFactory) {
+      return nodeWorkerFactory();
+    }
+    throw new Error('Stockfish Node worker factory is not registered. Import src/analysis/node-stockfish in tests/scripts.');
+  }
+
+  // In a real browser environment, spawn a Web Worker
+  if (typeof Worker !== 'undefined') {
     const workerUrl = await resolveBrowserStockfishUrl();
     const w = new Worker(workerUrl);
     return {
@@ -372,77 +386,6 @@ async function createDefaultStockfishWorker(): Promise<UCIWorkerLike> {
         return null;
       },
     };
-  }
-
-  // Node.js environment: discover `stockfish-*-lite-single.*` by mask and spawn via child_process
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    const fs = await import('node:fs');
-    const path = await import('node:path');
-    const { spawn } = await import('node:child_process');
-
-    const publicDir = path.resolve(process.cwd(), 'public', 'stockfish');
-    if (!fs.existsSync(publicDir)) {
-      throw new Error(`Stockfish directory not found at ${publicDir}`);
-    }
-    const publicPair = findStockfishLiteSingleInDir(fs.readdirSync(publicDir));
-    if (!publicPair) {
-      throw new Error(`Stockfish lite-single files (stockfish-*-lite-single.*) not found in ${publicDir}`);
-    }
-
-    const binDir = path.resolve(process.cwd(), 'node_modules', 'stockfish', 'bin');
-    const binPair = fs.existsSync(binDir)
-      ? findStockfishLiteSingleInDir(fs.readdirSync(binDir))
-      : null;
-    const engineJsPath = binPair
-      ? path.join(binDir, binPair.jsFile)
-      : path.join(publicDir, publicPair.jsFile);
-
-    const child = spawn(process.execPath, [engineJsPath], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const workerAdapter: UCIWorkerLike = {
-      onmessage: null,
-      onerror: null,
-      postMessage: (cmd: string) => {
-        try {
-          if (child.stdin && !child.stdin.destroyed) {
-            child.stdin.write(`${cmd}\n`);
-          }
-        } catch (err) {
-          workerAdapter.onerror?.(err);
-        }
-      },
-      terminate: () => {
-        try {
-          if (child.stdin && !child.stdin.destroyed) {
-            child.stdin.write('quit\n');
-            child.stdin.end();
-          }
-          child.kill();
-        } catch {
-          // Ignore termination errors
-        }
-      },
-    };
-
-    let stdoutBuf = '';
-    child.stdout?.on('data', (chunk: Buffer) => {
-      stdoutBuf += chunk.toString('utf-8');
-      const lines = stdoutBuf.split(/\r?\n/);
-      stdoutBuf = lines.pop() ?? '';
-      for (const line of lines) {
-        if (line.trim().length > 0) {
-          workerAdapter.onmessage?.({ data: line });
-        }
-      }
-    });
-
-    child.on('error', (err) => {
-      workerAdapter.onerror?.(err);
-    });
-
-    return workerAdapter;
   }
 
   throw new Error('No Web Worker or Node Stockfish runtime available');

@@ -470,7 +470,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 180px;
 }
 
 .history-header {
@@ -481,6 +480,8 @@ body {
 
 .history-list {
   flex: 1;
+  min-height: 170px;
+  max-height: 260px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -924,6 +925,232 @@ body {
   color: var(--text-secondary);
   font-style: italic;
   padding: 8px 0;
+}
+
+/* Game Over Modal */
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: modalOverlayFade 0.2s ease-out;
+}
+
+.game-over-dialog {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  max-width: 460px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  animation: modalPopIn 0.2s ease-out;
+}
+
+.game-over-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.game-over-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.game-over-close-btn:focus-visible,
+.btn-modal-primary:focus-visible,
+.btn-modal-secondary:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.game-over-verdict {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.game-over-verdict.verdict-win {
+  background: #166534;
+  color: #bbf7d0;
+  border: 1px solid #22c55e;
+}
+
+.game-over-verdict.verdict-loss {
+  background: #991b1b;
+  color: #fecaca;
+  border: 1px solid #ef4444;
+}
+
+.game-over-verdict.verdict-draw {
+  background: #334155;
+  color: #e2e8f0;
+  border: 1px solid #64748b;
+}
+
+.game-over-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.game-over-reason {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.game-over-stats {
+  background: var(--bg-primary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.game-over-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+.game-over-stat-item .stat-label {
+  color: var(--text-secondary);
+}
+
+.game-over-stat-item .stat-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.game-over-review-summary {
+  background: var(--bg-primary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.game-over-review-placeholder {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.game-over-review-data {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.game-over-review-data .review-stat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.game-over-review-data .review-side {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.game-over-review-data .review-acc {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.game-over-review-data .review-counts {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.game-over-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-modal-primary {
+  background: var(--accent);
+  color: #0f172a;
+  font-weight: 700;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.btn-modal-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-modal-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 600;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.btn-modal-secondary:hover {
+  background: #475569;
+}
+
+@keyframes modalOverlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-over-overlay,
+  .game-over-dialog {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 

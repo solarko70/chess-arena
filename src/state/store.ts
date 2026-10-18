@@ -59,6 +59,10 @@ export class ChessStore {
   private pendingPromotion: { from: Square; to: Square } | null = null;
   private viewIndex: number | null = null; // null means viewing latest live position
   private lastError: string | null = null;
+  private isGameLoadedFromNotation: boolean = false;
+  private gameOverModalDismissed: boolean = false;
+  private gameStartTime: number | null = null;
+  private gameEndTime: number | null = null;
 
   // Clock state inside store
   private clockMode: TimeControlMode = 'none';
@@ -202,6 +206,9 @@ export class ChessStore {
 
   setPlayerColorChoice(choice: PlayerColorChoice, persist = true): void {
     this.playerColorChoice = choice;
+    if (choice !== 'random') {
+      this.playerColor = choice;
+    }
     if (persist) this.saveSettingsToStorage();
   }
 
@@ -214,6 +221,9 @@ export class ChessStore {
     }
     if (options.playerColor !== undefined) {
       this.playerColorChoice = options.playerColor;
+      if (options.playerColor !== 'random') {
+        this.playerColor = options.playerColor;
+      }
     }
     if (persist) {
       this.saveSettingsToStorage();
@@ -426,6 +436,9 @@ export class ChessStore {
       if (this.whiteMs === 0) {
         this.clockActive = false;
         this.timedOutLoser = 'white';
+        if (this.gameEndTime === null) {
+          this.gameEndTime = Date.now();
+        }
         this.cancelAISearch();
         this.onTimeOutCallback?.('white');
         this.notify();
@@ -435,6 +448,9 @@ export class ChessStore {
       if (this.blackMs === 0) {
         this.clockActive = false;
         this.timedOutLoser = 'black';
+        if (this.gameEndTime === null) {
+          this.gameEndTime = Date.now();
+        }
         this.cancelAISearch();
         this.onTimeOutCallback?.('black');
         this.notify();
@@ -546,6 +562,10 @@ export class ChessStore {
     }
 
     this.state = initialState ?? this.ruleSet.getInitialState();
+    this.isGameLoadedFromNotation = initialState !== undefined;
+    this.gameOverModalDismissed = false;
+    this.gameStartTime = null;
+    this.gameEndTime = null;
     this.viewIndex = null;
     this.selectedSquare = null;
     this.pendingPromotion = null;
@@ -646,8 +666,18 @@ export class ChessStore {
       }
     }
 
+    if (this.gameStartTime === null) {
+      this.gameStartTime = Date.now();
+    }
+    this.isGameLoadedFromNotation = false;
+
     const movingColor = this.state.turn;
     this.state = this.ruleSet.applyMove(this.state, chosenMove);
+
+    const result = this.getGameResult();
+    if (result.type !== 'ongoing' && this.gameEndTime === null) {
+      this.gameEndTime = Date.now();
+    }
 
     if (this.clockMode !== 'none') {
       if (!this.clockStarted) {
@@ -707,6 +737,11 @@ export class ChessStore {
     }
 
     this.timedOutLoser = null;
+    this.gameEndTime = null;
+    this.gameOverModalDismissed = false;
+    if (this.state.history.length === 0) {
+      this.gameStartTime = null;
+    }
 
     if (this.clockMode !== 'none') {
       const prevSnap = this.clockSnapshots[this.clockSnapshots.length - 1];
@@ -738,6 +773,8 @@ export class ChessStore {
         throw new Error('FEN must contain exactly one white king and one black king.');
       }
       this.newGame(parsed);
+      this.isGameLoadedFromNotation = true;
+      this.gameOverModalDismissed = true;
       this.lastError = null;
       return true;
     } catch (e: unknown) {
@@ -763,6 +800,10 @@ export class ChessStore {
       }
 
       this.state = parsed.state;
+      this.isGameLoadedFromNotation = true;
+      this.gameOverModalDismissed = true;
+      this.gameStartTime = null;
+      this.gameEndTime = null;
       this.viewIndex = null;
       this.selectedSquare = null;
       this.pendingPromotion = null;
@@ -905,6 +946,76 @@ export class ChessStore {
     if (this.isReviewing) return false;
     const isEnded = this.getGameResult().type !== 'ongoing' || this.timedOutLoser !== null;
     return this.state.history.length >= 2 || (isEnded && this.state.history.length > 0);
+  }
+
+  isGameOver(): boolean {
+    return this.getGameResult().type !== 'ongoing' || this.timedOutLoser !== null;
+  }
+
+  isGameLoadedNotation(): boolean {
+    return this.isGameLoadedFromNotation;
+  }
+
+  isGameOverModalDismissed(): boolean {
+    return this.gameOverModalDismissed;
+  }
+
+  setGameOverModalDismissed(dismissed: boolean): void {
+    this.gameOverModalDismissed = dismissed;
+    this.notify();
+  }
+
+  canShowGameOverModal(): boolean {
+    if (this.gameOverModalDismissed) return false;
+    if (this.isGameLoadedFromNotation) return false;
+    if (this.isViewingHistory()) return false;
+    if (this.isReviewModeActive || this.isReviewing) return false;
+    return this.isGameOver();
+  }
+
+  getGameDurationMs(): number {
+    if (!this.gameStartTime) return 0;
+    const end = this.gameEndTime ?? Date.now();
+    return Math.max(0, end - this.gameStartTime);
+  }
+
+  getLostMaterial(): {
+    white: number;
+    black: number;
+    whitePieces: PieceType[];
+    blackPieces: PieceType[];
+  } {
+    const PIECE_VALUES: Record<PieceType, number> = {
+      pawn: 1,
+      knight: 3,
+      bishop: 3,
+      rook: 5,
+      queen: 9,
+      king: 0,
+    };
+    let whiteLost = 0;
+    let blackLost = 0;
+    const whitePieces: PieceType[] = [];
+    const blackPieces: PieceType[] = [];
+
+    for (const move of this.state.history) {
+      if (move.captured) {
+        if (move.captured.color === 'white') {
+          whiteLost += PIECE_VALUES[move.captured.type];
+          whitePieces.push(move.captured.type);
+        } else {
+          blackLost += PIECE_VALUES[move.captured.type];
+          blackPieces.push(move.captured.type);
+        }
+      }
+    }
+
+    return {
+      white: whiteLost,
+      black: blackLost,
+      whitePieces,
+      blackPieces,
+    };
   }
 }
 

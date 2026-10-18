@@ -175,7 +175,16 @@ export class HistoryUI {
       this.listEl.appendChild(row);
     }
 
-    this.listEl.scrollTop = this.listEl.scrollHeight;
+    const activeEl = this.listEl.querySelector('.history-move.active') as HTMLElement | null;
+    if (activeEl) {
+      if (typeof activeEl.scrollIntoView === 'function') {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      } else {
+        this.listEl.scrollTop = activeEl.offsetTop - this.listEl.offsetTop;
+      }
+    } else {
+      this.listEl.scrollTop = this.listEl.scrollHeight;
+    }
   }
 }
 

@@ -5,6 +5,7 @@ import { HistoryUI } from './ui/history';
 import { ImportExportUI } from './ui/importexport';
 import { ClockWidget } from './ui/clockwidget';
 import { ReviewPanelUI } from './ui/reviewpanel';
+import { GameOverModalUI } from './ui/gameovermodal';
 import { LEVELS, LEVEL_ORDER, type LevelId } from './ai';
 
 export function initApp(): void {
@@ -64,6 +65,7 @@ export function initApp(): void {
       <button class="btn-action" id="btn-new-game">🔄 Новая партия</button>
       <button class="btn-action" id="btn-undo">↩️ Отменить ход</button>
       <button class="btn-action" id="btn-flip">🔃 Перевернуть</button>
+      <button class="btn-action" id="btn-show-summary" style="display: none;">📊 Показать итог</button>
     </div>
   `;
 
@@ -118,6 +120,23 @@ export function initApp(): void {
   const ioMount = document.getElementById('io-mount') as HTMLElement;
   new ImportExportUI(ioMount, globalStore);
 
+  const modalMount = document.createElement('div');
+  modalMount.id = 'game-over-modal-mount';
+  document.body.appendChild(modalMount);
+  const gameOverModal = new GameOverModalUI(modalMount, globalStore, {
+    onStartReview: () => {
+      (document.getElementById('btn-start-review') as HTMLButtonElement | null)?.click();
+    },
+    onNewGame: () => {
+      applySetupAndStartNewGame();
+    },
+  });
+
+  const showSummaryBtn = document.getElementById('btn-show-summary') as HTMLButtonElement | null;
+  showSummaryBtn?.addEventListener('click', () => {
+    gameOverModal.show();
+  });
+
   const statusText = document.getElementById('status-text') as HTMLElement;
   const badgeContainer = document.getElementById('status-badge-container') as HTMLElement;
   const undoBtn = document.getElementById('btn-undo') as HTMLButtonElement;
@@ -132,6 +151,12 @@ export function initApp(): void {
     const lastError = store.getLastError();
 
     undoBtn.disabled = (state.history.length === 0 && !store.isAIThinking()) || isViewing || isReview || store.isReviewInProgress();
+
+    if (showSummaryBtn) {
+      const isEnded = store.isGameOver();
+      const canShowSummary = isEnded && !isViewing && !isReview && !store.isReviewInProgress() && !gameOverModal.isOpen();
+      showSummaryBtn.style.display = canShowSummary ? 'inline-flex' : 'none';
+    }
 
     if (isReview) {
       statusText.textContent = 'Разбор партии';

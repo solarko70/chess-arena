@@ -40,6 +40,15 @@
 - [x] Review Panel UI (`src/ui/reviewpanel.ts`): "Разбор партии" button, deep mode toggle, progress bar & cancellation, engine info badge, white/black accuracies, move classification table, interactive SVG win chance graph, key moments list, and PGN export with `[%eval]` & NAGs (`src/analysis/pgn-export.ts`).
 - [x] Board & History UI enhancements (`src/ui/board.ts`, `src/ui/history.ts`, `src/ui/styles.css`): vertical evaluation bar with mate detection, move class color badges in move list, move selection detail panel, and SVG best move arrow overlay.
 - [x] Store integration (`src/state/store.ts`): clocks and move input paused during review mode, arrow key navigation enabled, automatic cleanup on exit/new game.
-- [x] Integration tests in `src/tests/review-ui.test.ts` (all 8 scenarios with titles <= 100 chars).
+## Stage 4d-1: Game Over Modal & UI Polish (Completed)
+- [x] UI polish: Move history list enlarged to show at least 6 rows (`min-height: 170px; max-height: 260px;`), auto-scrolling to active move upon selection, deep review checkbox unchecked by default.
+- [x] Game Over Modal (`src/ui/gameovermodal.ts`): auto-pops on game end (checkmate, stalemate, draws, clock timeout) in live games; excluded during history inspection, review mode, and completed FEN/PGN loading.
+- [x] Modal content: Result title and one-line reason, prominent AI verdict banner ("Вы выиграли" / "Вы проиграли" / "Ничья"), moves count, game duration, and captured material lost in points.
+- [x] Review preview: shows placeholder string «Разбор партии покажет точность и ключевые моменты» when unanalyzed, and accuracies + inaccuracies/mistakes/blunders counts when review is present.
+- [x] Modal controls: "Разбор партии" button launches review, "Новая партия" starts new game, close button ✕ / Esc / backdrop click dismisses modal for board inspection.
+- [x] Summary button (`#btn-show-summary`): remains visible after modal dismissal to re-open game summary at any time.
+- [x] Accessibility: `role="dialog"`, `aria-modal="true"`, focus trap cycling with Tab/Shift+Tab, focus restore upon close, lightweight fade/pop animation disabled on `prefers-reduced-motion`.
+- [x] Build hygiene: eliminated all dynamic `node:fs` warnings in Vite client bundle via `src/analysis/node-stockfish.ts` and test setup hook (`src/tests/setup.ts`).
+- [x] Unit & integration tests in `src/tests/game-over-modal.test.ts` (11 tests with titles <= 100 chars).
 
 
