@@ -21,6 +21,8 @@ import {
   classifyMove,
   parseUCIInfoLine,
   parseUCIBestMove,
+  parseUCIIdName,
+  findStockfishLiteSingleInDir,
   OwnEngine,
   StockfishEngine,
   createEngine,
@@ -28,27 +30,10 @@ import {
   type AnalysisEngine,
   type AnalysisEngineResult,
   type EngineAnalyzeOptions,
+  type MoveClass,
 } from '@/analysis';
 
-const MORPHY_SAN_MOVES = [
-  'e4', 'e5',
-  'Nf3', 'd6',
-  'd4', 'Bg4',
-  'dxe5', 'Bxf3',
-  'Qxf3', 'dxe5',
-  'Bc4', 'Nf6',
-  'Qb3', 'Qe7',
-  'Nc3', 'c6',
-  'Bg5', 'b5',
-  'Nxb5', 'cxb5',
-  'Bxb5+', 'Nbd7',
-  'O-O-O', 'Rd8',
-  'Rxd7', 'Rxd7',
-  'Rd1', 'Qe6',
-  'Bxd7+', 'Nxd7',
-  'Qb8+', 'Nxb8',
-  'Rd8#',
-];
+const VALID_CLASSES: MoveClass[] = ['best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder'];
 
 function buildGameFromSan(sans: readonly string[]): GameState {
   let state = classicalRuleSet.getInitialState();
@@ -111,16 +96,20 @@ describe('moveAccuracy & gameAccuracy', () => {
   it('gameAccuracy combines arithmetic and harmonic means', () => {
     expect(gameAccuracy([100, 100, 100])).toBeCloseTo(100, 5);
     const mixed = gameAccuracy([100, 50]);
-    // Arithmetic = 75, Harmonic = 2 / (1/100 + 1/50) = 66.666..., average = 70.833...
     expect(mixed).toBeCloseTo((75 + 200 / 3) / 2, 4);
   });
 });
 
-describe('classifyMove boundaries & special flags', () => {
-  it('classifies best move (matchedBestMove or loss <= 0.5)', () => {
+describe('classifyMove boundaries & special rules', () => {
+  it('classifies best move ONLY when loss <= 0.5 (or checkmate), even if matchedBestMove is true', () => {
     expect(classifyMove({ winBefore: 50, winAfter: 50, matchedBestMove: false }).moveClass).toBe('best');
     expect(classifyMove({ winBefore: 50, winAfter: 49.5, matchedBestMove: false }).moveClass).toBe('best');
-    expect(classifyMove({ winBefore: 50, winAfter: 40, matchedBestMove: true }).moveClass).toBe('best');
+    expect(classifyMove({ winBefore: 50, winAfter: 49.5, matchedBestMove: true }).moveClass).toBe('best');
+    // If matchedBestMove is true but loss > 0.5, it must NOT be classified as 'best'
+    expect(classifyMove({ winBefore: 50, winAfter: 40, matchedBestMove: true }).moveClass).toBe('mistake');
+    expect(classifyMove({ winBefore: 50, winAfter: 25, matchedBestMove: true }).moveClass).toBe('blunder');
+    // Checkmate move is always 'best'
+    expect(classifyMove({ winBefore: 99, winAfter: 100, isCheckmateMove: true }).moveClass).toBe('best');
   });
 
   it('classifies excellent move (0.5 < loss < 2)', () => {
@@ -157,10 +146,37 @@ describe('classifyMove boundaries & special flags', () => {
     expect(classifyMove({ winBefore: 2.5, winAfter: 0.1 }).moveClass).toBe('good');
     expect(classifyMove({ winBefore: 98.5, winAfter: 91.0 }).moveClass).toBe('good');
   });
+
+  it('never classifies a move that leads to forced mate against the mover as best when a non-mating reply exists', () => {
+    // Even if winBefore was low (< 3%) or matchedBestMove was true, walking into mate when a non-mating line existed cannot be 'best'
+    const resFromDecided = classifyMove({
+      winBefore: 1.8,
+      winAfter: 0,
+      matchedBestMove: true,
+      moverColor: 'black',
+      evalBefore: { type: 'cp', value: 1090 },
+      evalAfter: { type: 'mate', value: 3 },
+    });
+    expect(resFromDecided.moveClass).not.toBe('best');
+    expect(['mistake', 'blunder']).toContain(resFromDecided.moveClass);
+
+    const resFromEqual = classifyMove({
+      winBefore: 28.9,
+      winAfter: 0,
+      matchedBestMove: true,
+      moverColor: 'black',
+      evalBefore: { type: 'cp', value: 244 },
+      evalAfter: { type: 'mate', value: 3 },
+    });
+    expect(resFromEqual.moveClass).toBe('blunder');
+  });
 });
 
 describe('UCI line parsers (pure, without starting an engine)', () => {
-  it('parses info lines with cp, negative cp, mate, negative mate, and multipv from White and Black perspective', () => {
+  it('parses info lines with cp, negative cp, mate, negative mate, multipv, and id name', () => {
+    expect(parseUCIIdName('id name Stockfish 19 Lite WASM')).toBe('Stockfish 19 Lite WASM');
+    expect(parseUCIIdName('id author the Stockfish developers')).toBeNull();
+
     const infoWhiteCp = parseUCIInfoLine(
       'info depth 14 seldepth 20 multipv 1 score cp 45 nodes 25400 time 42 pv e2e4 e7e5 g1f3',
       true,
@@ -219,24 +235,18 @@ describe('UCI line parsers (pure, without starting an engine)', () => {
 });
 
 describe('reviewGame with stub engine & fallback behavior', () => {
-  it('is deterministic, classifies moves, computes accuracy, reports onProgress, and supports AbortSignal', async () => {
-    // Build a 4-ply game: 1. e4 e5 2. Nf3 Nc6
-    const game = buildGameFromSan(['e4', 'e5', 'Nf3', 'Nc6']);
+  it('is deterministic, classifies every move (including checkmate), computes accuracy, reports onProgress, and supports AbortSignal', async () => {
+    // Fool's mate (4 plies: 1. f3 e5 2. g4 Qh4#) so the last move is a checkmate
+    const game = buildGameFromSan(['f3', 'e5', 'g4', 'Qh4#']);
 
-    // Predefined White-perspective cp evaluations for the 5 positions (plies 0..4):
-    // ply 0 (start, White to move): +20 cp, bestMove = e4 (played e4 -> best)
-    // ply 1 (after e4, Black to move): +20 cp, bestMove = e5 (played e5 -> best)
-    // ply 2 (after e5, White to move): +20 cp, bestMove = d4 (played Nf3, eval drops to -50 -> inaccuracy)
-    // ply 3 (after Nf3, Black to move): -50 cp, bestMove = d6 (played Nc6, eval jumps to +260 for White -> blunder by Black)
-    // ply 4 (after Nc6): +260 cp
     const predefinedScores: Score[] = [
       { type: 'cp', value: 20 },
-      { type: 'cp', value: 20 },
-      { type: 'cp', value: 20 },
-      { type: 'cp', value: -50 },
-      { type: 'cp', value: 260 },
+      { type: 'cp', value: -60 },
+      { type: 'cp', value: -55 },
+      { type: 'mate', value: -1 },
+      { type: 'mate', value: 0 },
     ];
-    const preferredBestSan = ['e4', 'e5', 'd4', 'd6', 'd4'];
+    const preferredBestSan = ['e4', 'd5', 'Nc3', 'Qh4#', ''];
 
     let callIdx = 0;
     const stubEngine: AnalysisEngine = {
@@ -258,7 +268,7 @@ describe('reviewGame with stub engine & fallback behavior', () => {
           bestMove: chosen,
           score,
           pv: chosen ? [chosen] : [],
-          depth: options?.depth ?? 6,
+          depth: options?.depth ?? 5,
           nodes: 100,
           lines: chosen
             ? [
@@ -279,39 +289,42 @@ describe('reviewGame with stub engine & fallback behavior', () => {
     };
 
     const progressEvents: { completed: number; total: number; ply: number }[] = [];
+    // Use depth 5 so consistency re-analysis does not add extra stub calls
     const res1 = await reviewGame(game, stubEngine, {
+      depth: 5,
       onProgress: (p) => progressEvents.push(p),
     });
     callIdx = 0;
-    const res2 = await reviewGame(game, stubEngine);
+    const res2 = await reviewGame(game, stubEngine, { depth: 5 });
 
-    // Determinism check
     expect(res1).toEqual(res2);
     expect(res1.engineName).toBe('StubEngine');
     expect(progressEvents.length).toBe(5);
     expect(progressEvents[0]).toEqual({ completed: 1, total: 5, ply: 0 });
     expect(progressEvents[4]).toEqual({ completed: 5, total: 5, ply: 4 });
 
-    // Classifications:
-    // Move 1 (White e4): matched best move -> 'best'
-    expect(res1.moves[0].class).toBe('best');
-    // Move 2 (Black e5): matched best move -> 'best'
-    expect(res1.moves[1].class).toBe('best');
-    // Move 3 (White Nf3): +20 cp -> -50 cp (~6.4% win loss) -> 'inaccuracy'
-    expect(res1.moves[2].class).toBe('inaccuracy');
-    // Move 4 (Black Nc6): -50 cp -> +260 cp (~27% win loss for Black) -> 'blunder'
-    expect(res1.moves[3].class).toBe('blunder');
+    // Every move in the game must have a valid class
+    expect(res1.moves.length).toBe(4);
+    for (const m of res1.moves) {
+      expect(VALID_CLASSES).toContain(m.class);
+    }
 
-    expect(res1.counts.white.best).toBe(1);
-    expect(res1.counts.white.inaccuracy).toBe(1);
-    expect(res1.counts.black.best).toBe(1);
-    expect(res1.counts.black.blunder).toBe(1);
-    expect(res1.accuracy.white).toBeGreaterThan(res1.accuracy.black);
+    // Move 1 (White f3): +20 -> -60 (~7.3% loss) -> 'inaccuracy'
+    expect(res1.moves[0].class).toBe('inaccuracy');
+    // Move 2 (Black e5): -60 -> -55 (< 0.5% loss) -> 'best'
+    expect(res1.moves[1].class).toBe('best');
+    // Move 3 (White g4): -55 -> mate -1 (walks into mate in 1) -> 'blunder'
+    expect(res1.moves[2].class).toBe('blunder');
+    // Move 4 (Black Qh4#): delivers checkmate -> always 'best' with 0 loss
+    expect(res1.moves[3].san).toBe('Qh4#');
+    expect(res1.moves[3].class).toBe('best');
+    expect(res1.moves[3].loss).toBe(0);
 
     // Cancellation via AbortController
     const abortController = new AbortController();
     callIdx = 0;
     const abortingPromise = reviewGame(game, stubEngine, {
+      depth: 5,
       signal: abortController.signal,
       onProgress: (p) => {
         if (p.completed === 2) abortController.abort();
@@ -336,17 +349,20 @@ describe('reviewGame with stub engine & fallback behavior', () => {
     const review = await reviewGame(shortGame, engine, { depth: 3 });
     expect(review.engineName).toBe('OwnEngine');
     expect(review.moves.length).toBe(2);
+    for (const m of review.moves) {
+      expect(VALID_CLASSES).toContain(m.class);
+    }
     engine.dispose();
   });
 });
 
-describe('StockfishEngine integration & Morphy Opera Game review', () => {
+describe('StockfishEngine integration & Opera Game 15.Bxd7+ tactical test', () => {
   const publicDir = path.resolve(process.cwd(), 'public', 'stockfish');
-  const publicJs = path.join(publicDir, 'stockfish-18-lite-single.js');
-  const publicWasm = path.join(publicDir, 'stockfish-18-lite-single.wasm');
-  const hasStockfishFiles = fs.existsSync(publicJs) && fs.existsSync(publicWasm);
+  const hasStockfishFiles =
+    fs.existsSync(publicDir) &&
+    findStockfishLiteSingleInDir(fs.readdirSync(publicDir)) !== null;
 
-  it('StockfishEngine evaluates start position in [-80, +80] cp and finds mate in 1', async (ctx) => {
+  it('StockfishEngine evaluates start position in [-80, +80] cp, finds mate in 1, and reports UCI id name', async (ctx) => {
     if (!hasStockfishFiles) {
       console.warn('Skipping Stockfish integration test: Stockfish lite-single files are not available in public/stockfish/');
       ctx.skip();
@@ -357,7 +373,7 @@ describe('StockfishEngine integration & Morphy Opera Game review', () => {
     try {
       const startState = classicalRuleSet.getInitialState();
       const startRes = await sf.analyze(startState, { depth: 8, multiPV: 2 });
-      expect(startRes.engineName).toBe('Stockfish');
+      expect(startRes.engineName).toMatch(/Stockfish/i);
       expect(startRes.score.type).toBe('cp');
       expect(startRes.score.value).toBeGreaterThanOrEqual(-80);
       expect(startRes.score.value).toBeLessThanOrEqual(80);
@@ -370,53 +386,40 @@ describe('StockfishEngine integration & Morphy Opera Game review', () => {
     } finally {
       sf.dispose();
     }
-  }, 30000);
+  }, 15000);
 
-  it('reviews Morphy Opera Game with OwnEngine (depth 6): Rd8# is not an error, and injected queen blunder is classified as blunder', async () => {
-    const operaGame = buildGameFromSan(MORPHY_SAN_MOVES);
-    const own = new OwnEngine();
+  it('after 15.Bxd7+ in Morphy Opera Game: 15...Nxd7 is blunder/mistake and 15...Qxd7 is at least good; injected queen blunder is blunder', async () => {
+    // Position after 15.Bxd7+ (ply 29) in Morphy's Opera Game:
+    // Black can recapture 15...Qxd7 (staying in the game without being mated) or 15...Nxd7?? (allowing 16.Qb8+! Nxb8 17.Rd8#)
+    const afterBxd7 = parseFEN('4kb1r/p2B1ppp/4qn2/4p1B1/4P3/1Q6/PPP2PPP/2KR4 b k - 0 15');
+    const moveNxd7 = sanToMove(afterBxd7, 'Nxd7')!;
+    const moveQxd7 = sanToMove(afterBxd7, 'Qxd7')!;
+    const afterNxd7 = applyMove(afterBxd7, moveNxd7);
+    const afterQxd7 = applyMove(afterBxd7, moveQxd7);
 
-    const t0 = Date.now();
-    const operaReview = await reviewGame(operaGame, own, { depth: 6 });
-    const ownMs = Date.now() - t0;
+    const engine: AnalysisEngine = hasStockfishFiles ? new StockfishEngine() : new OwnEngine();
+    const depth = hasStockfishFiles ? 14 : 8;
 
-    expect(operaReview.engineName).toBe('OwnEngine');
-    expect(operaReview.moves.length).toBe(33);
+    try {
+      const reviewNxd7 = await reviewGame([afterBxd7, afterNxd7], engine, { depth });
+      expect(reviewNxd7.moves.length).toBe(1);
+      expect(reviewNxd7.moves[0].san).toBe('Nxd7');
+      expect(['blunder', 'mistake']).toContain(reviewNxd7.moves[0].class);
 
-    const finalMove = operaReview.moves[operaReview.moves.length - 1];
-    expect(finalMove.san).toBe('Rd8#');
-    expect(finalMove.class).toBe('best');
+      const reviewQxd7 = await reviewGame([afterBxd7, afterQxd7], engine, { depth });
+      expect(reviewQxd7.moves.length).toBe(1);
+      expect(reviewQxd7.moves[0].san).toBe('Qxd7');
+      expect(['best', 'excellent', 'good']).toContain(reviewQxd7.moves[0].class);
 
-    console.log(
-      `[opera-own] 33 plies (34 positions) reviewed in ${ownMs} ms | ` +
-        `White acc=${operaReview.accuracy.white.toFixed(1)}%, Black acc=${operaReview.accuracy.black.toFixed(1)}%`,
-    );
-
-    // Inject an artificial queen blunder directly into Morphy's Opera Game:
-    // After 7. Qb3 Qe7, play 8. Qb6?? axb6 (losing the queen for nothing)
-    const stateBefore8 = buildGameFromSan(MORPHY_SAN_MOVES.slice(0, 14));
-    const blunderMove = sanToMove(stateBefore8, 'Qb6')!;
-    const stateAfter8 = applyMove(stateBefore8, blunderMove);
-    const blunderReview = await reviewGame([stateBefore8, stateAfter8], own, { depth: 6 });
-    const queenBlunderMove = blunderReview.moves[0];
-    expect(queenBlunderMove.san).toBe('Qb6');
-    expect(queenBlunderMove.class).toBe('blunder');
-
-    if (hasStockfishFiles) {
-      const sf = new StockfishEngine();
-      try {
-        const sfStart = Date.now();
-        const sfOpera = await reviewGame(operaGame, sf, { depth: 14 });
-        const sfMs = Date.now() - sfStart;
-        expect(sfOpera.moves[sfOpera.moves.length - 1].san).toBe('Rd8#');
-        expect(sfOpera.moves[sfOpera.moves.length - 1].class).toBe('best');
-        console.log(
-          `[opera-sf] 33 plies (34 positions) reviewed in ${sfMs} ms | ` +
-            `White acc=${sfOpera.accuracy.white.toFixed(1)}%, Black acc=${sfOpera.accuracy.black.toFixed(1)}%`,
-        );
-      } finally {
-        sf.dispose();
-      }
+      // Also verify an injected queen blunder on move 8 (8.Qb6?? axb6) is classified as 'blunder'
+      const beforeMove8 = parseFEN('r3kb1r/ppp1qppp/2n2n2/4p3/2B1P3/1Q6/PPPP1PPP/RNB1K2R w KQkq - 3 8');
+      const afterQb6 = applyMove(beforeMove8, sanToMove(beforeMove8, 'Qb6')!);
+      const own = new OwnEngine();
+      const blunderRev = await reviewGame([beforeMove8, afterQb6], own, { depth: 4 });
+      expect(blunderRev.moves[0].san).toBe('Qb6');
+      expect(blunderRev.moves[0].class).toBe('blunder');
+    } finally {
+      engine.dispose();
     }
-  }, 90000);
+  }, 15000);
 });

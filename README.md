@@ -75,4 +75,4 @@ See `docs/CONTRIBUTING.md` for contribution guidelines.
 
 ## License
 This project is licensed under the MIT License - see the `LICENSE` file for details.
-Game analysis uses [Stockfish.js](https://github.com/nmrugg/stockfish.js) (Stockfish chess engine), which is distributed under the GNU General Public License v3 (GPLv3).
+Game analysis uses [Stockfish.js](https://github.com/nmrugg/stockfish.js) (Stockfish chess engine), which is distributed under the GNU General Public License v3 (GPLv3) — see [`node_modules/stockfish/Copying.txt`](node_modules/stockfish/Copying.txt) for the full license text.

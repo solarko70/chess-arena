@@ -15,6 +15,7 @@ export {
   classifyMove,
   isOnlyMove,
   isSameMove,
+  isForcedMateAgainstMover,
 } from './classify';
 export type { MoveClass, ClassifyMoveInput, ClassifyMoveResult } from './classify';
 
@@ -24,9 +25,11 @@ export {
   createEngine,
   parseUCIInfoLine,
   parseUCIBestMove,
+  parseUCIIdName,
   uciMateToWhiteScore,
   moveToUCI,
   uciToMove,
+  findStockfishLiteSingleInDir,
 } from './engine';
 export type {
   AnalysisEngine,
@@ -54,4 +57,3 @@ export type {
   GameReviewResult,
   GameInput,
 } from './review';
-

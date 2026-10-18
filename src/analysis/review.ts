@@ -1,11 +1,12 @@
 /**
  * Full-game review logic (`reviewGame`):
- * Evaluates each of the (n + 1) positions of a game exactly once, computes
- * win probabilities, move accuracies, move classifications, side accuracies,
- * class counts, key moments, and evaluation graph series.
+ * Evaluates each of the (n + 1) positions of a game, checks evaluation consistency
+ * across moves (re-analyzing inconsistent positions at higher depth when needed),
+ * and computes win probabilities, move accuracies, move classifications, side
+ * accuracies, class counts, key moments, and evaluation graph series.
  */
 import type { Color, GameState, Move } from '@/core';
-import { moveToSAN, undoMove } from '@/core';
+import { isCheckmate, moveToSAN, undoMove } from '@/core';
 import type { AnalysisResult, Score } from '@/ai';
 import {
   createEngine,
@@ -14,7 +15,13 @@ import {
 } from './engine';
 import { povWinChance, scoreToCp, winChance } from './winchance';
 import { gameAccuracy, moveAccuracy } from './accuracy';
-import { classifyMove, isSameMove, type MoveClass } from './classify';
+import {
+  classifyMove,
+  isForcedMateAgainstMover,
+  isSameMove,
+  THRESHOLDS,
+  type MoveClass,
+} from './classify';
 
 export const DEFAULT_STOCKFISH_DEPTH = 14;
 export const DEFAULT_OWN_ENGINE_DEPTH = 6;
@@ -143,7 +150,71 @@ export function reconstructGameStates(game: GameInput): GameState[] {
 }
 
 /**
- * Review a completed or ongoing game by analyzing each of its (n + 1) positions once.
+ * Detect whether the evaluations before and after `playedMove` suffer from a shallow
+ * horizon inconsistency and therefore warrant a deeper re-analysis:
+ * 1) `playedMove` matched `resBefore.bestMove`, yet the evaluation after `playedMove`
+ *    dropped sharply (win-chance loss > `bestMaxLoss` or centipawn swing >= 250 cp, or
+ *    walked into a forced mate against the mover).
+ * 2) The mover's win probability jumped upward by > 10 percentage points (or cp improved
+ *    by >= 250 cp for the mover), which means either `resBefore` missed the strength of
+ *    `playedMove` or `resAfter` underestimated the opponent's best reply.
+ */
+function hasEvalInconsistency(
+  stateBefore: GameState,
+  stateAfter: GameState,
+  playedMove: Move,
+  resBefore: AnalysisResult,
+  resAfter: AnalysisResult,
+): { recheckBefore: boolean; recheckAfter: boolean } {
+  if (isCheckmate(stateAfter)) {
+    return { recheckBefore: false, recheckAfter: false };
+  }
+
+  const moverColor = stateBefore.turn;
+  const san = moveToSAN(stateBefore, playedMove);
+  const bestSan =
+    resBefore.lines[0]?.san ?? (resBefore.bestMove ? moveToSAN(stateBefore, resBefore.bestMove) : null);
+  const matchedBest =
+    isSameMove(playedMove, resBefore.bestMove) || (bestSan !== null && san === bestSan);
+
+  const winBefore = povWinChance(resBefore.score, moverColor);
+  const winAfter = povWinChance(resAfter.score, moverColor);
+  const loss = winBefore - winAfter;
+
+  const cpBefore = scoreToCp(resBefore.score) * (moverColor === 'white' ? 1 : -1);
+  const cpAfter = scoreToCp(resAfter.score) * (moverColor === 'white' ? 1 : -1);
+  const cpDrop = cpBefore - cpAfter;
+
+  const walkedIntoMate =
+    isForcedMateAgainstMover(resAfter.score, moverColor) &&
+    !isForcedMateAgainstMover(resBefore.score, moverColor);
+
+  if (matchedBest && (loss > THRESHOLDS.bestMaxLoss || cpDrop >= 250 || walkedIntoMate)) {
+    // Either stateBefore overestimated playedMove (horizon effect before the move)
+    // or stateAfter missed a defence / tactical refutation.
+    return { recheckBefore: true, recheckAfter: true };
+  }
+
+  // If a move appears to lose >= 500 cp (or >= 15% win probability), stateBefore may have
+  // overestimated another candidate move at shallow depth (e.g. missing a deep forced mate on the other recapture).
+  if (cpDrop >= 500 || loss >= 15 || walkedIntoMate) {
+    return { recheckBefore: true, recheckAfter: false };
+  }
+
+  if (loss < -10 || cpDrop <= -250) {
+    // The mover's evaluation improved dramatically after their own move, so
+    // stateAfter likely missed the opponent's refutation at shallow depth.
+    return { recheckBefore: false, recheckAfter: true };
+  }
+
+  return { recheckBefore: false, recheckAfter: false };
+}
+
+/**
+ * Review a completed or ongoing game by analyzing each of its (n + 1) positions.
+ * If shallow horizon inconsistencies are detected between consecutive positions,
+ * those positions are re-analyzed at a higher depth so `evalBefore`, `evalAfter`,
+ * `bestMove`, and `class` are mutually consistent.
  */
 export async function reviewGame(
   game: GameInput,
@@ -162,20 +233,22 @@ export async function reviewGame(
   try {
     const positionResults: (AnalysisResult & { engineName?: string })[] = [];
     let resolvedEngineName = activeEngine.name;
+    const multiPV = options.multiPV ?? 2;
+
+    const getBaseDepth = () => {
+      const currentName = resolvedEngineName.toLowerCase();
+      const defaultDepth = currentName.includes('stockfish')
+        ? DEFAULT_STOCKFISH_DEPTH
+        : DEFAULT_OWN_ENGINE_DEPTH;
+      return options.depth ?? defaultDepth;
+    };
 
     for (let i = 0; i < totalPositions; i++) {
       if (options.signal?.aborted) {
         throw createAbortError();
       }
 
-      // Determine default depth dynamically based on the active engine (14 for Stockfish, 6 for OwnEngine)
-      const currentEngineName = activeEngine.name.toLowerCase();
-      const defaultDepth = currentEngineName.includes('stockfish')
-        ? DEFAULT_STOCKFISH_DEPTH
-        : DEFAULT_OWN_ENGINE_DEPTH;
-      const depth = options.depth ?? defaultDepth;
-      const multiPV = options.multiPV ?? 2;
-
+      const depth = getBaseDepth();
       const res: AnalysisEngineResult = await activeEngine.analyze(states[i], {
         depth,
         multiPV,
@@ -198,12 +271,76 @@ export async function reviewGame(
       });
     }
 
-    const evalHistory: EvalPoint[] = positionResults.map((res, idx) => ({
-      ply: idx,
-      score: res.score,
-      cp: scoreToCp(res.score),
-      whiteWinChance: winChance(res.score),
-    }));
+    // Consistency verification pass: if consecutive evaluations conflict (e.g. engine's
+    // chosen bestMove loses heavily according to evalAfter, or evalAfter jumps up due to
+    // a horizon miss), re-analyze the affected position(s) at higher depth.
+    const baseDepth = getBaseDepth();
+    const isStockfish = resolvedEngineName.toLowerCase().includes('stockfish');
+    const deeperDepth = isStockfish ? Math.max(baseDepth + 4, 18) : baseDepth + 2;
+    const reanalyzedIndices = new Set<number>();
+
+    // Only run deeper re-analysis on Stockfish when depth was not artificially capped very low (depth >= 6)
+    if (isStockfish && baseDepth >= 6) {
+      for (let i = 0; i < totalPositions - 1; i++) {
+        const stateBefore = states[i];
+        const stateAfter = states[i + 1];
+        const playedMove = stateAfter.history[stateAfter.history.length - 1];
+        const { recheckBefore, recheckAfter } = hasEvalInconsistency(
+          stateBefore,
+          stateAfter,
+          playedMove,
+          positionResults[i],
+          positionResults[i + 1],
+        );
+
+        if (recheckAfter && !reanalyzedIndices.has(i + 1)) {
+          if (options.signal?.aborted) throw createAbortError();
+          reanalyzedIndices.add(i + 1);
+          const deeperAfter = await activeEngine.analyze(stateAfter, {
+            depth: deeperDepth,
+            multiPV,
+            signal: options.signal,
+          });
+          if (deeperAfter.engineName) resolvedEngineName = deeperAfter.engineName;
+          positionResults[i + 1] = deeperAfter;
+        }
+
+        // Re-check inconsistency after updating positionResults[i + 1]
+        const afterCheck = hasEvalInconsistency(
+          stateBefore,
+          stateAfter,
+          playedMove,
+          positionResults[i],
+          positionResults[i + 1],
+        );
+
+        if ((recheckBefore || afterCheck.recheckBefore) && !reanalyzedIndices.has(i)) {
+          if (options.signal?.aborted) throw createAbortError();
+          reanalyzedIndices.add(i);
+          const deeperBefore = await activeEngine.analyze(stateBefore, {
+            depth: deeperDepth,
+            multiPV,
+            signal: options.signal,
+          });
+          if (deeperBefore.engineName) resolvedEngineName = deeperBefore.engineName;
+          positionResults[i] = deeperBefore;
+        }
+      }
+    }
+
+    const evalHistory: EvalPoint[] = positionResults.map((res, idx) => {
+      const st = states[idx];
+      const mated = isCheckmate(st);
+      // On a checkmate board, the side that just delivered mate has won (100% for White if Black is mated, 0% if White is mated)
+      const whiteWin = mated ? (st.turn === 'black' ? 100 : 0) : winChance(res.score);
+      const cp = mated ? (st.turn === 'black' ? 10000 : -10000) : scoreToCp(res.score);
+      return {
+        ply: idx,
+        score: res.score,
+        cp,
+        whiteWinChance: whiteWin,
+      };
+    });
 
     const moves: ReviewedMove[] = [];
     const whiteAccuracies: number[] = [];
@@ -231,23 +368,29 @@ export async function reviewGame(
       const bestSan =
         resBefore.lines[0]?.san ?? (bestMove ? moveToSAN(stateBefore, bestMove) : null);
 
+      const isCheckmateMove =
+        isCheckmate(stateAfter) || (evalAfter.type === 'mate' && evalAfter.value === 0);
+
       const winBefore = povWinChance(evalBefore, moverColor);
-      const winAfter = povWinChance(evalAfter, moverColor);
+      const winAfter = isCheckmateMove ? 100 : povWinChance(evalAfter, moverColor);
 
       const matchedBestMove =
+        isCheckmateMove ||
         isSameMove(playedMove, bestMove) ||
-        (bestSan !== null && san === bestSan) ||
-        (evalAfter.type === 'mate' && evalAfter.value === 0);
+        (bestSan !== null && san === bestSan);
 
       const classification = classifyMove({
         winBefore,
         winAfter,
         matchedBestMove,
+        isCheckmateMove,
+        evalBefore,
+        evalAfter,
         linesBefore: resBefore.lines,
         moverColor,
       });
 
-      const loss = matchedBestMove ? 0 : classification.loss;
+      const loss = classification.loss;
       const acc = moveAccuracy(loss);
 
       const reviewedMove: ReviewedMove = {
@@ -303,4 +446,3 @@ export async function reviewGame(
     }
   }
 }
-

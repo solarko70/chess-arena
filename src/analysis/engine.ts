@@ -54,6 +54,8 @@ export interface ParsedUCIInfo {
   multipv: number;
   /** Score converted to White's perspective */
   score: Score;
+  /** True when the UCI info line includes `upperbound` or `lowerbound` */
+  isBound?: boolean;
   nodes?: number;
   timeMs?: number;
   /** Raw UCI coordinate moves (e.g. ['e2e4', 'e7e5']) */
@@ -96,6 +98,16 @@ export function uciMateToWhiteScore(mateMoves: number, whiteToMove: boolean): Sc
 }
 
 /**
+ * Parse a UCI `id name <engine name>` line.
+ */
+export function parseUCIIdName(line: string): string | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('id name ')) return null;
+  const name = trimmed.slice('id name '.length).trim();
+  return name.length > 0 ? name : null;
+}
+
+/**
  * Parse a UCI `info ...` line containing `score cp|mate` and convert the score
  * into White's perspective. Returns `null` if the line does not carry a score.
  */
@@ -109,6 +121,7 @@ export function parseUCIInfoLine(line: string, whiteToMove: boolean): ParsedUCII
   let multipv = 1;
   let scoreType: 'cp' | 'mate' | undefined;
   let rawScoreVal: number | undefined;
+  let isBound = false;
   let nodes: number | undefined;
   let timeMs: number | undefined;
   let pv: string[] = [];
@@ -129,6 +142,12 @@ export function parseUCIInfoLine(line: string, whiteToMove: boolean): ParsedUCII
         rawScoreVal = val;
       }
       i += 2;
+      if (i + 1 < tokens.length && (tokens[i + 1] === 'upperbound' || tokens[i + 1] === 'lowerbound')) {
+        isBound = true;
+        i++;
+      }
+    } else if (tok === 'upperbound' || tok === 'lowerbound') {
+      isBound = true;
     } else if (tok === 'nodes' && i + 1 < tokens.length) {
       nodes = parseInt(tokens[++i], 10);
     } else if (tok === 'time' && i + 1 < tokens.length) {
@@ -153,6 +172,7 @@ export function parseUCIInfoLine(line: string, whiteToMove: boolean): ParsedUCII
     seldepth: seldepth !== undefined && !Number.isNaN(seldepth) ? seldepth : undefined,
     multipv,
     score,
+    isBound: isBound || undefined,
     nodes: nodes !== undefined && !Number.isNaN(nodes) ? nodes : undefined,
     timeMs: timeMs !== undefined && !Number.isNaN(timeMs) ? timeMs : undefined,
     pv,
@@ -275,8 +295,41 @@ export class OwnEngine implements AnalysisEngine {
 }
 
 /**
+ * Resolve the browser Stockfish worker script URL by consulting `/stockfish/manifest.json`
+ * (written by `scripts/copy-stockfish.mjs` for `stockfish-*-lite-single.js`).
+ */
+async function resolveBrowserStockfishUrl(): Promise<string> {
+  if (typeof fetch === 'function') {
+    try {
+      const resp = await fetch('/stockfish/manifest.json', { credentials: 'same-origin' });
+      if (resp.ok) {
+        const data = (await resp.json()) as { js?: string };
+        if (data?.js && /^stockfish-.*-lite-single\.js$/.test(data.js)) {
+          return `/stockfish/${data.js}`;
+        }
+      }
+    } catch {
+      // Fall through to default discovery error if manifest cannot be fetched
+    }
+  }
+  throw new Error('Stockfish manifest (/stockfish/manifest.json) could not be loaded');
+}
+
+/**
+ * Discover `stockfish-*-lite-single.js` and `.wasm` inside a directory by mask.
+ */
+export function findStockfishLiteSingleInDir(
+  entries: readonly string[],
+): { jsFile: string; wasmFile: string } | null {
+  const jsFile = entries.find((f) => /^stockfish-.*-lite-single\.js$/.test(f));
+  const wasmFile = entries.find((f) => /^stockfish-.*-lite-single\.wasm$/.test(f));
+  if (!jsFile || !wasmFile) return null;
+  return { jsFile, wasmFile };
+}
+
+/**
  * Create a default UCIWorkerLike for either the browser (Web Worker loading
- * `/stockfish/stockfish-18-lite-single.js`) or Node.js (loading `stockfish` lite-single).
+ * `/stockfish/stockfish-*-lite-single.js`) or Node.js (spawning `stockfish-*-lite-single.js`).
  */
 async function createDefaultStockfishWorker(): Promise<UCIWorkerLike> {
   if (typeof WebAssembly !== 'object') {
@@ -286,11 +339,13 @@ async function createDefaultStockfishWorker(): Promise<UCIWorkerLike> {
   const isNode =
     typeof process !== 'undefined' &&
     Boolean(process.versions?.node) &&
-    (typeof window === 'undefined' || typeof (window as unknown as { document?: unknown }).document === 'undefined' || Boolean(process.env?.VITEST));
+    (typeof window === 'undefined' ||
+      typeof (window as unknown as { document?: unknown }).document === 'undefined' ||
+      Boolean(process.env?.VITEST));
 
   // In a real browser environment (not Vitest/Node), spawn a Web Worker
   if (!isNode && typeof Worker !== 'undefined') {
-    const workerUrl = '/stockfish/stockfish-18-lite-single.js';
+    const workerUrl = await resolveBrowserStockfishUrl();
     const w = new Worker(workerUrl);
     return {
       postMessage: (cmd: string) => w.postMessage(cmd),
@@ -314,26 +369,28 @@ async function createDefaultStockfishWorker(): Promise<UCIWorkerLike> {
     };
   }
 
-  // Node.js environment (e.g. Vitest node environment): spawn the lite-single engine via child_process
+  // Node.js environment: discover `stockfish-*-lite-single.*` by mask and spawn via child_process
   if (typeof process !== 'undefined' && process.versions?.node) {
-    const { createRequire } = await import('node:module');
     const fs = await import('node:fs');
     const path = await import('node:path');
     const { spawn } = await import('node:child_process');
-    const req = createRequire(import.meta.url);
-    const findEngine = req('stockfish/scripts/findEngine.js') as (type: string) => string;
-    const engineJsPath = findEngine('lite-single');
-    const wasmPath = engineJsPath.replace(/\.js$/i, '.wasm');
-    if (!fs.existsSync(engineJsPath) || !fs.existsSync(wasmPath)) {
-      throw new Error(`Stockfish lite-single files not found at ${engineJsPath}`);
-    }
 
     const publicDir = path.resolve(process.cwd(), 'public', 'stockfish');
-    const publicJs = path.join(publicDir, 'stockfish-18-lite-single.js');
-    const publicWasm = path.join(publicDir, 'stockfish-18-lite-single.wasm');
-    if (!fs.existsSync(publicJs) || !fs.existsSync(publicWasm)) {
-      throw new Error(`Stockfish files not found in ${publicDir}`);
+    if (!fs.existsSync(publicDir)) {
+      throw new Error(`Stockfish directory not found at ${publicDir}`);
     }
+    const publicPair = findStockfishLiteSingleInDir(fs.readdirSync(publicDir));
+    if (!publicPair) {
+      throw new Error(`Stockfish lite-single files (stockfish-*-lite-single.*) not found in ${publicDir}`);
+    }
+
+    const binDir = path.resolve(process.cwd(), 'node_modules', 'stockfish', 'bin');
+    const binPair = fs.existsSync(binDir)
+      ? findStockfishLiteSingleInDir(fs.readdirSync(binDir))
+      : null;
+    const engineJsPath = binPair
+      ? path.join(binDir, binPair.jsFile)
+      : path.join(publicDir, publicPair.jsFile);
 
     const child = spawn(process.execPath, [engineJsPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -395,10 +452,11 @@ interface QueuedSearchTask {
 
 /**
  * StockfishEngine: lazy-loaded UCI engine over `postMessage` with a serialized
- * request queue (one search at a time) and `AbortSignal` support (`stop`).
+ * request queue (one search at a time), `ucinewgame` hash reset between positions,
+ * dynamic engine name parsed from `id name`, and `AbortSignal` support (`stop`).
  */
 export class StockfishEngine implements AnalysisEngine {
-  readonly name = 'Stockfish';
+  private detectedName = 'Stockfish';
   private workerFactory: UCIWorkerFactory;
   private worker: UCIWorkerLike | null = null;
   private initPromise: Promise<UCIWorkerLike> | null = null;
@@ -410,6 +468,10 @@ export class StockfishEngine implements AnalysisEngine {
   constructor(options: { workerFactory?: UCIWorkerFactory; chess960?: boolean } = {}) {
     this.workerFactory = options.workerFactory ?? createDefaultStockfishWorker;
     this.chess960 = options.chess960 ?? false;
+  }
+
+  get name(): string {
+    return this.detectedName;
   }
 
   /** Lazily initialize the worker and complete the `uci` -> `uciok` handshake on first `analyze`. */
@@ -438,6 +500,10 @@ export class StockfishEngine implements AnalysisEngine {
         };
         w.onmessage = (ev) => {
           const line = String(ev.data).trim();
+          const idName = parseUCIIdName(line);
+          if (idName) {
+            this.detectedName = idName;
+          }
           if (line === 'uciok') {
             cleanup();
             resolve();
@@ -507,6 +573,12 @@ export class StockfishEngine implements AnalysisEngine {
   ): Promise<AnalysisEngineResult> {
     const start = Date.now();
     const legal = generateLegal(state);
+
+    const w = await this.ensureWorker();
+    if (options.signal?.aborted) {
+      throw createAbortError();
+    }
+
     if (legal.length === 0) {
       const mated = isInCheck(state.board, state.turn);
       return {
@@ -519,11 +591,6 @@ export class StockfishEngine implements AnalysisEngine {
         timeMs: Date.now() - start,
         engineName: this.name,
       };
-    }
-
-    const w = await this.ensureWorker();
-    if (options.signal?.aborted) {
-      throw createAbortError();
     }
 
     const depth = options.depth ?? 14;
@@ -591,12 +658,12 @@ export class StockfishEngine implements AnalysisEngine {
         if (phase === 'searching') {
           if (line.startsWith('info ')) {
             const parsed = parseUCIInfoLine(line, whiteToMove);
-            if (parsed && parsed.pv.length > 0) {
+            if (parsed && parsed.pv.length > 0 && !parsed.isBound) {
               const prev = infoByMultiPV.get(parsed.multipv);
               if (!prev || parsed.depth >= prev.depth) {
                 infoByMultiPV.set(parsed.multipv, parsed);
               }
-              if (parsed.depth > maxDepthReached) {
+              if (parsed.multipv === 1 && parsed.depth > maxDepthReached) {
                 maxDepthReached = parsed.depth;
               }
               if (parsed.nodes !== undefined && parsed.nodes > totalNodes) {
@@ -662,6 +729,8 @@ export class StockfishEngine implements AnalysisEngine {
       };
 
       try {
+        // Clear hash / reset search state before each position for reproducible evaluations
+        w.postMessage('ucinewgame');
         w.postMessage(`setoption name MultiPV value ${multiPV}`);
         w.postMessage('isready');
       } catch (err) {
@@ -757,4 +826,3 @@ export function createEngine(state?: GameState, options: CreateEngineOptions = {
   });
   return new FallbackEngine(sf, new OwnEngine());
 }
-

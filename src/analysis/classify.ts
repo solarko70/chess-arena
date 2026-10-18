@@ -2,7 +2,7 @@
  * Move classification based on win-probability loss from the mover's perspective.
  *
  * Classes:
- * - 'best'       («лучший»):     move matches engine's best move OR winLoss <= 0.5
+ * - 'best'       («лучший»):     winLoss <= 0.5 (whether or not it matched the engine's best move)
  * - 'excellent'  («отличный»):   winLoss < 2
  * - 'good'       («хороший»):    winLoss < 5
  * - 'inaccuracy' («неточность»): winLoss < 10
@@ -12,7 +12,7 @@
  * Note: Opening book moves and brilliant moves are intentionally omitted in step 4c-1.
  */
 import type { Color, Move } from '@/core';
-import type { AnalysisLine } from '@/ai';
+import type { AnalysisLine, Score } from '@/ai';
 import { povWinChance } from './winchance';
 
 export type MoveClass = 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
@@ -31,7 +31,7 @@ export const MOVE_CLASS_LABELS: Record<MoveClass, string> = {
  * NOTE: These thresholds are approximate and subject to tuning.
  */
 export const THRESHOLDS = {
-  /** Maximum win-probability loss (<=) to still be classified as 'best' even if not the top PV move */
+  /** Maximum win-probability loss (<=) to be classified as 'best' */
   bestMaxLoss: 0.5,
   /** Strict upper bound (<) for 'excellent' */
   excellentLoss: 2,
@@ -56,9 +56,15 @@ export interface ClassifyMoveInput {
   winAfter: number;
   /** Whether the played move matches the engine's top choice */
   matchedBestMove?: boolean;
-  /** Multi-PV lines from the position before the move (optional, used to compute `onlyMove`) */
+  /** Whether the move played is a checkmate on the board */
+  isCheckmateMove?: boolean;
+  /** Engine score before the move (White's perspective, optional) */
+  evalBefore?: Score;
+  /** Engine score after the move (White's perspective, optional) */
+  evalAfter?: Score;
+  /** Multi-PV lines from the position before the move (optional, used for `onlyMove` and non-mating alternatives) */
   linesBefore?: readonly AnalysisLine[];
-  /** Side that played the move (optional, used with `linesBefore` to compute `onlyMove`) */
+  /** Side that played the move (optional, used with `linesBefore` / `evalAfter`) */
   moverColor?: Color;
   /** Explicit win-probability gap between best and second-best move (optional override) */
   secondBestGap?: number;
@@ -86,6 +92,12 @@ export function isSameMove(a: Move | null | undefined, b: Move | null | undefine
   return a.from === b.from && a.to === b.to && (a.promotion ?? undefined) === (b.promotion ?? undefined);
 }
 
+/** Check whether `score` (White's perspective) is a forced mate against `moverColor`. */
+export function isForcedMateAgainstMover(score: Score | undefined, moverColor: Color | undefined): boolean {
+  if (!score || !moverColor || score.type !== 'mate' || score.value === 0) return false;
+  return moverColor === 'white' ? score.value < 0 : score.value > 0;
+}
+
 /**
  * Determine whether the best move in `lines` is an "only move" (the gap in
  * mover win probability between the 1st and 2nd multiPV candidate exceeds
@@ -100,12 +112,35 @@ export function isOnlyMove(lines: readonly AnalysisLine[], moverColor: Color): b
 
 /**
  * Classify a move based on win-probability before and after the move (from the mover's perspective).
+ *
+ * - A checkmate move is always 'best' with 0 loss.
+ * - 'best' is assigned ONLY when `loss <= THRESHOLDS.bestMaxLoss` (even if `matchedBestMove` is true,
+ *   a move with loss > `bestMaxLoss` is classified by its loss).
+ * - If the move walks into a forced mate against the mover when a non-mating alternative existed
+ *   before the move, it can never be 'best' (and is classified by its loss, or at least 'mistake'/'blunder').
  */
 export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
+  let onlyMove = false;
+  if (input.secondBestGap !== undefined) {
+    onlyMove = input.secondBestGap > THRESHOLDS.onlyMoveGap;
+  } else if (input.linesBefore && input.moverColor) {
+    onlyMove = isOnlyMove(input.linesBefore, input.moverColor);
+  }
+
+  // Delivering checkmate is always the best move with zero loss
+  if (input.isCheckmateMove) {
+    return {
+      moveClass: 'best',
+      label: MOVE_CLASS_LABELS.best,
+      loss: 0,
+      onlyMove,
+    };
+  }
+
   const loss = Math.max(0, input.winBefore - input.winAfter);
 
   let rawClass: MoveClass;
-  if (input.matchedBestMove || loss <= THRESHOLDS.bestMaxLoss) {
+  if (loss <= THRESHOLDS.bestMaxLoss) {
     rawClass = 'best';
   } else if (loss < THRESHOLDS.excellentLoss) {
     rawClass = 'excellent';
@@ -119,20 +154,30 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
     rawClass = 'blunder';
   }
 
+  // Check whether the move walks into a forced mate against the mover while a non-mating defence existed
+  const walkedIntoMate = isForcedMateAgainstMover(input.evalAfter, input.moverColor);
+  const hadNonMatingReply =
+    walkedIntoMate &&
+    ((input.evalBefore !== undefined && !isForcedMateAgainstMover(input.evalBefore, input.moverColor)) ||
+      (input.linesBefore !== undefined &&
+        input.moverColor !== undefined &&
+        input.linesBefore.some((l) => !isForcedMateAgainstMover(l.score, input.moverColor))) ||
+      input.winBefore >= THRESHOLDS.decidedLowWin);
+
+  if (hadNonMatingReply) {
+    // Walking into a forced mate when a non-mating reply existed is at least a mistake (or blunder)
+    if (SEVERITY_ORDER[rawClass] < SEVERITY_ORDER.mistake) {
+      rawClass = loss >= THRESHOLDS.mistakeLoss ? 'blunder' : 'mistake';
+    }
+  }
+
   // In an already decided position (winBefore < 3, or winBefore > 97 unless the win is thrown away below 50%),
-  // a move is not classified stricter than 'good'.
-  const isAlreadyLost = input.winBefore < THRESHOLDS.decidedLowWin;
-  const isAlreadyWon = input.winBefore > THRESHOLDS.decidedHighWin && input.winAfter >= 50;
+  // a move is not classified stricter than 'good' — UNLESS it allows a new forced mate when a non-mating defence existed.
+  const isAlreadyLost = input.winBefore < THRESHOLDS.decidedLowWin && !hadNonMatingReply;
+  const isAlreadyWon = input.winBefore > THRESHOLDS.decidedHighWin && input.winAfter >= 50 && !hadNonMatingReply;
   let moveClass = rawClass;
   if ((isAlreadyLost || isAlreadyWon) && SEVERITY_ORDER[moveClass] > SEVERITY_ORDER.good) {
     moveClass = 'good';
-  }
-
-  let onlyMove = false;
-  if (input.secondBestGap !== undefined) {
-    onlyMove = input.secondBestGap > THRESHOLDS.onlyMoveGap;
-  } else if (input.linesBefore && input.moverColor) {
-    onlyMove = isOnlyMove(input.linesBefore, input.moverColor);
   }
 
   return {

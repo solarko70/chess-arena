@@ -10,14 +10,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --exclude src/tests/*.slow.test.ts",
+    "test:slow": "vitest run src/tests/ai-levels.slow.test.ts src/tests/review.slow.test.ts",
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "dependencies": {
-    "stockfish": "^19.0.1",
+    "stockfish": "19.0.1",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

@@ -1,9 +1,9 @@
 /**
  * Copies the single-threaded lite Stockfish build (.js and .wasm) from
- * node_modules/stockfish/bin into public/stockfish/ under both the original
- * versioned filenames and fixed aliases:
- * - stockfish-lite-single.js / stockfish-lite-single.wasm
- * - stockfish-18-lite-single.js / stockfish-18-lite-single.wasm
+ * node_modules/stockfish/bin into public/stockfish/ by matching the mask
+ * `stockfish-*-lite-single.*` without hardcoding a version number.
+ * Also writes `manifest.json` with the discovered filenames so browser code
+ * can load the exact versioned file dynamically.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,12 +25,11 @@ function copyStockfish() {
   const wasmFile = entries.find((f) => /^stockfish-.*-lite-single\.wasm$/.test(f));
 
   if (!jsFile || !wasmFile) {
-    console.warn('[copy-stockfish] lite-single files not found in node_modules/stockfish/bin; skipping.');
+    console.warn('[copy-stockfish] stockfish-*-lite-single.* not found in node_modules/stockfish/bin; skipping.');
     return;
   }
 
   fs.mkdirSync(targetDir, { recursive: true });
-  // Remove any stale files so public/stockfish contains only the lite-single pair
   for (const existing of fs.readdirSync(targetDir)) {
     fs.rmSync(path.join(targetDir, existing), { force: true });
   }
@@ -38,8 +37,13 @@ function copyStockfish() {
   const srcJs = path.join(binDir, jsFile);
   const srcWasm = path.join(binDir, wasmFile);
 
-  fs.copyFileSync(srcJs, path.join(targetDir, 'stockfish-18-lite-single.js'));
-  fs.copyFileSync(srcWasm, path.join(targetDir, 'stockfish-18-lite-single.wasm'));
+  fs.copyFileSync(srcJs, path.join(targetDir, jsFile));
+  fs.copyFileSync(srcWasm, path.join(targetDir, wasmFile));
+  fs.writeFileSync(
+    path.join(targetDir, 'manifest.json'),
+    JSON.stringify({ js: jsFile, wasm: wasmFile }, null, 2) + '\n',
+    'utf-8',
+  );
 }
 
 copyStockfish();
