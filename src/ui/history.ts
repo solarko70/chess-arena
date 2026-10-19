@@ -7,6 +7,9 @@ export class HistoryUI {
   private store: ChessStore;
   private listEl!: HTMLElement;
   private detailEl!: HTMLElement;
+  private mistakeNavEl!: HTMLElement;
+  private prevMistakeBtn!: HTMLButtonElement;
+  private nextMistakeBtn!: HTMLButtonElement;
 
   constructor(container: HTMLElement, store: ChessStore) {
     this.container = container;
@@ -15,7 +18,17 @@ export class HistoryUI {
     this.container.innerHTML = `
       <div class="history-panel">
         <div class="history-header solar-section-title">История ходов</div>
-        <div class="history-detail-panel solar-card" id="history-detail-panel" style="display: none;"></div>
+        <div class="history-detail-panel move-feedback-card solar-card" id="history-detail-panel" style="display: none;"></div>
+        <div class="history-mistake-nav" id="history-mistake-nav" style="display: none;">
+          <button type="button" class="solar-btn-ghost btn-mistake-nav" id="btn-prev-mistake" title="Предыдущая ошибка" aria-label="Предыдущая ошибка">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <span>Пред. ошибка</span>
+          </button>
+          <button type="button" class="solar-btn-ghost btn-mistake-nav" id="btn-next-mistake" title="Следующая ошибка" aria-label="Следующая ошибка">
+            <span>След. ошибка</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
         <div class="history-list"></div>
         <div class="history-nav">
           <button id="hist-first" class="solar-btn-ghost" title="В начало (Home)">|&lt;</button>
@@ -28,6 +41,9 @@ export class HistoryUI {
 
     this.listEl = this.container.querySelector('.history-list') as HTMLElement;
     this.detailEl = this.container.querySelector('#history-detail-panel') as HTMLElement;
+    this.mistakeNavEl = this.container.querySelector('#history-mistake-nav') as HTMLElement;
+    this.prevMistakeBtn = this.container.querySelector('#btn-prev-mistake') as HTMLButtonElement;
+    this.nextMistakeBtn = this.container.querySelector('#btn-next-mistake') as HTMLButtonElement;
     this.initEvents();
     this.store.subscribe(() => this.render());
   }
@@ -51,6 +67,13 @@ export class HistoryUI {
     });
     this.container.querySelector('#hist-last')?.addEventListener('click', () => {
       this.store.setViewIndex(null);
+    });
+
+    this.prevMistakeBtn?.addEventListener('click', () => {
+      this.goToPrevMistake();
+    });
+    this.nextMistakeBtn?.addEventListener('click', () => {
+      this.goToNextMistake();
     });
 
     window.addEventListener('keydown', (e) => {
@@ -78,13 +101,51 @@ export class HistoryUI {
     });
   }
 
+  private isMistake(moveClass: string): boolean {
+    return ['inaccuracy', 'mistake', 'blunder'].includes(moveClass);
+  }
+
+  private goToPrevMistake(): void {
+    const review = this.store.getReviewResult();
+    if (!review) return;
+    const current = this.store.getViewIndex();
+    const historyLen = this.store.getLiveState().history.length;
+    const startIdx = current === null ? historyLen - 1 : current - 1;
+
+    for (let i = startIdx; i >= 0; i--) {
+      const m = review.moves[i];
+      if (m && this.isMistake(m.class)) {
+        this.store.setViewIndex(i);
+        return;
+      }
+    }
+  }
+
+  private goToNextMistake(): void {
+    const review = this.store.getReviewResult();
+    if (!review) return;
+    const current = this.store.getViewIndex();
+    const startIdx = current === null ? 0 : current + 1;
+    const historyLen = this.store.getLiveState().history.length;
+
+    for (let i = startIdx; i < historyLen; i++) {
+      const m = review.moves[i];
+      if (m && this.isMistake(m.class)) {
+        this.store.setViewIndex(i);
+        return;
+      }
+    }
+  }
+
   private render(): void {
     const liveState = this.store.getLiveState();
     const history = liveState.history;
     const viewIndex = this.store.getViewIndex();
     const review = this.store.getReviewResult();
+    const isReview = Boolean(this.store.isReviewMode() && review);
 
     this.listEl.innerHTML = '';
+    this.listEl.classList.toggle('review-moves-list', isReview);
 
     // Render detail panel for selected move if review exists
     if (viewIndex !== null && viewIndex >= 0 && review && review.moves[viewIndex]) {
@@ -95,14 +156,59 @@ export class HistoryUI {
         : `${(scoreToCp(m.evalAfter) / 100).toFixed(2)}`;
       const meta = getMoveClassMeta(m.class);
       const bestSan = m.bestSan || '—';
+      const lossText = m.loss > 0 ? `-${m.loss.toFixed(1)}%` : '0%';
+
       this.detailEl.innerHTML = `
-        <span class="detail-badge badge-${m.class}" data-class="${m.class}">${meta.nameRu.toLowerCase()}</span>
-        <span class="detail-eval">Оценка: <strong>${evalFormatted}</strong></span>
-        <span class="detail-best">Лучший ход: <strong>${bestSan}</strong></span>
+        <div class="feedback-card-header">
+          <span class="move-class-badge class-row-badge feedback-card-badge badge-${m.class}" data-class="${m.class}" title="${meta.nameRu}">
+            ${meta.svg}
+          </span>
+          <div class="feedback-card-verdict-wrap">
+            <span class="feedback-card-verdict">${meta.nameRu}</span>
+            <span class="detail-badge badge-${m.class}" data-class="${m.class}" style="display: none;">${meta.nameRu.toLowerCase()}</span>
+          </div>
+        </div>
+        <div class="feedback-card-details">
+          <div class="feedback-detail-item">
+            <span class="feedback-label">Ход:</span>
+            <span class="feedback-value"><strong>${m.san}</strong></span>
+          </div>
+          <div class="feedback-detail-item detail-best">
+            <span class="feedback-label">Лучший ход:</span>
+            <span class="feedback-value"><strong>${bestSan}</strong></span>
+          </div>
+          <div class="feedback-detail-item detail-eval">
+            <span class="feedback-label">Оценка:</span>
+            <span class="feedback-value"><strong>${evalFormatted}</strong></span>
+          </div>
+          <div class="feedback-detail-item feedback-loss-item">
+            <span class="feedback-label">Потеря шансов:</span>
+            <span class="feedback-value feedback-loss"><strong>${lossText}</strong></span>
+          </div>
+        </div>
       `;
     } else {
       this.detailEl.style.display = 'none';
       this.detailEl.innerHTML = '';
+    }
+
+    // Update mistake navigation buttons
+    if (isReview && review) {
+      this.mistakeNavEl.style.display = 'flex';
+      const currentIdx = viewIndex === null ? history.length : viewIndex;
+      let hasPrev = false;
+      let hasNext = false;
+      for (let i = 0; i < history.length; i++) {
+        const m = review.moves[i];
+        if (m && this.isMistake(m.class)) {
+          if (i < currentIdx) hasPrev = true;
+          if (i > (viewIndex === null ? -1 : viewIndex)) hasNext = true;
+        }
+      }
+      this.prevMistakeBtn.disabled = !hasPrev;
+      this.nextMistakeBtn.disabled = !hasNext;
+    } else {
+      this.mistakeNavEl.style.display = 'none';
     }
 
     let replayState = classicalRuleSet.getInitialState();

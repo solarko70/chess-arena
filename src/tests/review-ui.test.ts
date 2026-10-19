@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { globalStore } from '@/state/store';
 import { initApp } from '@/main';
 import {
@@ -822,5 +824,163 @@ describe('Game Review UI Integration Tests', () => {
 
     // analyzeCount should not have increased because cached depth 16 was reused
     expect(analyzeCount).toBe(initialAnalyzeCount);
+  });
+
+  it('Контейнер review-board-nav на узких экранах содержит ровно 4 кнопки без выпадения', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    const nav = document.getElementById('review-board-nav') as HTMLElement;
+    expect(nav).toBeTruthy();
+
+    const buttons = nav.querySelectorAll<HTMLButtonElement>('.review-nav-btn');
+    expect(buttons.length).toBe(4);
+    expect(document.getElementById('review-nav-first')).toBeTruthy();
+    expect(document.getElementById('review-nav-prev')).toBeTruthy();
+    expect(document.getElementById('review-nav-next')).toBeTruthy();
+    expect(document.getElementById('review-nav-last')).toBeTruthy();
+
+    // Check CSS grid and button flex-shrink rules
+    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*1fr\);/);
+    expect(css).toMatch(/\.review-nav-btn\s*\{[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.review-nav-btn\s+svg\s*\{[^}]*max-width:\s*20px;[^}]*max-height:\s*20px;/);
+
+    // Check mobile responsive constraints (<= 800px)
+    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*width:\s*min\(calc\(100vw - 24px\),\s*400px\);/);
+    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*1fr\);/);
+    expect(css).toMatch(/\.review-nav-btn\s*\{[^}]*height:\s*42px;/);
+  });
+
+  it('Элементы class-row имеют min-height не менее 32px и flex-shrink: 0', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    const classRows = document.querySelectorAll('.class-row');
+    expect(classRows.length).toBeGreaterThan(0);
+
+    // Verify base rules have min-height >= 32px and flex-shrink: 0
+    const baseRowMatch = css.match(/\.(?:card-class-row,\s*\.class-row|class-row)\s*\{([^}]*)\}/);
+    expect(baseRowMatch).not.toBeNull();
+    const minHeightMatch = baseRowMatch![1].match(/min-height:\s*(\d+)px;/);
+    expect(minHeightMatch).not.toBeNull();
+    expect(Number(minHeightMatch![1])).toBeGreaterThanOrEqual(32);
+    expect(baseRowMatch![1]).toMatch(/flex-shrink:\s*0;/);
+
+    // Verify mobile responsive rule <= 800px has min-height: 38px, height: 38px, flex-shrink: 0
+    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*min-height:\s*38px;/);
+    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*height:\s*38px;/);
+    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*flex-shrink:\s*0;/);
+    expect(css).toMatch(/color:\s*var\(--solar-text,\s*#f8fafc\);/);
+  });
+
+  it('Мобильные вкладки (Ходы / Обзор / График) переключают видимость секций', async () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    // Desktop rule: .review-mobile-tabs is hidden
+    expect(css).toMatch(/\.review-mobile-tabs\s*\{[^}]*display:\s*none;/);
+
+    // Mobile rule <= 800px has display: grid and tabs switching rules
+    expect(css).toMatch(/\.review-mobile-tabs\s*\{[^}]*display:\s*grid;/);
+    expect(css).toContain('[data-active-tab="moves"]');
+    expect(css).toContain('[data-active-tab="overview"]');
+    expect(css).toContain('[data-active-tab="graph"]');
+
+    // Open review overlay
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    modalReviewBtn.click();
+
+    const sideCol = document.getElementById('review-overlay-side-col') as HTMLElement;
+    expect(sideCol).toBeTruthy();
+    expect(sideCol.getAttribute('data-active-tab')).toBe('moves');
+
+    const mobileTabs = document.getElementById('review-mobile-tabs') as HTMLElement;
+    expect(mobileTabs).toBeTruthy();
+
+    const movesBtn = mobileTabs.querySelector('[data-tab="moves"]') as HTMLButtonElement;
+    const overviewBtn = mobileTabs.querySelector('[data-tab="overview"]') as HTMLButtonElement;
+    const graphBtn = mobileTabs.querySelector('[data-tab="graph"]') as HTMLButtonElement;
+
+    expect(movesBtn).toBeTruthy();
+    expect(overviewBtn).toBeTruthy();
+    expect(graphBtn).toBeTruthy();
+
+    expect(movesBtn.classList.contains('active')).toBe(true);
+    expect(overviewBtn.classList.contains('active')).toBe(false);
+    expect(graphBtn.classList.contains('active')).toBe(false);
+
+    // Switch to Overview tab
+    overviewBtn.click();
+    expect(sideCol.getAttribute('data-active-tab')).toBe('overview');
+    expect(overviewBtn.classList.contains('active')).toBe(true);
+    expect(movesBtn.classList.contains('active')).toBe(false);
+
+    // Switch to Graph tab
+    graphBtn.click();
+    expect(sideCol.getAttribute('data-active-tab')).toBe('graph');
+    expect(graphBtn.classList.contains('active')).toBe(true);
+    expect(overviewBtn.classList.contains('active')).toBe(false);
+
+    // Switch back to Moves tab
+    movesBtn.click();
+    expect(sideCol.getAttribute('data-active-tab')).toBe('moves');
+    expect(movesBtn.classList.contains('active')).toBe(true);
+
+    // Check data-review-tab attributes on review sections
+    expect(document.querySelector('.review-accuracies')?.getAttribute('data-review-tab')).toBe('overview');
+    expect(document.querySelector('.review-classes-table-wrap')?.getAttribute('data-review-tab')).toBe('overview');
+    expect(document.querySelector('.review-engine-info')?.getAttribute('data-review-tab')).toBe('graph');
+    expect(document.querySelector('.review-graph-wrap')?.getAttribute('data-review-tab')).toBe('graph');
+    expect(document.querySelector('.review-key-moments-wrap')?.getAttribute('data-review-tab')).toBe('graph');
+    expect(document.querySelector('.review-actions')?.getAttribute('data-review-tab')).toBe('graph');
+  });
+
+  it('Кнопки перехода по ошибкам в разборе партии осуществляют навигацию по ошибкам', () => {
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    const mockResult = createMockReviewResult();
+    globalStore.setReviewResult(mockResult);
+    globalStore.setReviewMode(true);
+
+    const prevMistakeBtn = document.getElementById('btn-prev-mistake') as HTMLButtonElement;
+    const nextMistakeBtn = document.getElementById('btn-next-mistake') as HTMLButtonElement;
+    expect(prevMistakeBtn).toBeTruthy();
+    expect(nextMistakeBtn).toBeTruthy();
+
+    // In mock review, move index 3 (ply 4: f6) is blunder
+    globalStore.setViewIndex(0);
+    expect(nextMistakeBtn.disabled).toBe(false);
+
+    nextMistakeBtn.click();
+    expect(globalStore.getViewIndex()).toBe(3);
+
+    // Now at index 3 (last blunder), next should be disabled
+    expect(nextMistakeBtn.disabled).toBe(true);
   });
 });
