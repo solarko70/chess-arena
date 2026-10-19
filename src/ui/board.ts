@@ -18,6 +18,8 @@ export class ChessBoardUI {
   private isDragging = false;
   private dragFromSquare: Square | null = null;
   private floatingPieceEl: HTMLElement | null = null;
+  private isTouching = false;
+  private lastTouchEndTime = 0;
 
   constructor(container: HTMLElement, store: ChessStore) {
     this.container = container;
@@ -57,6 +59,12 @@ export class ChessBoardUI {
     this.boardEl.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
     window.addEventListener('pointermove', (e) => this.handlePointerMove(e));
     window.addEventListener('pointerup', (e) => this.handlePointerUp(e));
+
+    // Touch events for mobile touch devices
+    this.boardEl.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+    window.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+    window.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
+    window.addEventListener('touchcancel', () => this.handleTouchCancel());
   }
 
   private render(): void {
@@ -339,11 +347,10 @@ export class ChessBoardUI {
     this.promoOverlayEl.style.display = 'flex';
   }
 
-  private handlePointerDown(e: PointerEvent): void {
-    if (this.store.getPendingPromotion()) return;
-    if (!this.store.isPlayerTurn() || this.store.isAIThinking()) return;
-    const target = (e.target as HTMLElement).closest('.chess-square') as HTMLElement | null;
-    if (!target || !target.dataset.square) return;
+  private processStartAt(target: HTMLElement, clientX: number, clientY: number): boolean {
+    if (this.store.getPendingPromotion()) return false;
+    if (!this.store.isPlayerTurn() || this.store.isAIThinking()) return false;
+    if (!target || !target.dataset.square) return false;
 
     const sq = parseInt(target.dataset.square, 10);
     const piece = this.store.getState().board.pieces[sq];
@@ -356,13 +363,13 @@ export class ChessBoardUI {
       const validDests = this.store.getValidDestinationsFor(selectedSq);
       if (validDests.includes(sq)) {
         this.store.makeMove(selectedSq, sq);
-        return;
+        return true;
       }
 
       // If clicking back on the same square -> deselect
       if (selectedSq === sq) {
         this.store.selectSquare(null);
-        return;
+        return true;
       }
     }
 
@@ -381,33 +388,30 @@ export class ChessBoardUI {
       }
 
       // Create floating element
+      if (this.floatingPieceEl) {
+        this.floatingPieceEl.remove();
+      }
       this.floatingPieceEl = document.createElement('div');
       this.floatingPieceEl.className = 'floating-drag-piece';
       this.floatingPieceEl.innerHTML = getPieceSvg(piece.type, piece.color);
-      this.floatingPieceEl.style.left = `${e.clientX}px`;
-      this.floatingPieceEl.style.top = `${e.clientY}px`;
+      this.floatingPieceEl.style.left = `${clientX}px`;
+      this.floatingPieceEl.style.top = `${clientY}px`;
       document.body.appendChild(this.floatingPieceEl);
-
-      try {
-        if (target.hasPointerCapture && !target.hasPointerCapture(e.pointerId)) {
-          target.setPointerCapture(e.pointerId);
-        }
-      } catch {
-        // Ignore synthetic or unsupported pointer capture errors
-      }
+      return true;
     } else {
       // Clicked on empty space or enemy piece without active selection
       this.store.selectSquare(null);
+      return false;
     }
   }
 
-  private handlePointerMove(e: PointerEvent): void {
+  private updateDragPosition(clientX: number, clientY: number): void {
     if (!this.isDragging || !this.floatingPieceEl) return;
-    this.floatingPieceEl.style.left = `${e.clientX}px`;
-    this.floatingPieceEl.style.top = `${e.clientY}px`;
+    this.floatingPieceEl.style.left = `${clientX}px`;
+    this.floatingPieceEl.style.top = `${clientY}px`;
   }
 
-  private handlePointerUp(e: PointerEvent): void {
+  private finishDragAt(elemBelow: Element | null): void {
     if (!this.isDragging) return;
 
     this.isDragging = false;
@@ -423,7 +427,6 @@ export class ChessBoardUI {
     }
 
     // Determine target square under drop position
-    const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
     const targetSqEl = elemBelow?.closest('.chess-square') as HTMLElement | null;
 
     if (targetSqEl && targetSqEl.dataset.square && this.dragFromSquare !== null) {
@@ -439,5 +442,100 @@ export class ChessBoardUI {
     }
 
     this.dragFromSquare = null;
+  }
+
+  private cancelDrag(): void {
+    if (!this.isDragging) return;
+    this.isDragging = false;
+    if (this.floatingPieceEl) {
+      this.floatingPieceEl.remove();
+      this.floatingPieceEl = null;
+    }
+    const fromEl = this.boardEl.querySelector(`[data-square="${this.dragFromSquare}"] .piece-wrapper`);
+    if (fromEl) {
+      fromEl.classList.remove('dragging');
+    }
+    this.dragFromSquare = null;
+  }
+
+  private handlePointerDown(e: PointerEvent): void {
+    if (e.pointerType === 'touch' && (this.isTouching || Date.now() - this.lastTouchEndTime < 500)) {
+      return;
+    }
+    const target = (e.target as HTMLElement).closest('.chess-square') as HTMLElement | null;
+    if (!target) return;
+
+    const handled = this.processStartAt(target, e.clientX, e.clientY);
+    if (handled && e.pointerId !== undefined) {
+      try {
+        if (target.hasPointerCapture && !target.hasPointerCapture(e.pointerId)) {
+          target.setPointerCapture(e.pointerId);
+        }
+      } catch {
+        // Ignore synthetic or unsupported pointer capture errors
+      }
+    }
+  }
+
+  private handlePointerMove(e: PointerEvent): void {
+    if (e.pointerType === 'touch' && this.isTouching) return;
+    this.updateDragPosition(e.clientX, e.clientY);
+  }
+
+  private handlePointerUp(e: PointerEvent): void {
+    if (e.pointerType === 'touch' && (this.isTouching || Date.now() - this.lastTouchEndTime < 500)) {
+      return;
+    }
+    if (!this.isDragging) return;
+    const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+    this.finishDragAt(elemBelow);
+  }
+
+  private handleTouchStart(e: TouchEvent): void {
+    if (e.touches.length !== 1) return;
+    this.isTouching = true;
+    const touch = e.touches[0];
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    const target =
+      ((e.target as HTMLElement | null)?.closest('.chess-square') as HTMLElement | null) ??
+      (elem?.closest('.chess-square') as HTMLElement | null);
+    if (!target) return;
+
+    const handled = this.processStartAt(target, touch.clientX, touch.clientY);
+    if (handled) {
+      e.preventDefault();
+    }
+  }
+
+  private handleTouchMove(e: TouchEvent): void {
+    if (!this.isDragging || e.touches.length === 0) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    this.updateDragPosition(touch.clientX, touch.clientY);
+  }
+
+  private handleTouchEnd(e: TouchEvent): void {
+    if (!this.isDragging) {
+      this.isTouching = false;
+      this.lastTouchEndTime = Date.now();
+      return;
+    }
+    e.preventDefault();
+    this.isTouching = false;
+    this.lastTouchEndTime = Date.now();
+
+    const touch = e.changedTouches[0] ?? e.touches[0];
+    if (touch) {
+      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      this.finishDragAt(elemBelow);
+    } else {
+      this.cancelDrag();
+    }
+  }
+
+  private handleTouchCancel(): void {
+    this.isTouching = false;
+    this.lastTouchEndTime = Date.now();
+    this.cancelDrag();
   }
 }

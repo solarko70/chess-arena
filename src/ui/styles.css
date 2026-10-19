@@ -414,6 +414,18 @@ body.review-active #app {
   color: var(--text-secondary);
 }
 
+.board-container,
+.board-grid,
+.chess-board,
+.chess-square,
+.piece,
+.piece-wrapper {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .board-container {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -3712,7 +3724,7 @@ body.review-active .review-overlay-side-col .history-nav {
 /* Mobile Responsive Layout for Game Screen (<= 800px) */
 @media (max-width: 800px) {
   body.game-active {
-    padding: 8px 12px;
+    padding: 8px;
   }
 
   .game-layout {
@@ -3723,9 +3735,17 @@ body.review-active .review-overlay-side-col .history-nav {
   }
 
   .game-board-col {
-    width: calc(100vw - 24px);
-    max-width: 100%;
+    width: 100%;
+    max-width: calc(100vw - 16px);
     gap: 6px;
+  }
+
+  .eval-bar-wrapper {
+    width: 16px;
+  }
+
+  .eval-bar-text {
+    font-size: 0.55rem;
   }
 
   .player-bar {
@@ -3781,7 +3801,8 @@ body.review-active .review-overlay-side-col .history-nav {
   }
 
   .review-overlay .board-container {
-    width: calc(100vw - 88px);
+    width: 100%;
+    max-width: calc(100vw - 24px);
   }
 
   .class-row-badge,
@@ -3801,7 +3822,76 @@ body.review-active .review-overlay-side-col .history-nav {
   }
 
   .review-nav-btn {
-    height: 40px;
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .btn-action,
+  .solar-btn,
+  .solar-btn-ghost {
+    min-height: 42px;
+  }
+}
+
+/* Mobile phones (<= 450px) */
+@media (max-width: 450px) {
+  body.game-active {
+    padding: 6px;
+  }
+
+  .game-layout {
+    gap: 8px;
+  }
+
+  .game-board-col {
+    width: 100%;
+    max-width: calc(100vw - 12px);
+    gap: 4px;
+  }
+
+  .board-area {
+    gap: 6px;
+  }
+
+  .eval-bar-wrapper {
+    width: 14px;
+    border-radius: 4px;
+  }
+
+  .eval-bar-text {
+    display: none;
+  }
+
+  .player-bar {
+    height: 36px;
+    padding: 2px 8px;
+    font-size: 0.85rem;
+  }
+
+  .review-overlay {
+    padding: 8px;
+  }
+
+  .review-overlay .board-container {
+    width: 100%;
+    max-width: calc(100vw - 16px);
+  }
+
+  .review-board-nav {
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .review-nav-btn {
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .btn-action,
+  .solar-btn,
+  .solar-btn-ghost,
+  .btn-menu {
+    min-height: 44px;
   }
 }
 

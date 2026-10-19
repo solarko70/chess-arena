@@ -30,6 +30,7 @@ export {
   moveToUCI,
   uciToMove,
   findStockfishLiteSingleInDir,
+  resolveBrowserStockfishUrl,
 } from './engine';
 export type {
   AnalysisEngine,

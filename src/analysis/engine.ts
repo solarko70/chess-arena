@@ -295,13 +295,16 @@ export class OwnEngine implements AnalysisEngine {
 }
 
 /**
- * Resolve the browser Stockfish worker script URL by consulting `/stockfish/manifest.json`
+ * Resolve the browser Stockfish worker script URL by consulting `stockfish/manifest.json`
  * (written by `scripts/copy-stockfish.mjs` for `stockfish-*-lite-single.js`).
  */
-async function resolveBrowserStockfishUrl(): Promise<string> {
+export async function resolveBrowserStockfishUrl(): Promise<string> {
   const meta = import.meta as unknown as { env?: { BASE_URL?: string } };
-  const baseUrl = meta?.env?.BASE_URL || '/';
-  const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  let rawBase = meta?.env?.BASE_URL ?? './';
+  if (rawBase === '/') {
+    rawBase = './';
+  }
+  const prefix = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
   const manifestUrl = `${prefix}stockfish/manifest.json`;
 
   if (typeof fetch === 'function') {
@@ -314,10 +317,28 @@ async function resolveBrowserStockfishUrl(): Promise<string> {
         }
       }
     } catch {
-      // Fall through to default discovery error if manifest cannot be fetched
+      // Fall through to fallback discovery if manifest cannot be fetched
+    }
+
+    // Direct fallback check
+    const fallbacks = [
+      `${prefix}stockfish/stockfish-19-lite-single.js`,
+      `${prefix}stockfish/stockfish-18-lite-single.js`,
+    ];
+    for (const fileUrl of fallbacks) {
+      try {
+        const resp = await fetch(fileUrl, { method: 'HEAD', credentials: 'same-origin' });
+        if (resp.ok) {
+          return fileUrl;
+        }
+      } catch {
+        // Ignore fallback fetch error
+      }
     }
   }
-  throw new Error(`Stockfish manifest (${manifestUrl}) could not be loaded`);
+
+  // If fetch is unavailable or offline, return default relative path
+  return `${prefix}stockfish/stockfish-18-lite-single.js`;
 }
 
 /**
