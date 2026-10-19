@@ -11,6 +11,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run --exclude src/tests/*.slow.test.ts",
+    "test:safe": "node scripts/safe-test.mjs",
     "test:slow": "vitest run src/tests/ai-levels.slow.test.ts src/tests/review.slow.test.ts",
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",

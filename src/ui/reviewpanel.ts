@@ -1,16 +1,14 @@
 import { ChessStore } from '@/state/store';
 import {
-  runGameReview,
   exportReviewedPGN,
-  MOVE_CLASS_LABELS,
-  type MoveClass,
+  MOVE_CLASS_REGISTRY,
+  getMoveClassMeta,
   type GameReviewResult,
 } from '@/analysis';
 
 export class ReviewPanelUI {
   private container: HTMLElement;
   private store: ChessStore;
-  private abortController: AbortController | null = null;
 
   // DOM elements
   private cancelBtn!: HTMLButtonElement;
@@ -108,46 +106,19 @@ export class ReviewPanelUI {
   }
 
   public async startReview(): Promise<void> {
-    if (!this.store.canReview() || this.store.isReviewInProgress()) return;
-
-    this.abortController = new AbortController();
-    this.store.setReviewInProgress(true);
     this.store.setReviewMode(true);
-
-    const isDeep = this.store.getReviewDepth() === 20;
-    const historyLen = this.store.getLiveState().history.length;
-    this.store.setReviewProgress({ completed: 0, total: historyLen + 1, ply: 0 });
-
-    try {
-      const result = await runGameReview(this.store.getLiveState(), {
-        mode: isDeep ? 'deep' : 'standard',
-        signal: this.abortController.signal,
-        onProgress: (progress) => {
-          this.store.setReviewProgress(progress);
-        },
-        workerFactory: this.store.getReviewWorkerFactory(),
-        engine: this.store.getReviewEngine(),
-      });
-      this.store.setReviewResult(result, result.fallbackNote);
-    } catch (err: unknown) {
-      const isAbort = (err as Error)?.name === 'AbortError' || this.abortController.signal.aborted;
-      if (!isAbort) {
-        console.error('Game review failed:', err);
-      }
-    } finally {
-      this.abortController = null;
-      this.store.setReviewProgress(null);
-      this.store.setReviewInProgress(false);
+    if (this.store.getReviewResult()) {
+      return;
     }
+    if (!this.store.canReview() || this.store.isReviewInProgress()) {
+      return;
+    }
+    const isDeep = this.store.getReviewDepth() === 20;
+    await this.store.startReview({ isDeep });
   }
 
   public cancelReview(): void {
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
-    }
-    this.store.setReviewProgress(null);
-    this.store.setReviewInProgress(false);
+    this.store.cancelReview();
   }
 
   private async copyReviewedPGN(): Promise<void> {
@@ -233,8 +204,6 @@ export class ReviewPanelUI {
   }
 
   private renderClassesTable(review: GameReviewResult): void {
-    const classOrder: MoveClass[] = ['best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder'];
-
     let html = `
       <table class="classes-table">
         <thead>
@@ -247,13 +216,13 @@ export class ReviewPanelUI {
         <tbody>
     `;
 
-    for (const cls of classOrder) {
-      const label = MOVE_CLASS_LABELS[cls];
-      const wCount = review.counts.white[cls] ?? 0;
-      const bCount = review.counts.black[cls] ?? 0;
+    for (const meta of MOVE_CLASS_REGISTRY) {
+      const label = meta.nameRu;
+      const wCount = review.counts.white[meta.id] ?? 0;
+      const bCount = review.counts.black[meta.id] ?? 0;
       html += `
         <tr>
-          <td><span class="move-class-badge badge-${cls}">${label}</span></td>
+          <td><span class="move-class-badge badge-${meta.id}">${label}</span></td>
           <td style="text-align: center;"><strong>${wCount}</strong></td>
           <td style="text-align: center;"><strong>${bCount}</strong></td>
         </tr>
@@ -332,7 +301,7 @@ export class ReviewPanelUI {
   private renderKeyMoments(review: GameReviewResult): void {
     const keyMoves = review.moves
       .map((m, idx) => ({ m, idx }))
-      .filter(({ m }) => m.class === 'blunder' || m.class === 'mistake' || m.class === 'inaccuracy');
+      .filter(({ m }) => getMoveClassMeta(m.class).order >= 4);
 
     if (keyMoves.length === 0) {
       this.keyMomentsListEl.innerHTML = `<div class="key-moments-empty">Ключевых ошибок в партии не обнаружено.</div>`;
@@ -341,6 +310,7 @@ export class ReviewPanelUI {
 
     this.keyMomentsListEl.innerHTML = '';
     for (const { m, idx } of keyMoves) {
+      const meta = getMoveClassMeta(m.class);
       const item = document.createElement('div');
       item.className = 'key-moment-item';
       item.dataset.moveIndex = idx.toString();
@@ -350,7 +320,7 @@ export class ReviewPanelUI {
 
       item.innerHTML = `
         <span class="moment-san"><strong>${moveStr}</strong></span>
-        <span class="move-class-badge badge-${m.class}">${MOVE_CLASS_LABELS[m.class]}</span>
+        <span class="move-class-badge badge-${m.class}">${meta.nameRu}</span>
         <span class="moment-loss">-${m.loss.toFixed(1)}%</span>
         <span class="moment-best">Лучший: ${m.bestSan || '—'}</span>
       `;

@@ -1,6 +1,6 @@
 import { ChessStore } from '@/state/store';
 import { moveToSAN, classicalRuleSet } from '@/core';
-import { scoreToCp, MOVE_CLASS_LABELS, type MoveClass } from '@/analysis';
+import { scoreToCp, getMoveClassMeta } from '@/analysis';
 
 export class HistoryUI {
   private container: HTMLElement;
@@ -93,9 +93,10 @@ export class HistoryUI {
       const evalFormatted = m.evalAfter.type === 'mate'
         ? `Мат ${m.evalAfter.value > 0 ? '+' : ''}${m.evalAfter.value}`
         : `${(scoreToCp(m.evalAfter) / 100).toFixed(2)}`;
+      const meta = getMoveClassMeta(m.class);
       const bestSan = m.bestSan || '—';
       this.detailEl.innerHTML = `
-        <span class="detail-badge badge-${m.class}" data-class="${m.class}">${MOVE_CLASS_LABELS[m.class]}</span>
+        <span class="detail-badge badge-${m.class}" data-class="${m.class}">${meta.nameRu.toLowerCase()}</span>
         <span class="detail-eval">Оценка: <strong>${evalFormatted}</strong></span>
         <span class="detail-best">Лучший ход: <strong>${bestSan}</strong></span>
       `;
@@ -135,11 +136,12 @@ export class HistoryUI {
 
       const whiteReview = review?.moves[i];
       if (whiteReview) {
+        const meta = getMoveClassMeta(whiteReview.class);
         const badge = document.createElement('span');
         badge.className = `move-class-badge badge-${whiteReview.class}`;
         badge.dataset.class = whiteReview.class;
-        badge.title = MOVE_CLASS_LABELS[whiteReview.class];
-        badge.textContent = getMoveClassSymbol(whiteReview.class);
+        badge.title = meta.nameRu;
+        badge.textContent = meta.symbol;
         whiteSpan.appendChild(badge);
       }
 
@@ -159,11 +161,12 @@ export class HistoryUI {
 
         const blackReview = review?.moves[i + 1];
         if (blackReview) {
+          const meta = getMoveClassMeta(blackReview.class);
           const badge = document.createElement('span');
           badge.className = `move-class-badge badge-${blackReview.class}`;
           badge.dataset.class = blackReview.class;
-          badge.title = MOVE_CLASS_LABELS[blackReview.class];
-          badge.textContent = getMoveClassSymbol(blackReview.class);
+          badge.title = meta.nameRu;
+          badge.textContent = meta.symbol;
           blackSpan.appendChild(badge);
         }
 
@@ -185,22 +188,5 @@ export class HistoryUI {
     } else {
       this.listEl.scrollTop = this.listEl.scrollHeight;
     }
-  }
-}
-
-function getMoveClassSymbol(cls: MoveClass): string {
-  switch (cls) {
-    case 'best':
-      return '★';
-    case 'excellent':
-      return '★';
-    case 'good':
-      return '✓';
-    case 'inaccuracy':
-      return '?!';
-    case 'mistake':
-      return '?';
-    case 'blunder':
-      return '??';
   }
 }

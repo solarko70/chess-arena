@@ -9,7 +9,7 @@ import type {
 } from '@/core';
 import { classicalRuleSet, parseFEN, parsePGN, serializeFEN, exportPGN } from '@/core';
 import { LEVELS, LEVEL_ORDER, type LevelId, type WorkerRequest, type WorkerResponse } from '@/ai';
-import type { ReviewProgress, ReviewRunResult, ReviewWorkerLike, AnalysisEngine } from '@/analysis';
+import { runGameReview, type ReviewProgress, type ReviewRunResult, type ReviewWorkerLike, type AnalysisEngine } from '@/analysis';
 
 export type TimeControlMode = 'none' | 'bullet-1-0' | 'blitz-3-2' | 'blitz-5-0' | 'rapid-10-0' | 'rapid-15-10';
 export type GameMode = 'pvp' | 'ai';
@@ -97,6 +97,10 @@ export class ChessStore {
   private reviewFallbackNote: string | null = null;
   private reviewWorkerFactory?: () => ReviewWorkerLike;
   private reviewEngine?: AnalysisEngine;
+  private reviewAbortController: AbortController | null = null;
+  private reviewError: string | null = null;
+  private notifyDepth: number = 0;
+  private notifyDirty: boolean = false;
 
   constructor(ruleSet: RuleSet = classicalRuleSet) {
     this.ruleSet = ruleSet;
@@ -444,6 +448,7 @@ export class ChessStore {
         this.cancelAISearch();
         this.onTimeOutCallback?.('white');
         this.notify();
+        this.maybeTriggerAutoReview();
       }
     } else {
       this.blackMs = Math.max(0, this.blackMs - elapsed);
@@ -456,6 +461,7 @@ export class ChessStore {
         this.cancelAISearch();
         this.onTimeOutCallback?.('black');
         this.notify();
+        this.maybeTriggerAutoReview();
       }
     }
   }
@@ -546,9 +552,34 @@ export class ChessStore {
   }
 
   private notify(): void {
-    const st = this.getState();
-    for (const listener of this.listeners) {
-      listener(st, this);
+    if (this.notifyDepth > 0) {
+      this.notifyDepth++;
+      if (this.notifyDepth > 20) {
+        this.notifyDepth = 0;
+        this.notifyDirty = false;
+        throw new Error('store.notify re-entered too deeply: a subscriber is mutating state; see stack');
+      }
+      this.notifyDirty = true;
+      return;
+    }
+
+    this.notifyDepth = 1;
+    this.notifyDirty = false;
+    try {
+      const st1 = this.getState();
+      for (const listener of [...this.listeners]) {
+        listener(st1, this);
+      }
+      if (this.notifyDirty) {
+        this.notifyDirty = false;
+        const st2 = this.getState();
+        for (const listener of [...this.listeners]) {
+          listener(st2, this);
+        }
+      }
+    } finally {
+      this.notifyDepth = 0;
+      this.notifyDirty = false;
     }
   }
 
@@ -579,11 +610,16 @@ export class ChessStore {
     this.timedOutLoser = null;
     this.resignedPlayer = null;
     this.hasActiveGame = true;
+    if (this.reviewAbortController) {
+      this.reviewAbortController.abort();
+      this.reviewAbortController = null;
+    }
     this.reviewResult = null;
     this.isReviewModeActive = false;
     this.isReviewing = false;
     this.reviewProgress = null;
     this.reviewFallbackNote = null;
+    this.reviewError = null;
 
     const cfg = TIME_CONTROLS[this.clockMode];
     this.whiteMs = cfg.initialMs;
@@ -706,7 +742,11 @@ export class ChessStore {
     this.pendingPromotion = null;
     this.lastError = null;
     this.notify();
-    this.maybeTriggerAIMove();
+    if (this.isGameOver()) {
+      this.maybeTriggerAutoReview();
+    } else {
+      this.maybeTriggerAIMove();
+    }
     return true;
   }
 
@@ -907,6 +947,7 @@ export class ChessStore {
   }
 
   setReviewMode(active: boolean): void {
+    if (this.isReviewModeActive === active) return;
     this.isReviewModeActive = active;
     if (!active) {
       this.syncClock();
@@ -924,6 +965,7 @@ export class ChessStore {
   }
 
   setReviewInProgress(inProgress: boolean): void {
+    if (this.isReviewing === inProgress) return;
     this.isReviewing = inProgress;
     this.syncClock();
     this.notify();
@@ -934,6 +976,16 @@ export class ChessStore {
   }
 
   setReviewProgress(progress: ReviewProgress | null): void {
+    if (
+      this.reviewProgress === progress ||
+      (this.reviewProgress !== null &&
+        progress !== null &&
+        this.reviewProgress.completed === progress.completed &&
+        this.reviewProgress.total === progress.total &&
+        this.reviewProgress.ply === progress.ply)
+    ) {
+      return;
+    }
     this.reviewProgress = progress;
     this.notify();
   }
@@ -943,6 +995,7 @@ export class ChessStore {
   }
 
   setReviewDepth(depth: number): void {
+    if (this.reviewDepth === depth) return;
     this.reviewDepth = depth;
     this.notify();
   }
@@ -965,8 +1018,110 @@ export class ChessStore {
 
   canReview(): boolean {
     if (this.isReviewing) return false;
-    const isEnded = this.isGameOver();
-    return this.state.history.length >= 2 || (isEnded && this.state.history.length > 0);
+    return this.state.history.length >= 2;
+  }
+
+  getReviewError(): string | null {
+    return this.reviewError;
+  }
+
+  setReviewError(error: string | null): void {
+    if (this.reviewError === error) return;
+    this.reviewError = error;
+    this.notify();
+  }
+
+  cancelReview(): void {
+    const hadController = this.reviewAbortController !== null;
+    if (this.reviewAbortController) {
+      this.reviewAbortController.abort();
+      this.reviewAbortController = null;
+    }
+    const wasReviewing = this.isReviewing;
+    const hadProgress = this.reviewProgress !== null;
+    this.isReviewing = false;
+    this.reviewProgress = null;
+    this.syncClock();
+    if (hadController || wasReviewing || hadProgress) {
+      this.notify();
+    }
+  }
+
+  async startReview(options?: { isDeep?: boolean; force?: boolean }): Promise<ReviewRunResult | null> {
+    if (!options?.force && this.reviewResult) {
+      return this.reviewResult;
+    }
+    if (this.state.history.length < 2) {
+      return null;
+    }
+    if (this.isReviewing) {
+      return null;
+    }
+
+    if (this.reviewAbortController) {
+      this.reviewAbortController.abort();
+      this.reviewAbortController = null;
+    }
+    const abortController = new AbortController();
+    this.reviewAbortController = abortController;
+
+    this.reviewError = null;
+    this.isReviewing = true;
+    const historyLen = this.state.history.length;
+    this.reviewProgress = { completed: 0, total: historyLen + 1, ply: 0 };
+    this.syncClock();
+    this.notify();
+
+    const isDeep = options?.isDeep ?? (this.reviewDepth === 20);
+
+    try {
+      const result = await runGameReview(this.state, {
+        mode: isDeep ? 'deep' : 'standard',
+        signal: abortController.signal,
+        onProgress: (progress) => {
+          if (abortController.signal.aborted) return;
+          this.setReviewProgress(progress);
+        },
+        workerFactory: this.reviewWorkerFactory,
+        engine: this.reviewEngine,
+        forceOwnEngine: Boolean(this.reviewWorkerFactory && !this.reviewEngine),
+      });
+      if (abortController.signal.aborted) {
+        return null;
+      }
+      this.reviewResult = result;
+      this.reviewFallbackNote = result.fallbackNote ?? null;
+      this.reviewError = null;
+      return result;
+    } catch (err: unknown) {
+      const isAbort = (err as Error)?.name === 'AbortError' || abortController.signal.aborted;
+      if (!isAbort) {
+        this.reviewError = 'Анализ недоступен';
+      }
+      return null;
+    } finally {
+      if (this.reviewAbortController === abortController) {
+        this.reviewAbortController = null;
+        const wasReviewing = this.isReviewing;
+        this.isReviewing = false;
+        this.reviewProgress = null;
+        this.syncClock();
+        if (wasReviewing) {
+          this.notify();
+        }
+      }
+    }
+  }
+
+  maybeTriggerAutoReview(): void {
+    const hasEngineOrWorker =
+      typeof Worker !== 'undefined' ||
+      this.reviewWorkerFactory !== undefined ||
+      this.reviewEngine !== undefined;
+    if (!hasEngineOrWorker) return;
+    if (this.isGameOver() && this.canReview() && !this.reviewResult && !this.isReviewing) {
+      void this.startReview();
+    }
   }
 
   isGameOver(): boolean {
@@ -982,6 +1137,7 @@ export class ChessStore {
     this.cancelAISearch();
     this.clockActive = false;
     this.notify();
+    this.maybeTriggerAutoReview();
   }
 
   getResignedPlayer(): Color | null {
@@ -1005,6 +1161,7 @@ export class ChessStore {
   }
 
   setGameOverModalDismissed(dismissed: boolean): void {
+    if (this.gameOverModalDismissed === dismissed) return;
     this.gameOverModalDismissed = dismissed;
     this.notify();
   }
@@ -1013,7 +1170,7 @@ export class ChessStore {
     if (this.gameOverModalDismissed) return false;
     if (this.isGameLoadedFromNotation) return false;
     if (this.isViewingHistory()) return false;
-    if (this.isReviewModeActive || this.isReviewing) return false;
+    if (this.isReviewModeActive) return false;
     return this.isGameOver();
   }
 

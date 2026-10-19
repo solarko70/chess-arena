@@ -409,7 +409,6 @@ export function initApp(): void {
   const closeReviewOverlay = (returnToSummary = true): void => {
     if (!isReviewOverlayOpen) return;
     isReviewOverlayOpen = false;
-    reviewPanel.cancelReview();
     globalStore.setReviewMode(false);
     gameBoardCol.insertBefore(boardMount, playerBarBottom);
     gameSidePanel.insertBefore(historyMount, sidePanelActions);
@@ -435,6 +434,7 @@ export function initApp(): void {
       const ok = window.confirm(t('game.leaveConfirm'));
       if (!ok) return;
     }
+    globalStore.cancelReview();
     if (isReviewOverlayOpen) {
       closeReviewOverlay(false);
     }
@@ -457,6 +457,7 @@ export function initApp(): void {
       openReviewOverlay();
     },
     onNewGame: () => {
+      globalStore.cancelReview();
       if (isReviewOverlayOpen) {
         closeReviewOverlay(false);
       }

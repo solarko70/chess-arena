@@ -83,3 +83,11 @@ export {
   formatEvalComment,
 } from './pgn-export';
 
+export {
+  MOVE_CLASS_REGISTRY,
+  MOVE_CLASS_MAP,
+  getMoveClassMeta,
+  formatMaterialPoints,
+} from './classes';
+export type { MoveClassMeta } from './classes';
+

@@ -1,18 +1,10 @@
 import type { GameState } from '@/core';
 import type { GameReviewResult, ReviewedMove } from './review';
 import { scoreToCp } from './winchance';
+import { getMoveClassMeta } from './classes';
 
 export function classToNAG(moveClass: ReviewedMove['class']): string {
-  switch (moveClass) {
-    case 'blunder':
-      return '??';
-    case 'mistake':
-      return '?';
-    case 'inaccuracy':
-      return '?!';
-    default:
-      return '';
-  }
+  return getMoveClassMeta(moveClass).nag;
 }
 
 export function formatEvalComment(score: ReviewedMove['evalAfter']): string {
