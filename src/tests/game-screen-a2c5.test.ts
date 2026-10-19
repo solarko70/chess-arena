@@ -43,7 +43,7 @@ describe('Stage A2c-5: Fullscreen Solar Background and Review Panel Styling', ()
     expect(bgMatch![1]).toMatch(/position:\s*fixed;/);
     expect(bgMatch![1]).toMatch(/inset:\s*0;/);
     expect(bgMatch![1]).toMatch(/pointer-events:\s*none;/);
-    expect(bgMatch![1]).toMatch(/z-index:\s*-1;/);
+    expect(bgMatch![1]).toMatch(/z-index:\s*(?:-1|var\(--z-bg\));/);
   });
 
   it('bg layer is visible on game screen and review overlay, but hidden on home screen', () => {
@@ -98,7 +98,7 @@ describe('Stage A2c-5: Fullscreen Solar Background and Review Panel Styling', ()
     expect(bgRuleMatch![1]).not.toContain('animation');
   });
 
-  it('game screen and review overlay containers have transparent background', () => {
+  it('game screen has transparent background and review overlay has opaque edge base', () => {
     const cssPath = path.resolve(__dirname, '../ui/styles.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
@@ -108,7 +108,7 @@ describe('Stage A2c-5: Fullscreen Solar Background and Review Panel Styling', ()
 
     const overlayMatch = css.match(/\.review-overlay\s*\{([^}]*)\}/);
     expect(overlayMatch).not.toBeNull();
-    expect(overlayMatch![1]).toMatch(/background:\s*transparent;/);
+    expect(overlayMatch![1]).toMatch(/background-color:\s*var\(--solar-bg-edge\);/);
   });
 
   it('body.game-active and body.review-active match --solar-bg-edge in CSS', () => {

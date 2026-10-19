@@ -32,8 +32,15 @@
   /* 3. Depth blur for distant celestial orbits and stars (default 1px) */
   --far-blur: 1px;
 
+  /* Layer z-index hierarchy */
+  --z-bg: -1;
+  --z-screen: 1;
+  --z-overlay: 50;
+  --z-modal: 100;
+  --z-toast: 200;
+
   /* Solar Chess theme variables */
-  --solar-bg-edge: #040814;
+  --solar-bg-edge: #0a0d16;
   --solar-bg-base: radial-gradient(circle at var(--sun-x) var(--sun-y), #0d1a36 0%, #080f22 55%, var(--solar-bg-edge) 100%);
   --solar-sun-core: rgba(251, 191, 36, 0.42);
   --solar-sun-mid: rgba(245, 158, 11, 0.20);
@@ -64,6 +71,14 @@
   --star-fill: rgba(255, 255, 255, 0.75);
   --game-orbit-opacity: 0.12;
   --game-star-opacity: 0.12;
+
+  /* Game cosmic background variables (dark theme) */
+  --planet-dark: #0a1128;
+  --planet-edge: #fbbf24;
+  --planet-ring: rgba(251, 191, 36, 0.35);
+  --planet-moon: #cbd5e1;
+  --asteroid-fill: rgba(251, 191, 36, 0.45);
+  --game-cosmic-opacity: 0.14;
 
   /* Move class color palette */
   --class-best: #22c55e;
@@ -103,7 +118,7 @@
   --vignette-strength: 0.25;
 
   /* Solar Chess light theme variables */
-  --solar-bg-edge: #eae0ca;
+  --solar-bg-edge: #f1f3f7;
   --solar-bg-base: radial-gradient(circle at var(--sun-x) var(--sun-y), #fcf7ec 0%, #f5ecd8 55%, var(--solar-bg-edge) 100%);
   --solar-sun-core: rgba(245, 158, 11, 0.24);
   --solar-sun-mid: rgba(217, 119, 6, 0.12);
@@ -134,6 +149,14 @@
   --star-fill: rgba(217, 119, 6, 0.35);
   --game-orbit-opacity: 0.26;
   --game-star-opacity: 0.26;
+
+  /* Game cosmic background variables (light theme) */
+  --planet-dark: #fbf5e8;
+  --planet-edge: #d97706;
+  --planet-ring: rgba(217, 119, 6, 0.5);
+  --planet-moon: #94a3b8;
+  --asteroid-fill: rgba(180, 83, 9, 0.45);
+  --game-cosmic-opacity: 0.28;
 }
 
 * {
@@ -412,7 +435,7 @@ body.review-active #app {
 .floating-drag-piece {
   position: fixed;
   pointer-events: none;
-  z-index: 100;
+  z-index: var(--z-overlay);
   width: 60px;
   height: 60px;
   transform: translate(-50%, -50%);
@@ -428,7 +451,7 @@ body.review-active #app {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 50;
+  z-index: var(--z-overlay);
   animation: fadeIn 0.15s ease-out;
 }
 
@@ -1104,7 +1127,7 @@ body.review-active #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
   padding: 16px;
   animation: modalOverlayFade 0.2s ease-out;
 }
@@ -1812,7 +1835,7 @@ body.review-active #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1100;
+  z-index: var(--z-modal);
   padding: 16px;
   animation: modalOverlayFade 0.2s ease-out;
 }
@@ -2110,7 +2133,7 @@ body.review-active #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1150;
+  z-index: var(--z-modal);
   padding: 16px;
   animation: modalOverlayFade 0.15s ease-out;
 }
@@ -2159,6 +2182,8 @@ body.review-active #app {
 
 /* Screen Layout & Hash Router Transitions */
 .screen {
+  position: relative;
+  z-index: var(--z-screen);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2189,7 +2214,7 @@ body.review-active #app {
 .game-solar-background {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: var(--z-bg);
   pointer-events: none;
   background:
     radial-gradient(ellipse 65% 45% at 85% 12%, var(--glow-color) 0%, transparent 60%),
@@ -2205,6 +2230,27 @@ body.review-active #app {
   width: 100%;
   height: 100%;
   pointer-events: none;
+  opacity: var(--game-cosmic-opacity, 0.14);
+}
+
+.game-solar-planet-cluster {
+  pointer-events: none;
+}
+
+.game-solar-planet {
+  stroke: var(--planet-edge);
+  stroke-width: 1.5px;
+}
+
+.game-solar-ring {
+  fill: none;
+  stroke: var(--planet-ring);
+  stroke-width: 2.5px;
+}
+
+.game-solar-moon {
+  fill: var(--planet-moon);
+  opacity: 0.85;
 }
 
 .game-solar-orbit {
@@ -2214,13 +2260,34 @@ body.review-active #app {
   fill: none;
 }
 
+.game-solar-planet-orbit {
+  opacity: var(--game-orbit-opacity, 0.12);
+}
+
+.game-solar-asteroid-belt {
+  pointer-events: none;
+}
+
+.game-solar-asteroid {
+  fill: var(--asteroid-fill);
+}
+
+.game-solar-starfield {
+  pointer-events: none;
+}
+
 .game-solar-star {
   fill: var(--star-fill);
   opacity: var(--game-star-opacity, 0.12);
 }
 
 @media (max-width: 800px) {
-  .game-solar-star.star-desktop-only {
+  .game-solar-planet-cluster {
+    transform-origin: 120px 980px;
+    transform: scale(0.6);
+  }
+  .game-solar-asteroid-belt,
+  .game-solar-asteroid {
     display: none;
   }
 }
@@ -2619,12 +2686,16 @@ body.review-active #app {
   box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
 }
 
-/* Temporary Fullscreen Review Overlay (Stage A2b) */
+/* Temporary Fullscreen Review Overlay (Stage A2b / A2c-6) */
 .review-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1050;
-  background: transparent;
+  z-index: var(--z-overlay);
+  background-color: var(--solar-bg-edge);
+  background-image:
+    radial-gradient(ellipse 65% 45% at 85% 12%, var(--glow-color) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 15% 85%, rgba(245, 158, 11, 0.03) 0%, transparent 50%),
+    var(--solar-bg-base);
   display: flex;
   flex-direction: column;
   padding: 16px 24px;
@@ -2766,7 +2837,7 @@ body.review-active #app {
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 1000;
+  z-index: var(--z-modal);
   background: var(--bg-secondary);
   border: 1px solid var(--bg-tertiary);
   color: var(--text-primary);
@@ -2806,7 +2877,7 @@ body.review-active #app {
   height: 100vh;
   overflow: hidden;
   pointer-events: none;
-  z-index: -1;
+  z-index: var(--z-bg);
   background-color: var(--solar-bg-edge);
   background-image: var(--solar-bg-base);
   display: block;
@@ -3152,6 +3223,8 @@ body.review-active #app {
 }
 
 .home-toast {
+  position: relative;
+  z-index: var(--z-toast);
   margin-top: 18px;
   padding: 8px 18px;
   border-radius: 20px;

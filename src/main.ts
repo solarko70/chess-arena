@@ -264,27 +264,27 @@ export function initApp(): void {
         </aside>
       </div>
 
-      <!-- Temporary Review Overlay (Stage A2b) -->
-      <div class="review-overlay" id="review-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Разбор партии">
-        <div class="review-overlay-header">
-          <h2 class="review-overlay-title">Разбор партии</h2>
-          <button class="review-overlay-close" id="btn-close-review-overlay" aria-label="Закрыть разбор">✕</button>
-        </div>
-        <div class="review-overlay-body">
-          <div class="review-overlay-board-col" id="review-overlay-board-slot"></div>
-          <div class="review-overlay-side-col">
-            <div id="review-overlay-history-slot" class="review-overlay-history-slot"></div>
-            <div id="review-mount" class="review-overlay-panel-slot"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- Resign Modal Dialog (Stage A2) -->
       <div class="resign-modal-overlay" id="resign-modal-overlay" style="display: none;">
         <div class="resign-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="resign-modal-title">
           <h3 class="resign-modal-title" id="resign-modal-title">Сдаться</h3>
           <p class="resign-modal-text" id="resign-modal-text"></p>
           <div class="resign-modal-actions" id="resign-modal-actions"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Review Overlay (Stage A2b / A2c-6) -->
+    <div class="review-overlay" id="review-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Разбор партии">
+      <div class="review-overlay-header">
+        <h2 class="review-overlay-title">Разбор партии</h2>
+        <button class="review-overlay-close" id="btn-close-review-overlay" aria-label="Закрыть разбор">✕</button>
+      </div>
+      <div class="review-overlay-body">
+        <div class="review-overlay-board-col" id="review-overlay-board-slot"></div>
+        <div class="review-overlay-side-col">
+          <div id="review-overlay-history-slot" class="review-overlay-history-slot"></div>
+          <div id="review-mount" class="review-overlay-panel-slot"></div>
         </div>
       </div>
     </div>
@@ -313,16 +313,52 @@ export function initApp(): void {
   gameSolarBg.style.display = 'none';
   gameSolarBg.innerHTML = `
     <svg class="game-solar-stars" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <ellipse cx="1650" cy="80" rx="600" ry="320" class="game-solar-orbit" />
-      <ellipse cx="1650" cy="80" rx="420" ry="220" class="game-solar-orbit" />
-      <ellipse cx="1650" cy="80" rx="260" ry="140" class="game-solar-orbit" />
-      <circle cx="1280" cy="90" r="1.5" class="game-solar-star" />
-      <circle cx="1450" cy="180" r="1.2" class="game-solar-star" />
-      <circle cx="1580" cy="60" r="1.6" class="game-solar-star" />
-      <circle cx="1720" cy="210" r="1.2" class="game-solar-star" />
-      <circle cx="1820" cy="110" r="1.4" class="game-solar-star" />
-      <circle cx="1390" cy="290" r="1.1" class="game-solar-star star-desktop-only" />
-      <circle cx="1690" cy="340" r="1.3" class="game-solar-star star-desktop-only" />
+      <defs>
+        <radialGradient id="game-planet-glow" cx="60%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="var(--planet-edge)" />
+          <stop offset="45%" stop-color="var(--planet-dark)" />
+          <stop offset="100%" stop-color="var(--solar-bg-edge)" />
+        </radialGradient>
+      </defs>
+
+      <!-- Planet cluster in bottom-left corner -->
+      <g class="game-solar-planet-cluster" id="game-solar-planet-cluster">
+        <ellipse cx="120" cy="980" rx="420" ry="240" transform="rotate(-15 120 980)" class="game-solar-orbit game-solar-planet-orbit" />
+        <ellipse cx="120" cy="980" rx="300" ry="170" transform="rotate(-15 120 980)" class="game-solar-orbit game-solar-planet-orbit" />
+        <circle cx="120" cy="980" r="170" class="game-solar-planet" fill="url(#game-planet-glow)" />
+        <ellipse cx="120" cy="980" rx="260" ry="55" transform="rotate(-25 120 980)" class="game-solar-ring" />
+        <circle cx="260" cy="850" r="8" class="game-solar-moon" />
+      </g>
+
+      <!-- Asteroid belt in bottom-right corner (10 dots, between 8 and 12) -->
+      <g class="game-solar-asteroid-belt" id="game-solar-asteroid-belt">
+        <circle cx="1480" cy="1020" r="2.2" class="game-solar-asteroid" />
+        <circle cx="1530" cy="980"  r="3.5" class="game-solar-asteroid" />
+        <circle cx="1580" cy="950"  r="2.0" class="game-solar-asteroid" />
+        <circle cx="1630" cy="910"  r="4.0" class="game-solar-asteroid" />
+        <circle cx="1690" cy="880"  r="2.5" class="game-solar-asteroid" />
+        <circle cx="1740" cy="840"  r="3.0" class="game-solar-asteroid" />
+        <circle cx="1790" cy="810"  r="1.8" class="game-solar-asteroid" />
+        <circle cx="1840" cy="770"  r="3.2" class="game-solar-asteroid" />
+        <circle cx="1890" cy="740"  r="2.4" class="game-solar-asteroid" />
+        <circle cx="1930" cy="700"  r="3.0" class="game-solar-asteroid" />
+      </g>
+
+      <!-- Stars distributed across window (12 stars <= 14, calm center) -->
+      <g class="game-solar-starfield" id="game-solar-starfield">
+        <circle cx="120" cy="80" r="1.5" class="game-solar-star" />
+        <circle cx="260" cy="150" r="1.2" class="game-solar-star" />
+        <circle cx="80" cy="280" r="1.8" class="game-solar-star" />
+        <circle cx="320" cy="380" r="1.0" class="game-solar-star" />
+        <circle cx="1550" cy="70" r="1.5" class="game-solar-star" />
+        <circle cx="1780" cy="90" r="2.0" class="game-solar-star" />
+        <circle cx="1680" cy="190" r="1.3" class="game-solar-star" />
+        <circle cx="1860" cy="260" r="1.6" class="game-solar-star" />
+        <circle cx="450" cy="850" r="1.4" class="game-solar-star" />
+        <circle cx="320" cy="720" r="1.2" class="game-solar-star" />
+        <circle cx="1820" cy="520" r="1.5" class="game-solar-star" />
+        <circle cx="1650" cy="620" r="1.2" class="game-solar-star" />
+      </g>
     </svg>
   `;
   document.body.appendChild(gameSolarBg);
@@ -365,7 +401,7 @@ export function initApp(): void {
       gameSolarBg.style.display = showGameBg ? 'block' : 'none';
     }
     if (gameScreen) {
-      gameScreen.style.display = isGame ? 'flex' : 'none';
+      gameScreen.style.display = isGame && !isReviewOverlayOpen ? 'flex' : 'none';
       gameScreen.classList.toggle('active', isGame);
     }
     if (analysisScreen) {
@@ -445,6 +481,12 @@ export function initApp(): void {
     if (isReviewOverlayOpen) return;
     isReviewOverlayOpen = true;
     document.body.classList.add('review-active');
+    const screenGame = document.getElementById('screen-game');
+    if (screenGame) {
+      screenGame.style.display = 'none';
+      screenGame.setAttribute('aria-hidden', 'true');
+      screenGame.setAttribute('inert', '');
+    }
     if (gameSolarBg) {
       gameSolarBg.style.display = 'block';
     }
@@ -458,6 +500,13 @@ export function initApp(): void {
     if (!isReviewOverlayOpen) return;
     isReviewOverlayOpen = false;
     document.body.classList.remove('review-active');
+    const screenGame = document.getElementById('screen-game');
+    if (screenGame) {
+      const isGame = currentRouter?.getRoute() === 'game';
+      screenGame.style.display = isGame ? 'flex' : 'none';
+      screenGame.removeAttribute('aria-hidden');
+      screenGame.removeAttribute('inert');
+    }
     if (gameSolarBg) {
       const isGame = currentRouter?.getRoute() === 'game';
       gameSolarBg.style.display = isGame ? 'block' : 'none';
