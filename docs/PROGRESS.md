@@ -135,4 +135,10 @@
 - [x] Mobile Frame & Background Polish (`src/ui/styles.css`, `src/main.ts`): board padding in `#review-overlay` set to `8px 10px` on mobile ($\le 800\text{px}$), `.eval-bar-wrapper` / `.eval-bar` styled with `border-radius: 4px; overflow: hidden;`, `.review-solar-scene` / `.review-space-scene` fixed at `position: fixed; inset: 0;` to prevent tearing on scroll, and soft cosmic radial gradients on `body.review-active`.
 - [x] Verification: 31 test files, 319 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
 
+## Stage 4d-2.1: Mobile Review Overlay Polish & Space Scenes Alignment (Completed)
+- [x] Vertical Move History on Mobile (`src/ui/styles.css`): overridden `.game-history-mount .history-list` horizontal ribbon inside `.review-overlay` with a clean vertical table (`.review-moves-list`) featuring 3-column rows (`36px 1fr 1fr`), custom scrollbar, `overflow-x: hidden`, and non-squished move feedback/mistake navigation controls.
+- [x] Unclipped Celestial Layers (`src/ui/space-scenes.ts`, `src/ui/styles.css`): eliminated localized sub-viewBoxes and `contain: paint` cutoffs; all animated layers now use unified `viewBox="0 0 1920 1080"` with `preserveAspectRatio="xMidYMid slice"`, `overflow: visible`, and `contain: layout style`. Intermediate review containers have transparent backgrounds.
+- [x] Board Frame & Evaluation Bar Alignment (`src/ui/styles.css`): set `aspect-ratio: auto;` on `.review-overlay .game-board-mount`, `align-items: stretch;` and `gap: 8px` on `.board-area`, `flex: 1; min-width: 0; aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden;` on `.board-container`, and `border-radius: 6px; align-self: stretch;` on `.eval-bar-wrapper`.
+- [x] Verification: 31 test files, 322 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
+
 

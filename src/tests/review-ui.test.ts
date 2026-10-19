@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { globalStore } from '@/state/store';
 import { initApp } from '@/main';
+import { buildReviewScene } from '@/ui/space-scenes';
 import {
   exportReviewedPGN,
   runGameReview,
@@ -982,5 +983,75 @@ describe('Game Review UI Integration Tests', () => {
 
     // Now at index 3 (last blunder), next should be disabled
     expect(nextMistakeBtn.disabled).toBe(true);
+  });
+
+  it('в разборе партии на мобильных список ходов ориентирован вертикально', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    expect(css).toMatch(/\.review-moves-list\s*\{[^}]*flex-direction:\s*column/);
+    expect(css).toMatch(/\.review-moves-list\s*\{[^}]*overflow-x:\s*hidden/);
+    expect(css).toMatch(/\.review-moves-list\s+\.history-row\s*\{[^}]*grid-template-columns:\s*36px\s+1fr\s+1fr/);
+
+    // Make moves and verify DOM structure in review mode
+    const e2 = globalStore.coordsToSquare(4, 6);
+    const e4 = globalStore.coordsToSquare(4, 4);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    globalStore.makeMove(e2, e4);
+    globalStore.makeMove(e7, e5);
+
+    const mockResult = createMockReviewResult();
+    globalStore.setReviewResult(mockResult);
+    globalStore.setReviewMode(true);
+
+    const historyList = document.querySelector('.history-list');
+    expect(historyList).toBeTruthy();
+    expect(historyList!.classList.contains('review-moves-list')).toBe(true);
+    const rows = historyList!.querySelectorAll('.history-row');
+    expect(rows.length).toBeGreaterThan(0);
+    const firstRow = rows[0];
+    expect(firstRow.querySelector('.history-num')).toBeTruthy();
+    expect(firstRow.querySelectorAll('.history-move').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('рамка доски в разборе имеет aspect-ratio auto и выравнивание со шкалой оценки', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    // Desktop rule
+    const desktopMount = css.match(/\.review-overlay\s+\.game-board-mount\s*\{([^}]*)\}/);
+    expect(desktopMount).not.toBeNull();
+    expect(desktopMount![1]).toMatch(/aspect-ratio:\s*auto;/);
+    expect(desktopMount![1]).toMatch(/overflow:\s*hidden;/);
+
+    // Mobile rule
+    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?aspect-ratio:\s*auto;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.board-area\s*\{[\s\S]*?align-items:\s*stretch;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.eval-bar-wrapper\s*\{[\s\S]*?border-radius:\s*6px;/);
+  });
+
+  it('космические слои не используют contain: paint и масштабируются без срезов', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    const animLayerMatch = css.match(/\.space-anim-layer\s*\{([^}]*)\}/);
+    expect(animLayerMatch).not.toBeNull();
+    const animRule = animLayerMatch![1];
+
+    expect(animRule).not.toMatch(/contain:[^;]*paint/);
+    expect(animRule).toMatch(/overflow:\s*visible;/);
+
+    // Review scene viewBox verification
+    const reviewMarkup = buildReviewScene();
+    const container = document.createElement('div');
+    container.innerHTML = reviewMarkup;
+
+    const layers = container.querySelectorAll('.space-anim-layer');
+    expect(layers.length).toBe(4);
+    for (const layer of Array.from(layers)) {
+      expect(layer.getAttribute('viewBox')).toBe('0 0 1920 1080');
+      expect(layer.getAttribute('style')).toContain('overflow: visible');
+    }
   });
 });

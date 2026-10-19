@@ -600,7 +600,7 @@ export function buildGameScene(): string {
     </svg>
 
     <!-- Animated Layer 1: Saturn Moon on elliptical orbit (rx=280, ry=154 >= 143) -->
-    <svg class="space-anim-layer space-layer-moon" viewBox="-160 740 600 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-moon" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-moon-orbit-tilt" transform="translate(140, 960) rotate(-15) scale(1, 0.55)">
         <g class="space-moon-orbit-spin">
           <g transform="translate(280, 0)">
@@ -613,7 +613,7 @@ export function buildGameScene(): string {
     </svg>
 
     <!-- Animated Layer 2: Sun System Planets in free zones (x >= 1572, periods 90-240s) -->
-    <svg class="space-anim-layer space-layer-planets" viewBox="1460 0 460 540" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-planets" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-sun-planets-group">
         <circle cx="1817" cy="187" r="6" fill="var(--sun-planet-1)" class="space-sun-planet space-sun-planet-1" />
         <circle cx="1581" cy="264" r="9" fill="var(--sun-planet-2)" class="space-sun-planet space-sun-planet-2" />
@@ -623,14 +623,14 @@ export function buildGameScene(): string {
     </svg>
 
     <!-- Animated Layer 3: Pulsating Pointed Star Sparkles (<use> from <defs>) -->
-    <svg class="space-anim-layer space-layer-sparkles" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-sparkles" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-sparkles-group">
         ${renderSparkleUses(GAME_SPARKLES)}
       </g>
     </svg>
 
     <!-- Animated Layer 4: Anti-phase Twinkling Star Groups (2 groups of ~30% stars) -->
-    <svg class="space-anim-layer space-layer-twinkle" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-twinkle" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-twinkle-group">
         <path d="${twinkleAD}" fill="none" stroke="var(--star-color)" stroke-width="1.6" stroke-linecap="round" class="space-stars-twinkle space-stars-twinkle-a" />
         <path d="${twinkleBD}" fill="none" stroke="var(--star-color)" stroke-width="1.8" stroke-linecap="round" class="space-stars-twinkle space-stars-twinkle-b" />
@@ -727,7 +727,7 @@ export function buildReviewScene(): string {
     </svg>
 
     <!-- Animated Layer 1: Spiral Galaxy in top-right (~18% scene width, 60deg tilt, 240s spin) -->
-    <svg class="space-anim-layer space-layer-galaxy" viewBox="1460 0 460 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-galaxy" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-galaxy-cluster" id="space-galaxy-cluster" transform="translate(1680, 200) rotate(-30) scale(1, 0.5)">
         <g class="space-galaxy-spin">
           <circle cx="0" cy="0" r="80" fill="url(#review-galaxy-core-grad)" class="space-galaxy-core" />
@@ -738,7 +738,7 @@ export function buildReviewScene(): string {
     </svg>
 
     <!-- Animated Layer 2: Comet in lower-right (strictly outside 26-74% content zone, 40s drift) -->
-    <svg class="space-anim-layer space-layer-comet" viewBox="1460 620 460 460" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-comet" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-comet-cluster space-comet-drift" id="space-comet-cluster">
         <path d="M 1810 890 L 1500 710 L 1535 675 Z" fill="url(#review-comet-tail-grad)" class="space-comet-tail" />
         <circle cx="1810" cy="890" r="32" fill="url(#review-comet-head-grad)" class="space-comet-glow" />
@@ -747,14 +747,14 @@ export function buildReviewScene(): string {
     </svg>
 
     <!-- Animated Layer 3: Eclipse Corona soft pulse (9s period) -->
-    <svg class="space-anim-layer space-layer-eclipse-corona" viewBox="0 0 460 410" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-eclipse-corona" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-eclipse-corona-wrap">
         <circle cx="160" cy="120" r="260" fill="url(#review-eclipse-grad)" class="space-eclipse-corona space-eclipse-corona-ring" />
       </g>
     </svg>
 
     <!-- Animated Layer 4: Sparkles (<use>) and Anti-phase Twinkling Stars -->
-    <svg class="space-anim-layer space-layer-twinkle" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="space-anim-layer space-layer-twinkle" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-twinkle-group">
         ${renderSparkleUses(REVIEW_SPARKLES)}
         <path d="${twinkleAD}" fill="none" stroke="var(--star-color)" stroke-width="1.6" stroke-linecap="round" class="space-stars-twinkle space-stars-twinkle-a" />
