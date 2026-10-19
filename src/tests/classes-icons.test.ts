@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MOVE_CLASS_REGISTRY, getMoveClassMeta, getMoveClassSvg } from '@/analysis';
 import { ChessStore } from '@/state/store';
@@ -81,6 +83,43 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
       if (id === 'inaccuracy') expect(content).toBe('?!');
       if (id === 'blunder') expect(content).toBe('??');
     }
+  });
+
+  it('inaccuracy and blunder use separate tspans with clear spacing', () => {
+    const parser = new DOMParser();
+
+    // Inaccuracy has two tspans (? and !)
+    const inaccSvg = getMoveClassSvg('inaccuracy');
+    const inaccDoc = parser.parseFromString(inaccSvg, 'image/svg+xml');
+    const inaccTspans = inaccDoc.querySelectorAll('tspan');
+    expect(inaccTspans.length).toBe(2);
+    expect(inaccTspans[0].textContent).toBe('?');
+    expect(inaccTspans[1].textContent).toBe('!');
+    const xQ = parseFloat(inaccTspans[0].getAttribute('x') || '0');
+    const xEx = parseFloat(inaccTspans[1].getAttribute('x') || '0');
+    // Distance between centers is ~7.6px giving a clear ~2.9px gap between symbols
+    expect(xEx - xQ).toBeGreaterThanOrEqual(7);
+    expect(xEx - xQ).toBeLessThanOrEqual(8.5);
+
+    // Blunder has two symmetric tspans (? and ?)
+    const blunderSvg = getMoveClassSvg('blunder');
+    const blunderDoc = parser.parseFromString(blunderSvg, 'image/svg+xml');
+    const blunderTspans = blunderDoc.querySelectorAll('tspan');
+    expect(blunderTspans.length).toBe(2);
+    expect(blunderTspans[0].textContent).toBe('?');
+    expect(blunderTspans[1].textContent).toBe('?');
+    const xB1 = parseFloat(blunderTspans[0].getAttribute('x') || '0');
+    const xB2 = parseFloat(blunderTspans[1].getAttribute('x') || '0');
+    // Symmetrical around 12 (7 and 17)
+    expect((xB1 + xB2) / 2).toBe(12);
+    expect(xB2 - xB1).toBe(10);
+  });
+
+  it('board move badge styles use 100% width and overflow visible', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+    expect(css).toMatch(/\.board-move-badge\s*\{[^}]*padding:\s*0;/);
+    expect(css).toMatch(/width:\s*100%;\s*height:\s*100%;\s*display:\s*block;\s*overflow:\s*visible;/);
   });
 
   describe('UI integration', () => {

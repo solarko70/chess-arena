@@ -41,7 +41,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 2,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 13.5L7 16L14 8" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 13.5L12 16L19 8" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 14L7 16L14 7" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L12 16L19 7" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   },
   {
     id: 'good',
@@ -65,7 +65,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 4,
     showInSummary: true,
     nag: '?!',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="17.2" text-anchor="middle" font-size="16" font-weight="900" font-family="system-ui, -apple-system, sans-serif" letter-spacing="-1.5px" fill="white">?!</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="19" text-anchor="middle" font-size="17" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white"><tspan x="8.2" text-anchor="middle">?</tspan><tspan x="15.8" text-anchor="middle">!</tspan></text></svg>',
   },
   {
     id: 'mistake',
@@ -77,7 +77,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 5,
     showInSummary: true,
     nag: '?',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="19" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">?</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="19.5" text-anchor="middle" font-size="20" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">?</text></svg>',
   },
   {
     id: 'blunder',
@@ -89,7 +89,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 6,
     showInSummary: true,
     nag: '??',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="17.2" text-anchor="middle" font-size="16" font-weight="900" font-family="system-ui, -apple-system, sans-serif" letter-spacing="-1.5px" fill="white">??</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="19" text-anchor="middle" font-size="17" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white"><tspan x="7" text-anchor="middle">?</tspan><tspan x="17" text-anchor="middle">?</tspan></text></svg>',
   },
 ] as const;
 
