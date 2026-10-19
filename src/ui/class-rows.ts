@@ -31,7 +31,7 @@ export interface ClassRowsListOptions {
  */
 export function createClassRow(meta: MoveClassMeta): ClassRowItemDom {
   const rowEl = document.createElement('div');
-  rowEl.className = 'card-class-row zero-count';
+  rowEl.className = 'card-class-row class-row zero-count';
   rowEl.setAttribute('data-class-id', meta.id);
   rowEl.setAttribute('title', meta.nameRu);
 

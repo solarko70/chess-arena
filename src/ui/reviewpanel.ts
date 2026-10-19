@@ -85,11 +85,11 @@ export class ReviewPanelUI {
         </div>
 
         <div class="review-results-section" id="review-results-section" style="display: none;">
-          <div class="review-fallback-banner solar-card" id="review-fallback-note" style="display: none;"></div>
+          <div class="review-fallback-banner solar-card" id="review-fallback-note" data-review-tab="overview" style="display: none;"></div>
 
-          <div class="review-engine-info solar-card" id="review-engine-info"></div>
+          <div class="review-engine-info solar-card" id="review-engine-info" data-review-tab="graph"></div>
 
-          <div class="review-accuracies">
+          <div class="review-accuracies" data-review-tab="overview">
             <div class="accuracy-card white solar-card">
               <div class="accuracy-card-header">
                 <span class="player-color-indicator white" aria-hidden="true"></span>
@@ -112,7 +112,7 @@ export class ReviewPanelUI {
             </div>
           </div>
 
-          <div class="review-classes-table-wrap">
+          <div class="review-classes-table-wrap" data-review-tab="overview">
             <div class="solar-section-title review-subtitle">Классификация ходов</div>
             <div class="review-classes-grid" id="review-classes-table">
               <div class="review-classes-col solar-card" id="review-classes-white-col">
@@ -132,19 +132,19 @@ export class ReviewPanelUI {
             </div>
           </div>
 
-          <div class="review-graph-wrap">
+          <div class="review-graph-wrap" data-review-tab="graph">
             <div class="solar-section-title review-subtitle">График шанса на выигрыш (белые)</div>
             <div class="solar-card review-graph-card">
               <svg class="review-eval-graph" id="review-eval-graph" viewBox="0 0 500 120"></svg>
             </div>
           </div>
 
-          <div class="review-key-moments-wrap">
+          <div class="review-key-moments-wrap" data-review-tab="graph">
             <div class="solar-section-title review-subtitle">Ключевые моменты</div>
             <div class="review-key-moments-list" id="review-key-moments-list"></div>
           </div>
 
-          <div class="review-actions">
+          <div class="review-actions" data-review-tab="graph">
             <button class="btn-action solar-btn-ghost" id="btn-copy-reviewed-pgn">Копировать PGN с оценками</button>
           </div>
         </div>

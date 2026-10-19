@@ -293,7 +293,12 @@ export function initApp(): void {
         <div class="review-overlay-board-col" id="review-overlay-board-slot">
           <nav class="review-board-nav" id="review-board-nav" aria-label="Навигация по ходам партии"></nav>
         </div>
-        <div class="review-overlay-side-col">
+        <div class="review-overlay-side-col" id="review-overlay-side-col" data-active-tab="moves">
+          <nav class="review-mobile-tabs solar-card" id="review-mobile-tabs" aria-label="Вкладки разбора">
+            <button type="button" class="review-tab-btn active" data-tab="moves">Ходы</button>
+            <button type="button" class="review-tab-btn" data-tab="overview">Обзор</button>
+            <button type="button" class="review-tab-btn" data-tab="graph">График</button>
+          </nav>
           <div id="review-overlay-history-slot" class="review-overlay-history-slot"></div>
           <div id="review-mount" class="review-overlay-panel-slot"></div>
         </div>
@@ -476,15 +481,35 @@ export function initApp(): void {
   const reviewOverlay = document.getElementById('review-overlay') as HTMLElement;
   const reviewBoardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement;
   const reviewHistorySlot = document.getElementById('review-overlay-history-slot') as HTMLElement;
+  const reviewSideCol = document.getElementById('review-overlay-side-col') as HTMLElement | null;
+  const mobileTabs = document.getElementById('review-mobile-tabs') as HTMLElement | null;
   const gameBoardCol = document.getElementById('game-board-col') as HTMLElement;
   const playerBarBottom = document.getElementById('player-bar-bottom') as HTMLElement;
   const gameSidePanel = document.getElementById('game-side-panel') as HTMLElement;
   const sidePanelActions = gameSidePanel.querySelector('.side-panel-actions') as HTMLElement;
+
+  mobileTabs?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.review-tab-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+    const tab = btn.dataset.tab;
+    if (!tab || !reviewSideCol) return;
+    reviewSideCol.setAttribute('data-active-tab', tab);
+    mobileTabs.querySelectorAll('.review-tab-btn').forEach((b) => {
+      b.classList.toggle('active', b === btn);
+    });
+  });
+
   const openReviewOverlay = (options?: { isDeep?: boolean; depth?: number }): void => {
     if (isReviewOverlayOpen) return;
     isReviewOverlayOpen = true;
     syncBgAnimState();
     document.body.classList.add('review-active');
+    if (reviewSideCol && mobileTabs) {
+      reviewSideCol.setAttribute('data-active-tab', 'moves');
+      mobileTabs.querySelectorAll('.review-tab-btn').forEach((b) => {
+        b.classList.toggle('active', (b as HTMLElement).dataset.tab === 'moves');
+      });
+    }
     const screenGame = document.getElementById('screen-game');
     if (screenGame) {
       screenGame.style.display = 'none';
