@@ -9,7 +9,16 @@ import type {
 } from '@/core';
 import { classicalRuleSet, parseFEN, parsePGN, serializeFEN, exportPGN } from '@/core';
 import { LEVELS, LEVEL_ORDER, type LevelId, type WorkerRequest, type WorkerResponse } from '@/ai';
-import { runGameReview, type ReviewProgress, type ReviewRunResult, type ReviewWorkerLike, type AnalysisEngine } from '@/analysis';
+import {
+  runGameReview,
+  SUMMARY_DEPTH,
+  DEFAULT_REVIEW_DEPTH,
+  DEEP_REVIEW_DEPTH,
+  type ReviewProgress,
+  type ReviewRunResult,
+  type ReviewWorkerLike,
+  type AnalysisEngine,
+} from '@/analysis';
 
 export type TimeControlMode = 'none' | 'bullet-1-0' | 'blitz-3-2' | 'blitz-5-0' | 'rapid-10-0' | 'rapid-15-10';
 export type GameMode = 'pvp' | 'ai';
@@ -94,6 +103,7 @@ export class ChessStore {
   private isReviewing: boolean = false;
   private reviewProgress: ReviewProgress | null = null;
   private reviewDepth: number = 16;
+  private runningReviewDepth: number | null = null;
   private reviewFallbackNote: string | null = null;
   private reviewWorkerFactory?: () => ReviewWorkerLike;
   private reviewEngine?: AnalysisEngine;
@@ -620,6 +630,7 @@ export class ChessStore {
     this.reviewProgress = null;
     this.reviewFallbackNote = null;
     this.reviewError = null;
+    this.runningReviewDepth = null;
 
     const cfg = TIME_CONTROLS[this.clockMode];
     this.whiteMs = cfg.initialMs;
@@ -991,7 +1002,17 @@ export class ChessStore {
   }
 
   getReviewDepth(): number {
+    if (this.reviewResult?.depth !== undefined) {
+      return this.reviewResult.depth;
+    }
+    if (this.runningReviewDepth !== null) {
+      return this.runningReviewDepth;
+    }
     return this.reviewDepth;
+  }
+
+  getRunningReviewDepth(): number | null {
+    return this.runningReviewDepth;
   }
 
   setReviewDepth(depth: number): void {
@@ -1040,6 +1061,7 @@ export class ChessStore {
     const wasReviewing = this.isReviewing;
     const hadProgress = this.reviewProgress !== null;
     this.isReviewing = false;
+    this.runningReviewDepth = null;
     this.reviewProgress = null;
     this.syncClock();
     if (hadController || wasReviewing || hadProgress) {
@@ -1047,15 +1069,40 @@ export class ChessStore {
     }
   }
 
-  async startReview(options?: { isDeep?: boolean; force?: boolean }): Promise<ReviewRunResult | null> {
+  async startReview(options?: { isDeep?: boolean; depth?: number; force?: boolean }): Promise<ReviewRunResult | null> {
+    let targetDepth: number;
+    if (options?.depth !== undefined) {
+      targetDepth = options.depth;
+    } else if (options?.isDeep || this.reviewDepth === DEEP_REVIEW_DEPTH) {
+      targetDepth = DEEP_REVIEW_DEPTH;
+    } else {
+      targetDepth = DEFAULT_REVIEW_DEPTH;
+    }
+
     if (!options?.force && this.reviewResult) {
-      return this.reviewResult;
+      if (this.reviewResult.fallbackNote) {
+        return this.reviewResult;
+      }
+      const currentDepth = this.reviewResult.depth ?? DEFAULT_REVIEW_DEPTH;
+      if (currentDepth >= targetDepth) {
+        return this.reviewResult;
+      }
     }
     if (this.state.history.length < 2) {
       return null;
     }
     if (this.isReviewing) {
-      return null;
+      const activeRunningDepth = this.runningReviewDepth ?? this.reviewDepth;
+      if (activeRunningDepth < targetDepth) {
+        if (this.reviewAbortController) {
+          this.reviewAbortController.abort();
+          this.reviewAbortController = null;
+        }
+        this.isReviewing = false;
+        this.runningReviewDepth = null;
+      } else {
+        return null;
+      }
     }
 
     if (this.reviewAbortController) {
@@ -1067,15 +1114,18 @@ export class ChessStore {
 
     this.reviewError = null;
     this.isReviewing = true;
+    this.runningReviewDepth = targetDepth;
     const historyLen = this.state.history.length;
     this.reviewProgress = { completed: 0, total: historyLen + 1, ply: 0 };
+    this.setReviewDepth(targetDepth);
     this.syncClock();
     this.notify();
 
-    const isDeep = options?.isDeep ?? (this.reviewDepth === 20);
+    const isDeep = targetDepth >= DEEP_REVIEW_DEPTH;
 
     try {
       const result = await runGameReview(this.state, {
+        depth: targetDepth,
         mode: isDeep ? 'deep' : 'standard',
         signal: abortController.signal,
         onProgress: (progress) => {
@@ -1104,6 +1154,7 @@ export class ChessStore {
         this.reviewAbortController = null;
         const wasReviewing = this.isReviewing;
         this.isReviewing = false;
+        this.runningReviewDepth = null;
         this.reviewProgress = null;
         this.syncClock();
         if (wasReviewing) {
@@ -1120,7 +1171,7 @@ export class ChessStore {
       this.reviewEngine !== undefined;
     if (!hasEngineOrWorker) return;
     if (this.isGameOver() && this.canReview() && !this.reviewResult && !this.isReviewing) {
-      void this.startReview();
+      void this.startReview({ depth: SUMMARY_DEPTH });
     }
   }
 

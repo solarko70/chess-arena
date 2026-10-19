@@ -23,8 +23,11 @@ import {
   type MoveClass,
 } from './classify';
 
-export const DEFAULT_STOCKFISH_DEPTH = 16;
-export const DEFAULT_STOCKFISH_DEEP_DEPTH = 20;
+export const SUMMARY_DEPTH = 14;
+export const DEFAULT_REVIEW_DEPTH = 16;
+export const DEEP_REVIEW_DEPTH = 20;
+export const DEFAULT_STOCKFISH_DEPTH = DEFAULT_REVIEW_DEPTH;
+export const DEFAULT_STOCKFISH_DEEP_DEPTH = DEEP_REVIEW_DEPTH;
 export const DEFAULT_OWN_ENGINE_DEPTH = 6;
 export const MAX_REANALYZED_PER_GAME = 10;
 
@@ -119,6 +122,8 @@ export interface GameReviewResult {
   engineName: string;
   /** Number of positions re-analyzed at higher depth during consistency checks */
   reanalyzed: number;
+  /** Primary search depth executed for the review */
+  depth?: number;
 }
 
 export type GameInput = GameState | readonly GameState[];
@@ -481,6 +486,7 @@ export async function reviewGame(
       evalHistory,
       engineName: resolvedEngineName,
       reanalyzed: reanalyzedIndices.size,
+      depth: baseDepth,
     };
   } finally {
     if (ownCreated) {

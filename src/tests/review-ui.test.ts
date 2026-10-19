@@ -120,6 +120,7 @@ function createMockReviewResult(): GameReviewResult {
 
 describe('Game Review UI Integration Tests', () => {
   beforeEach(() => {
+    localStorage.clear();
     document.body.innerHTML = '<div id="app"></div>';
     globalStore.newGame();
     initApp();
@@ -601,5 +602,225 @@ describe('Game Review UI Integration Tests', () => {
       expect(svg).toBeTruthy();
       expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
     });
+  });
+
+  it('Автоанализ после окончания партии вызывается с depth = 14', async () => {
+    let requestedDepth: number | undefined;
+    const mockEngine: AnalysisEngine = {
+      name: 'DepthSpyEngine',
+      analyze: async (_st, opts) => {
+        requestedDepth = opts?.depth;
+        return {
+          engineName: 'DepthSpyEngine',
+          bestMove: null,
+          score: { type: 'cp', value: 0 },
+          depth: opts?.depth ?? 14,
+          nodes: 10,
+          timeMs: 1,
+          pv: [],
+          lines: [],
+        };
+      },
+      dispose: () => {},
+    };
+    globalStore.setReviewEngine(mockEngine);
+
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    expect(globalStore.isGameOver()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(requestedDepth).toBe(14);
+    expect(globalStore.getReviewResult()?.depth).toBe(14);
+  });
+
+  it('В итоговом окне есть чекбокс глубокого анализа и состояние сохраняется в localStorage', () => {
+    localStorage.removeItem('chess_arena_deep_analysis');
+    const checkbox = document.getElementById('deep-analysis-checkbox') as HTMLInputElement;
+    expect(checkbox).toBeTruthy();
+    expect(checkbox.checked).toBe(false);
+
+    checkbox.click();
+    expect(checkbox.checked).toBe(true);
+    expect(localStorage.getItem('chess_arena_deep_analysis')).toBe('true');
+
+    checkbox.click();
+    expect(checkbox.checked).toBe(false);
+    expect(localStorage.getItem('chess_arena_deep_analysis')).toBe('false');
+  });
+
+  it('Запуск разбора с активным чекбоксом передаёт depth = 20', async () => {
+    let requestedDepth: number | undefined;
+    const mockEngine: AnalysisEngine = {
+      name: 'Depth20Engine',
+      analyze: async (_st, opts) => {
+        requestedDepth = opts?.depth;
+        return {
+          engineName: 'Depth20Engine',
+          bestMove: null,
+          score: { type: 'cp', value: 0 },
+          depth: opts?.depth ?? 20,
+          nodes: 10,
+          timeMs: 1,
+          pv: [],
+          lines: [],
+        };
+      },
+      dispose: () => {},
+    };
+    globalStore.setReviewEngine(mockEngine);
+
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    const checkbox = document.getElementById('deep-analysis-checkbox') as HTMLInputElement;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+
+    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    reviewModalBtn.click();
+
+    await vi.waitFor(() => {
+      expect(requestedDepth).toBe(20);
+      expect(globalStore.getReviewResult()?.depth).toBe(20);
+    });
+  });
+
+  it('Бейдж глубины в разборе показывает число, и кнопка углубления пересчитывает на 20', async () => {
+    let currentDepth = 16;
+    const mockEngine: AnalysisEngine = {
+      name: 'DynamicDepthEngine',
+      analyze: async (_st, opts) => {
+        currentDepth = opts?.depth ?? currentDepth;
+        return {
+          engineName: 'DynamicDepthEngine',
+          bestMove: null,
+          score: { type: 'cp', value: 0 },
+          depth: currentDepth,
+          nodes: 10,
+          timeMs: 1,
+          pv: [],
+          lines: [],
+        };
+      },
+      dispose: () => {},
+    };
+    globalStore.setReviewEngine(mockEngine);
+
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    // Initial review at depth 16
+    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    reviewModalBtn.click();
+    await vi.waitFor(() => {
+      const depthBadge = document.querySelector('.engine-depth');
+      expect(depthBadge?.textContent).toContain('16');
+    });
+
+    const deepenBtn = document.getElementById('btn-deepen-review') as HTMLButtonElement;
+    expect(deepenBtn).toBeTruthy();
+
+    deepenBtn.click();
+    await vi.waitFor(() => {
+      const depthBadge = document.querySelector('.engine-depth');
+      expect(depthBadge?.textContent).toContain('20');
+      expect(document.getElementById('btn-deepen-review')).toBeNull();
+    });
+  });
+
+  it('Повторное открытие разбора с той же или меньшей глубиной не сбрасывает кэш', async () => {
+    let analyzeCount = 0;
+    const mockEngine: AnalysisEngine = {
+      name: 'CacheCheckEngine',
+      analyze: async (_st, opts) => {
+        analyzeCount++;
+        return {
+          engineName: 'CacheCheckEngine',
+          bestMove: null,
+          score: { type: 'cp', value: 0 },
+          depth: opts?.depth ?? 16,
+          nodes: 10,
+          timeMs: 1,
+          pv: [],
+          lines: [],
+        };
+      },
+      dispose: () => {},
+    };
+    globalStore.setReviewEngine(mockEngine);
+
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    // Open review overlay with depth 16
+    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    reviewModalBtn.click();
+    await vi.waitFor(() => {
+      expect(globalStore.isReviewInProgress()).toBe(false);
+      expect(globalStore.getReviewResult()).not.toBeNull();
+    });
+
+    const initialAnalyzeCount = analyzeCount;
+    expect(initialAnalyzeCount).toBeGreaterThan(0);
+
+    // Close review overlay
+    const closeBtn = document.getElementById('btn-close-review-overlay') as HTMLButtonElement;
+    closeBtn.click();
+
+    // Reopen review overlay
+    const reopenReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    reopenReviewBtn.click();
+    await vi.waitFor(() => {
+      expect(globalStore.isReviewInProgress()).toBe(false);
+    });
+
+    // analyzeCount should not have increased because cached depth 16 was reused
+    expect(analyzeCount).toBe(initialAnalyzeCount);
   });
 });

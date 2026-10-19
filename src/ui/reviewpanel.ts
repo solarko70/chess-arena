@@ -4,6 +4,8 @@ import {
   getMoveClassMeta,
   getSidePerformanceRating,
   formatPerformanceRating,
+  DEFAULT_REVIEW_DEPTH,
+  DEEP_REVIEW_DEPTH,
   type GameReviewResult,
 } from '@/analysis';
 import { createAccuracyRing, type AccuracyRingDom } from '@/ui/accuracy-ring';
@@ -265,16 +267,38 @@ export class ReviewPanelUI {
     });
   }
 
-  public async startReview(): Promise<void> {
+  public async startReview(options?: { isDeep?: boolean; depth?: number; force?: boolean }): Promise<void> {
     this.store.setReviewMode(true);
-    if (this.store.getReviewResult()) {
+    if (this.store.getLiveState().history.length < 2) {
       return;
     }
-    if (!this.store.canReview() || this.store.isReviewInProgress()) {
+    const targetDepth =
+      options?.depth ??
+      (options?.isDeep
+        ? DEEP_REVIEW_DEPTH
+        : (this.store.getReviewDepth() >= DEEP_REVIEW_DEPTH ? DEEP_REVIEW_DEPTH : DEFAULT_REVIEW_DEPTH));
+
+    const runningDepth = this.store.getRunningReviewDepth();
+    if (this.store.isReviewInProgress() && runningDepth !== null && runningDepth >= targetDepth) {
       return;
     }
-    const isDeep = this.store.getReviewDepth() === 20;
-    await this.store.startReview({ isDeep });
+
+    const existing = this.store.getReviewResult();
+    if (!options?.force && existing) {
+      if (existing.fallbackNote) {
+        return;
+      }
+      const currentDepth = existing.depth ?? DEFAULT_REVIEW_DEPTH;
+      if (currentDepth >= targetDepth) {
+        return;
+      }
+    }
+
+    await this.store.startReview({
+      depth: targetDepth,
+      isDeep: targetDepth >= DEEP_REVIEW_DEPTH,
+      force: options?.force,
+    });
   }
 
   public cancelReview(): void {
@@ -349,6 +373,19 @@ export class ReviewPanelUI {
 
       // Engine info badges with mini orbit icon
       const depth = reviewResult.depth ?? this.store.getReviewDepth();
+      const canDeepen = depth < DEEP_REVIEW_DEPTH && !isReviewing;
+      const deepenBtnHtml = canDeepen
+        ? `
+          <button type="button" class="solar-btn-ghost btn-deepen-review" id="btn-deepen-review" title="Пересчитать на глубине 20">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="9 3 14 8 9 13"></polyline>
+              <line x1="2" y1="8" x2="14" y2="8"></line>
+            </svg>
+            <span>Углубить до 20</span>
+          </button>
+        `
+        : '';
+
       this.engineInfoEl.innerHTML = `
         <div class="engine-info-inner">
           <svg class="orbit-mini-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -358,10 +395,18 @@ export class ReviewPanelUI {
           <div class="engine-badges-list">
             <span class="engine-badge solar-badge">Движок: <strong>${reviewResult.engineName}</strong></span>
             <span class="engine-depth solar-badge">Глубина: <strong>${depth}</strong></span>
+            ${deepenBtnHtml}
             <span class="engine-reanalyzed solar-badge">Пересчитано: <strong>${reviewResult.reanalyzed}</strong></span>
           </div>
         </div>
       `;
+
+      if (canDeepen) {
+        const deepenBtn = this.engineInfoEl.querySelector('#btn-deepen-review') as HTMLButtonElement | null;
+        deepenBtn?.addEventListener('click', () => {
+          void this.startReview({ depth: DEEP_REVIEW_DEPTH, isDeep: true, force: true });
+        });
+      }
 
       // Accuracies via AccuracyRingDom
       this.whiteRing.update(reviewResult.accuracy.white, isReviewing);

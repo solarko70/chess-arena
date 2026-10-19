@@ -3,14 +3,18 @@ import {
   formatMaterialPoints,
   getSidePerformanceRating,
   formatPerformanceRating,
+  DEFAULT_REVIEW_DEPTH,
+  DEEP_REVIEW_DEPTH,
   type ReviewRunResult,
 } from '@/analysis';
 import { createSolarDecorLayer, type SolarDecorElement } from '@/ui/solar-decor';
 import { createAccuracyRing, type AccuracyRingDom } from '@/ui/accuracy-ring';
 import { createClassRowsList, type ClassRowsListDom } from '@/ui/class-rows';
 
+const DEEP_ANALYSIS_STORAGE_KEY = 'chess_arena_deep_analysis';
+
 export interface GameOverModalOptions {
-  onStartReview?: () => void;
+  onStartReview?: (options?: { isDeep?: boolean; depth?: number }) => void;
   onNewGame?: () => void;
 }
 
@@ -78,6 +82,7 @@ export class GameOverModalUI {
   private materialEl!: HTMLElement;
   private progressWrapEl!: HTMLElement;
   private cardsContainerEl!: HTMLElement;
+  private deepCheckbox!: HTMLInputElement;
   private reviewBtn!: HTMLButtonElement;
   private newGameBtn!: HTMLButtonElement;
 
@@ -134,6 +139,18 @@ export class GameOverModalUI {
               <div class="game-over-cards" id="game-over-cards"></div>
             </div>
 
+            <div class="game-over-options">
+              <label class="solar-checkbox-label" for="deep-analysis-checkbox">
+                <input type="checkbox" id="deep-analysis-checkbox" class="solar-checkbox" />
+                <span class="solar-checkbox-custom" aria-hidden="true">
+                  <svg class="solar-checkbox-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline>
+                  </svg>
+                </span>
+                <span>Глубокий анализ (глубина 20)</span>
+              </label>
+            </div>
+
             <div class="game-over-actions">
               <button class="btn-action btn-modal-primary solar-btn" id="btn-modal-review">Разбор партии</button>
               <button class="btn-action btn-modal-secondary solar-btn-ghost" id="btn-modal-new-game">Играть снова</button>
@@ -154,6 +171,13 @@ export class GameOverModalUI {
     this.materialEl = this.container.querySelector('#game-over-material') as HTMLElement;
     this.progressWrapEl = this.container.querySelector('#game-over-progress-wrap') as HTMLElement;
     this.cardsContainerEl = this.container.querySelector('#game-over-cards') as HTMLElement;
+    this.deepCheckbox = this.container.querySelector('#deep-analysis-checkbox') as HTMLInputElement;
+    try {
+      const saved = localStorage.getItem(DEEP_ANALYSIS_STORAGE_KEY);
+      this.deepCheckbox.checked = saved === 'true';
+    } catch {
+      this.deepCheckbox.checked = false;
+    }
     this.reviewBtn = this.container.querySelector('#btn-modal-review') as HTMLButtonElement;
     this.newGameBtn = this.container.querySelector('#btn-modal-new-game') as HTMLButtonElement;
   }
@@ -169,10 +193,22 @@ export class GameOverModalUI {
       }
     });
 
+    this.deepCheckbox.addEventListener('change', () => {
+      try {
+        localStorage.setItem(DEEP_ANALYSIS_STORAGE_KEY, String(this.deepCheckbox.checked));
+      } catch {
+        // Ignore localStorage errors
+      }
+      const isDeep = this.deepCheckbox.checked;
+      this.store.setReviewDepth(isDeep ? DEEP_REVIEW_DEPTH : DEFAULT_REVIEW_DEPTH);
+    });
+
     this.reviewBtn.addEventListener('click', () => {
       this.hide(true);
+      const isDeep = this.deepCheckbox?.checked ?? false;
+      const depth = isDeep ? DEEP_REVIEW_DEPTH : DEFAULT_REVIEW_DEPTH;
       if (this.options?.onStartReview) {
-        this.options.onStartReview();
+        this.options.onStartReview({ isDeep, depth });
       } else {
         const startReviewBtn = document.getElementById('btn-start-review') as HTMLButtonElement | null;
         startReviewBtn?.click();
@@ -279,6 +315,14 @@ export class GameOverModalUI {
 
     // Reset card cache so re-opening the modal builds DOM once anew
     this.cardsBuilt = false;
+    try {
+      const saved = localStorage.getItem(DEEP_ANALYSIS_STORAGE_KEY);
+      if (this.deepCheckbox) {
+        this.deepCheckbox.checked = saved === 'true';
+      }
+    } catch {
+      // Ignore
+    }
     this.renderContent();
 
     if (this.solarDecor) {

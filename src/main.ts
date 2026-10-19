@@ -480,7 +480,7 @@ export function initApp(): void {
   const playerBarBottom = document.getElementById('player-bar-bottom') as HTMLElement;
   const gameSidePanel = document.getElementById('game-side-panel') as HTMLElement;
   const sidePanelActions = gameSidePanel.querySelector('.side-panel-actions') as HTMLElement;
-  const openReviewOverlay = (): void => {
+  const openReviewOverlay = (options?: { isDeep?: boolean; depth?: number }): void => {
     if (isReviewOverlayOpen) return;
     isReviewOverlayOpen = true;
     syncBgAnimState();
@@ -506,7 +506,7 @@ export function initApp(): void {
     }
     reviewHistorySlot.appendChild(historyMount);
     reviewOverlay.style.display = 'flex';
-    void reviewPanel.startReview();
+    void reviewPanel.startReview(options);
   };
 
   const closeReviewOverlay = (returnToSummary = true): void => {
@@ -574,8 +574,8 @@ export function initApp(): void {
   modalMount.id = 'game-over-modal-mount';
   document.body.appendChild(modalMount);
   const gameOverModal = new GameOverModalUI(modalMount, globalStore, {
-    onStartReview: () => {
-      openReviewOverlay();
+    onStartReview: (options) => {
+      openReviewOverlay(options);
     },
     onNewGame: () => {
       globalStore.cancelReview();

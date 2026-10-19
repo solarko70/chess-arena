@@ -9,8 +9,8 @@ import type { GameState } from '@/core';
 import {
   reviewGame,
   reconstructGameStates,
-  DEFAULT_STOCKFISH_DEPTH,
-  DEFAULT_STOCKFISH_DEEP_DEPTH,
+  DEFAULT_REVIEW_DEPTH,
+  DEEP_REVIEW_DEPTH,
   DEFAULT_OWN_ENGINE_DEPTH,
   type GameReviewResult,
   type ReviewProgress,
@@ -27,6 +27,7 @@ export interface ReviewWorkerLike {
 
 export interface ReviewRunOptions {
   mode?: 'standard' | 'deep';
+  depth?: number;
   signal?: AbortSignal;
   onProgress?: (progress: ReviewProgress) => void;
   engine?: AnalysisEngine;
@@ -144,8 +145,8 @@ export async function runGameReview(
   }
 
   const is8x8 = states[0].board.width === 8 && states[0].board.height === 8;
-  const isDeep = options.mode === 'deep';
-  const targetDepth = isDeep ? DEFAULT_STOCKFISH_DEEP_DEPTH : DEFAULT_STOCKFISH_DEPTH;
+  const isDeep = options.mode === 'deep' || options.depth === DEEP_REVIEW_DEPTH;
+  const targetDepth = options.depth ?? (isDeep ? DEEP_REVIEW_DEPTH : DEFAULT_REVIEW_DEPTH);
 
   // Case 1: Non-8x8 variant board -> must use OwnEngine
   if (!is8x8) {
