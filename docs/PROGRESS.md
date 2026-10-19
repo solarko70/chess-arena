@@ -127,3 +127,12 @@
 - [x] Safe Test Runner Watchdog (`scripts/safe-test.mjs`, `npm run test:safe`): monitors `node.exe` process tree memory and elapsed time every $500\text{ ms}$, killing the process tree if any process exceeds $2\text{ GB}$, total memory exceeds $3\text{ GB}$, or runtime exceeds $120\text{ s}$.
 - [x] Tests: added `src/tests/game-over-a2c2.test.ts` (11 tests covering `notify` re-entrancy guard, `render` purity, registry & CSS variables, 2-column cards, auto-review, short-game skip, cache reuse, cancellation, error/retry, and Russian point declension).
 
+## Stage 4d-2: Opening Book (ECO Codes), Opening Move Class & Mobile Polish (Completed)
+- [x] Opening Database (`src/analysis/openings/database.ts`): catalog of 130+ standard opening variations across open (C20-C99), semi-open (B00-B99, C00-C19), closed (D00-D99), and Indian/flank games (A00-A99, E00-E99) with ECO codes, Russian names, and move lists.
+- [x] Trie-based Opening Identification (`src/analysis/openings/database.ts`): $O(k)$ prefix matching with SAN normalization (stripping `+`, `#`, `?`, `!`, normalizing `0-0` to `O-O`) via `identifyOpening()` supporting SAN string arrays, `Move[]` objects, single `GameState`, and `GameState[]`.
+- [x] Opening Move Class (`src/analysis/classes.ts`, `src/analysis/classify.ts`, `src/analysis/review.ts`): added `'opening'` class (order 0, `--class-opening: #94723c;`, light `#825f2a`, crisp vector book SVG icon without emojis). Moves within opening line are classified as `'opening'` with 0 win loss and 100% accuracy, excluded from key moments.
+- [x] UI Opening Badges (`src/ui/gameovermodal.ts`, `src/ui/reviewpanel.ts`, `src/ui/history.ts`, `src/ui/styles.css`): `.opening-badge.solar-card` renders ECO code and Russian name (e.g. «C50 · Итальянская партия») or «Нестандартный дебют» in game over modal header, review panel results section, and history moves list on mobile (hidden on desktop to avoid duplicate).
+- [x] Mobile Frame & Background Polish (`src/ui/styles.css`, `src/main.ts`): board padding in `#review-overlay` set to `8px 10px` on mobile ($\le 800\text{px}$), `.eval-bar-wrapper` / `.eval-bar` styled with `border-radius: 4px; overflow: hidden;`, `.review-solar-scene` / `.review-space-scene` fixed at `position: fixed; inset: 0;` to prevent tearing on scroll, and soft cosmic radial gradients on `body.review-active`.
+- [x] Verification: 31 test files, 319 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
+
+

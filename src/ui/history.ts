@@ -1,12 +1,13 @@
 import { ChessStore } from '@/state/store';
 import { moveToSAN, classicalRuleSet } from '@/core';
-import { scoreToCp, getMoveClassMeta } from '@/analysis';
+import { scoreToCp, getMoveClassMeta, identifyOpening } from '@/analysis';
 
 export class HistoryUI {
   private container: HTMLElement;
   private store: ChessStore;
   private listEl!: HTMLElement;
   private detailEl!: HTMLElement;
+  private openingBadgeEl!: HTMLElement;
   private mistakeNavEl!: HTMLElement;
   private prevMistakeBtn!: HTMLButtonElement;
   private nextMistakeBtn!: HTMLButtonElement;
@@ -29,6 +30,7 @@ export class HistoryUI {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </button>
         </div>
+        <div class="opening-badge history-opening-badge solar-card" id="history-opening-badge" style="display: none;"></div>
         <div class="history-list"></div>
         <div class="history-nav">
           <button id="hist-first" class="solar-btn-ghost" title="В начало (Home)">|&lt;</button>
@@ -41,6 +43,7 @@ export class HistoryUI {
 
     this.listEl = this.container.querySelector('.history-list') as HTMLElement;
     this.detailEl = this.container.querySelector('#history-detail-panel') as HTMLElement;
+    this.openingBadgeEl = this.container.querySelector('#history-opening-badge') as HTMLElement;
     this.mistakeNavEl = this.container.querySelector('#history-mistake-nav') as HTMLElement;
     this.prevMistakeBtn = this.container.querySelector('#btn-prev-mistake') as HTMLButtonElement;
     this.nextMistakeBtn = this.container.querySelector('#btn-next-mistake') as HTMLButtonElement;
@@ -146,6 +149,29 @@ export class HistoryUI {
 
     this.listEl.innerHTML = '';
     this.listEl.classList.toggle('review-moves-list', isReview);
+
+    // Render opening badge in review mode
+    if (isReview && review) {
+      const opening = review.opening ?? identifyOpening(history);
+      if (this.openingBadgeEl) {
+        if (history.length >= 1) {
+          this.openingBadgeEl.style.display = 'inline-flex';
+          if (opening) {
+            this.openingBadgeEl.className = 'opening-badge history-opening-badge solar-card';
+            this.openingBadgeEl.innerHTML = `<span class="opening-eco">${opening.eco}</span> <span class="meta-separator">·</span> <span class="opening-name">${opening.name}</span>`;
+          } else {
+            this.openingBadgeEl.className = 'opening-badge history-opening-badge solar-card opening-unknown';
+            this.openingBadgeEl.innerHTML = `<span class="opening-name">Нестандартный дебют</span>`;
+          }
+        } else {
+          this.openingBadgeEl.style.display = 'none';
+        }
+      }
+    } else {
+      if (this.openingBadgeEl) {
+        this.openingBadgeEl.style.display = 'none';
+      }
+    }
 
     // Render detail panel for selected move if review exists
     if (viewIndex !== null && viewIndex >= 0 && review && review.moves[viewIndex]) {

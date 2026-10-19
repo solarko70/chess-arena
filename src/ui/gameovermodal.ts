@@ -3,6 +3,7 @@ import {
   formatMaterialPoints,
   getSidePerformanceRating,
   formatPerformanceRating,
+  identifyOpening,
   DEFAULT_REVIEW_DEPTH,
   DEEP_REVIEW_DEPTH,
   type ReviewRunResult,
@@ -80,6 +81,7 @@ export class GameOverModalUI {
   private movesEl!: HTMLElement;
   private durationEl!: HTMLElement;
   private materialEl!: HTMLElement;
+  private openingBadgeEl!: HTMLElement;
   private progressWrapEl!: HTMLElement;
   private cardsContainerEl!: HTMLElement;
   private deepCheckbox!: HTMLInputElement;
@@ -125,6 +127,7 @@ export class GameOverModalUI {
                 <span class="meta-separator">·</span>
                 <span>Длительность: <span id="game-over-duration"></span></span>
               </div>
+              <div class="opening-badge solar-card" id="game-over-opening-badge" style="display: none;"></div>
             </div>
 
             <!-- Hidden element for backwards compatibility with tests asserting #game-over-material -->
@@ -169,6 +172,7 @@ export class GameOverModalUI {
     this.movesEl = this.container.querySelector('#game-over-moves') as HTMLElement;
     this.durationEl = this.container.querySelector('#game-over-duration') as HTMLElement;
     this.materialEl = this.container.querySelector('#game-over-material') as HTMLElement;
+    this.openingBadgeEl = this.container.querySelector('#game-over-opening-badge') as HTMLElement;
     this.progressWrapEl = this.container.querySelector('#game-over-progress-wrap') as HTMLElement;
     this.cardsContainerEl = this.container.querySelector('#game-over-cards') as HTMLElement;
     this.deepCheckbox = this.container.querySelector('#deep-analysis-checkbox') as HTMLInputElement;
@@ -681,8 +685,25 @@ export class GameOverModalUI {
     const lost = this.store.getLostMaterial();
     this.materialEl.textContent = `Белые: −${lost.white} очков | Чёрные: −${lost.black} очков`;
 
-    // 4. Progress or Error indicator
+    // 3b. Opening badge
     const review = this.store.getReviewResult();
+    const opening = review?.opening ?? identifyOpening(this.store.getLiveState().history);
+    if (this.openingBadgeEl) {
+      if (plies >= 1) {
+        this.openingBadgeEl.style.display = 'inline-flex';
+        if (opening) {
+          this.openingBadgeEl.className = 'opening-badge solar-card';
+          this.openingBadgeEl.innerHTML = `<span class="opening-eco">${opening.eco}</span> <span class="meta-separator">·</span> <span class="opening-name">${opening.name}</span>`;
+        } else {
+          this.openingBadgeEl.className = 'opening-badge solar-card opening-unknown';
+          this.openingBadgeEl.innerHTML = `<span class="opening-name">Нестандартный дебют</span>`;
+        }
+      } else {
+        this.openingBadgeEl.style.display = 'none';
+      }
+    }
+
+    // 4. Progress or Error indicator
     const isReviewing = this.store.isReviewInProgress();
     const reviewProgress = this.store.getReviewProgress();
     const reviewError = this.store.getReviewError();

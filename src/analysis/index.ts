@@ -103,3 +103,12 @@ export {
 } from './performance-rating';
 export type { PerformanceRatingParams } from './performance-rating';
 
+export {
+  OPENING_DATABASE,
+  identifyOpening,
+  extractSanList,
+  normalizeSAN,
+} from './openings';
+export type { OpeningEntry, IdentifiedOpening } from './openings';
+
+

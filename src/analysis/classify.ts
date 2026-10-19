@@ -15,9 +15,10 @@ import type { Color, Move } from '@/core';
 import type { AnalysisLine, Score } from '@/ai';
 import { povWinChance } from './winchance';
 
-export type MoveClass = 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
+export type MoveClass = 'opening' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
 
 export const MOVE_CLASS_LABELS: Record<MoveClass, string> = {
+  opening: 'дебютный ход',
   best: 'лучший',
   excellent: 'отличный',
   good: 'хороший',
@@ -68,6 +69,8 @@ export interface ClassifyMoveInput {
   moverColor?: Color;
   /** Explicit win-probability gap between best and second-best move (optional override) */
   secondBestGap?: number;
+  /** Whether the move played is an identified opening book move */
+  isBookMove?: boolean;
 }
 
 export interface ClassifyMoveResult {
@@ -78,12 +81,13 @@ export interface ClassifyMoveResult {
 }
 
 const SEVERITY_ORDER: Record<MoveClass, number> = {
-  best: 0,
-  excellent: 1,
-  good: 2,
-  inaccuracy: 3,
-  mistake: 4,
-  blunder: 5,
+  opening: 0,
+  best: 1,
+  excellent: 2,
+  good: 3,
+  inaccuracy: 4,
+  mistake: 5,
+  blunder: 6,
 };
 
 /** Check whether two Move objects represent the same chess move (origin, target, promotion). */
@@ -125,6 +129,16 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
     onlyMove = input.secondBestGap > THRESHOLDS.onlyMoveGap;
   } else if (input.linesBefore && input.moverColor) {
     onlyMove = isOnlyMove(input.linesBefore, input.moverColor);
+  }
+
+  // Opening book moves are classified as 'opening' with zero loss
+  if (input.isBookMove) {
+    return {
+      moveClass: 'opening',
+      label: MOVE_CLASS_LABELS.opening,
+      loss: 0,
+      onlyMove: false,
+    };
   }
 
   // Delivering checkmate is always the best move with zero loss

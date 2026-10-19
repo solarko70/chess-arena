@@ -22,6 +22,7 @@ import {
   THRESHOLDS,
   type MoveClass,
 } from './classify';
+import { identifyOpening, type IdentifiedOpening } from './openings';
 
 export const SUMMARY_DEPTH = 14;
 export const DEFAULT_REVIEW_DEPTH = 16;
@@ -62,7 +63,15 @@ export interface ReviewedMove {
   onlyMove: boolean;
 }
 
-export type MoveClassCounts = Record<MoveClass, number>;
+export type MoveClassCounts = {
+  opening?: number;
+  best: number;
+  excellent: number;
+  good: number;
+  inaccuracy: number;
+  mistake: number;
+  blunder: number;
+};
 
 export interface EvalPoint {
   /** 0 = initial position, 1..n = after each ply */
@@ -124,12 +133,15 @@ export interface GameReviewResult {
   reanalyzed: number;
   /** Primary search depth executed for the review */
   depth?: number;
+  /** Identified opening from book (if any) */
+  opening?: IdentifiedOpening | null;
 }
 
 export type GameInput = GameState | readonly GameState[];
 
 function emptyClassCounts(): MoveClassCounts {
   return {
+    opening: 0,
     best: 0,
     excellent: 0,
     good: 0,
@@ -225,6 +237,7 @@ export async function reviewGame(
 
   const states = reconstructGameStates(game);
   const totalPositions = states.length;
+  const identifiedOpening = identifyOpening(states);
   const ownCreated = !engine;
   const activeEngine = engine ?? createEngine(states[0]);
 
@@ -391,6 +404,9 @@ export async function reviewGame(
         isSameMove(playedMove, bestMove) ||
         (bestSan !== null && san === bestSan);
 
+      const ply = i + 1;
+      const isBookMove = Boolean(identifiedOpening && ply <= identifiedOpening.plies);
+
       const classification = classifyMove({
         winBefore,
         winAfter,
@@ -400,6 +416,7 @@ export async function reviewGame(
         evalAfter,
         linesBefore: resBefore.lines,
         moverColor,
+        isBookMove,
       });
 
       // Enforce invariant: no reviewed move with class 'mistake' or 'blunder'
@@ -440,7 +457,7 @@ export async function reviewGame(
       const acc = moveAccuracy(loss);
 
       const reviewedMove: ReviewedMove = {
-        ply: i + 1,
+        ply,
         san,
         color: moverColor,
         move: playedMove,
@@ -457,7 +474,7 @@ export async function reviewGame(
       };
 
       moves.push(reviewedMove);
-      counts[moverColor][classification.moveClass]++;
+      counts[moverColor][classification.moveClass] = (counts[moverColor][classification.moveClass] ?? 0) + 1;
 
       if (moverColor === 'white') {
         whiteAccuracies.push(acc);
@@ -487,6 +504,7 @@ export async function reviewGame(
       engineName: resolvedEngineName,
       reanalyzed: reanalyzedIndices.size,
       depth: baseDepth,
+      opening: identifiedOpening,
     };
   } finally {
     if (ownCreated) {

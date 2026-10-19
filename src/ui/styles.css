@@ -136,6 +136,8 @@
   --eclipse-corona-outer: rgba(245, 158, 11, 0);
 
   /* Move class color palette */
+  --class-opening: #94723c;
+  --class-opening-bg: rgba(148, 114, 60, 0.15);
   --class-best: #22c55e;
   --class-best-bg: rgba(34, 197, 94, 0.15);
   --class-excellent: #84cc16;
@@ -265,6 +267,10 @@
   --eclipse-disk: #1e293b;
   --eclipse-corona-core: rgba(217, 119, 6, 0.60);
   --eclipse-corona-outer: rgba(217, 119, 6, 0);
+
+  /* Move class color palette (light theme) */
+  --class-opening: #825f2a;
+  --class-opening-bg: rgba(130, 95, 42, 0.15);
 }
 
 * {
@@ -298,6 +304,13 @@ body.review-active {
   background-color: var(--solar-bg-edge);
   align-items: flex-start;
   padding: 12px 16px;
+}
+
+body.review-active {
+  background-image:
+    radial-gradient(ellipse 65% 45% at 85% 12%, var(--glow-color) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 15% 85%, rgba(245, 158, 11, 0.03) 0%, transparent 50%),
+    var(--solar-bg-base);
 }
 
 #app {
@@ -594,6 +607,10 @@ body.review-active #app {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+.board-move-badge.badge-opening {
+  background: var(--class-opening);
 }
 
 .board-move-badge.badge-best {
@@ -1004,6 +1021,12 @@ body.review-active #app {
   margin-left: 4px;
 }
 
+.badge-opening {
+  background: var(--class-opening-bg);
+  color: var(--class-opening);
+  border: 1px solid var(--class-opening);
+}
+
 .badge-best {
   background: var(--class-best-bg);
   color: var(--class-best);
@@ -1055,6 +1078,7 @@ body.review-active #app {
   box-sizing: border-box;
 }
 
+.review-move-badge.badge-opening { background: var(--class-opening); color: #ffffff; }
 .review-move-badge.badge-best { background: var(--class-best); color: #ffffff; }
 .review-move-badge.badge-excellent { background: var(--class-excellent); color: #ffffff; }
 .review-move-badge.badge-good { background: var(--class-good); color: #ffffff; }
@@ -1093,6 +1117,8 @@ body.review-active #app {
   display: block;
 }
 
+.class-row-badge.badge-opening,
+.move-class-badge.class-row-badge.badge-opening { background: var(--class-opening); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
 .class-row-badge.badge-best,
 .move-class-badge.class-row-badge.badge-best { background: var(--class-best); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
 .class-row-badge.badge-excellent,
@@ -1261,6 +1287,51 @@ body.review-active #app {
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+/* Opening Badge (Stage 4d-2) */
+.opening-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--border-radius-sm, 6px);
+  background: var(--bg-card);
+  border: 1px solid var(--orbit-stroke);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.opening-badge .opening-eco {
+  font-weight: 700;
+  color: var(--class-opening);
+  letter-spacing: 0.03em;
+}
+
+.opening-badge .opening-name {
+  color: var(--text-primary);
+}
+
+.opening-badge.opening-unknown {
+  opacity: 0.85;
+  color: var(--text-secondary);
+}
+
+.history-opening-badge {
+  margin: 0 0 10px 0;
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+@media (min-width: 801px) {
+  .history-opening-badge {
+    display: none !important;
+  }
 }
 
 /* Review Panel */
@@ -3666,8 +3737,9 @@ body.bg-anim-off .solar-background * {
   overflow-y: auto;
 }
 
-.review-solar-scene {
-  position: absolute;
+.review-solar-scene,
+.review-space-scene {
+  position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -3871,8 +3943,11 @@ body.review-active .review-overlay-side-col .history-nav {
     gap: 6px;
   }
 
-  .eval-bar-wrapper {
+  .eval-bar-wrapper,
+  .eval-bar {
     width: 16px;
+    border-radius: 4px;
+    overflow: hidden;
   }
 
   .eval-bar-text {
@@ -3978,7 +4053,7 @@ body.review-active .review-overlay-side-col .history-nav {
     max-width: 400px;
     aspect-ratio: 1 / 1;
     height: auto;
-    padding: 6px;
+    padding: 8px 10px;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;
@@ -4186,9 +4261,11 @@ body.review-active .review-overlay-side-col .history-nav {
     gap: 6px;
   }
 
-  .eval-bar-wrapper {
+  .eval-bar-wrapper,
+  .eval-bar {
     width: 14px;
     border-radius: 4px;
+    overflow: hidden;
   }
 
   .eval-bar-text {

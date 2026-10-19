@@ -282,7 +282,7 @@ export function initApp(): void {
 
     <!-- Review Overlay (Stage A2b / A2c-6 / A2c-7) -->
     <div class="review-overlay" id="review-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Разбор партии">
-      <div class="review-solar-scene" id="review-solar-scene" aria-hidden="true" style="position: absolute; inset: 0; z-index: 0; pointer-events: none;">
+      <div class="review-solar-scene review-space-scene" id="review-solar-scene" aria-hidden="true" style="position: fixed; inset: 0; z-index: 0; pointer-events: none;">
         ${buildReviewScene()}
       </div>
       <div class="review-overlay-header">

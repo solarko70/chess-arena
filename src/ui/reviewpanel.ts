@@ -4,6 +4,7 @@ import {
   getMoveClassMeta,
   getSidePerformanceRating,
   formatPerformanceRating,
+  identifyOpening,
   DEFAULT_REVIEW_DEPTH,
   DEEP_REVIEW_DEPTH,
   type GameReviewResult,
@@ -60,6 +61,7 @@ export class ReviewPanelUI {
   private resultsSection!: HTMLElement;
   private fallbackBanner!: HTMLElement;
   private engineInfoEl!: HTMLElement;
+  private openingBadgeEl!: HTMLElement;
   private whiteRing!: AccuracyRingDom;
   private blackRing!: AccuracyRingDom;
   private whiteRatingEl!: HTMLElement;
@@ -85,6 +87,8 @@ export class ReviewPanelUI {
         </div>
 
         <div class="review-results-section" id="review-results-section" style="display: none;">
+          <div class="opening-badge solar-card" id="review-opening-badge" data-review-tab="overview" style="display: none;"></div>
+
           <div class="review-fallback-banner solar-card" id="review-fallback-note" data-review-tab="overview" style="display: none;"></div>
 
           <div class="review-engine-info solar-card" id="review-engine-info" data-review-tab="graph"></div>
@@ -156,6 +160,7 @@ export class ReviewPanelUI {
     this.progressBar = this.container.querySelector('#review-progress-bar') as HTMLProgressElement;
     this.progressText = this.container.querySelector('#review-progress-text') as HTMLElement;
     this.resultsSection = this.container.querySelector('#review-results-section') as HTMLElement;
+    this.openingBadgeEl = this.container.querySelector('#review-opening-badge') as HTMLElement;
     this.fallbackBanner = this.container.querySelector('#review-fallback-note') as HTMLElement;
     this.engineInfoEl = this.container.querySelector('#review-engine-info') as HTMLElement;
     this.graphSvgEl = this.container.querySelector('#review-eval-graph') as SVGElement;
@@ -446,8 +451,24 @@ export class ReviewPanelUI {
 
       // Key moments
       this.renderKeyMoments(reviewResult);
+
+      // Opening badge
+      const opening = reviewResult.opening ?? identifyOpening(this.store.getLiveState().history);
+      if (this.openingBadgeEl) {
+        this.openingBadgeEl.style.display = 'inline-flex';
+        if (opening) {
+          this.openingBadgeEl.className = 'opening-badge solar-card';
+          this.openingBadgeEl.innerHTML = `<span class="opening-eco">${opening.eco}</span> <span class="meta-separator">·</span> <span class="opening-name">${opening.name}</span>`;
+        } else {
+          this.openingBadgeEl.className = 'opening-badge solar-card opening-unknown';
+          this.openingBadgeEl.innerHTML = `<span class="opening-name">Нестандартный дебют</span>`;
+        }
+      }
     } else {
       this.resultsSection.style.display = 'none';
+      if (this.openingBadgeEl) {
+        this.openingBadgeEl.style.display = 'none';
+      }
     }
   }
 

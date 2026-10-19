@@ -174,7 +174,7 @@ describe('Stage A2c-5: Fullscreen Solar Background and Review Panel Styling', ()
     expect(singleRow.rowEl.classList.contains('zero-count')).toBe(false);
 
     const rowsList = createClassRowsList();
-    expect(rowsList.rows.size).toBe(6);
+    expect(rowsList.rows.size).toBe(7);
     rowsList.update({ best: 2, blunder: 0 });
     expect(rowsList.rows.get('best')?.countEl.textContent).toBe('2');
     expect(rowsList.rows.get('blunder')?.rowEl.classList.contains('zero-count')).toBe(true);
@@ -257,8 +257,8 @@ describe('Stage A2c-5: Fullscreen Solar Background and Review Panel Styling', ()
 
     const whiteList = document.getElementById('review-classes-white-list');
     const blackList = document.getElementById('review-classes-black-list');
-    expect(whiteList?.querySelectorAll('.card-class-row').length).toBe(6);
-    expect(blackList?.querySelectorAll('.card-class-row').length).toBe(6);
+    expect(whiteList?.querySelectorAll('.card-class-row').length).toBe(7);
+    expect(blackList?.querySelectorAll('.card-class-row').length).toBe(7);
 
     const graphSvg = document.getElementById('review-eval-graph');
     expect(graphSvg?.querySelector('polygon')).not.toBeNull();

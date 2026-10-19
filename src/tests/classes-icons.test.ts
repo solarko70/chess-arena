@@ -10,7 +10,7 @@ import type { Move } from '@/core';
 
 describe('Stage A3.2: Move class SVG icons geometry and board integration', () => {
   it('all classes from registry return valid svg markup with viewbox', () => {
-    expect(MOVE_CLASS_REGISTRY.length).toBe(6);
+    expect(MOVE_CLASS_REGISTRY.length).toBe(7);
 
     for (const meta of MOVE_CLASS_REGISTRY) {
       const svg = meta.svg;

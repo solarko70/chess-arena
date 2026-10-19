@@ -20,6 +20,18 @@ export interface MoveClassMeta {
 
 export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
   {
+    id: 'opening',
+    nameRu: 'Дебютный ход',
+    shortRu: 'Дебют',
+    cssVar: '--class-opening',
+    color: '#94723c',
+    symbol: 'D',
+    order: 0,
+    showInSummary: true,
+    nag: '',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  },
+  {
     id: 'best',
     nameRu: 'Лучший',
     shortRu: 'Лучший',
