@@ -2,6 +2,7 @@ import type { TimeControlMode, GameMode, PlayerColorChoice } from '@/state/store
 import { TIME_CONTROLS } from '@/state/store';
 import { LEVELS, type LevelId } from '@/ai';
 import { getPieceSvg } from '@/ui/pieces';
+import { createSolarDecorLayer, type SolarDecorElement } from '@/ui/solar-decor';
 
 export const LOCAL_SETUP_STORAGE_KEY = 'chess_arena_setup_local';
 export const BOT_SETUP_STORAGE_KEY = 'chess_arena_setup_bot';
@@ -153,6 +154,7 @@ export class GameSetupModalUI {
   private titleEl!: HTMLElement;
   private bodyEl!: HTMLElement;
   private startBtn!: HTMLButtonElement;
+  private solarDecor: SolarDecorElement | null = null;
 
   constructor(container: HTMLElement, onStart: (params: StartGameParams) => void) {
     this.container = container;
@@ -253,6 +255,14 @@ export class GameSetupModalUI {
     }
 
     this.renderForm();
+
+    if (this.solarDecor) {
+      this.solarDecor.destroy();
+      this.solarDecor = null;
+    }
+    this.solarDecor = createSolarDecorLayer({ withAnimatedPieces: true });
+    this.dialog.prepend(this.solarDecor);
+
     this.overlay.style.display = 'flex';
     this.isOpenState = true;
 
@@ -270,6 +280,11 @@ export class GameSetupModalUI {
   }
 
   public close(): void {
+    if (this.solarDecor) {
+      this.solarDecor.destroy();
+      this.solarDecor = null;
+    }
+
     if (!this.isOpenState) return;
     this.isOpenState = false;
     this.overlay.style.display = 'none';
@@ -436,6 +451,7 @@ export class GameSetupModalUI {
   }
 
   public destroy(): void {
+    this.close();
     document.removeEventListener('keydown', this.handleKeyDown);
     this.container.innerHTML = '';
   }

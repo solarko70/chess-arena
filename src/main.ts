@@ -200,6 +200,17 @@ export function initApp(): void {
 
     <!-- Screen 2: Game -->
     <div class="screen screen-game" id="screen-game" style="display: none;">
+      <!-- Subtle solar decor layer behind side panel -->
+      <div class="game-solar-decor" aria-hidden="true" style="pointer-events: none;">
+        <svg width="460" height="460" viewBox="0 0 460 460" fill="none" aria-hidden="true">
+          <ellipse cx="460" cy="0" rx="380" ry="240" class="solar-modal-orbit" />
+          <ellipse cx="460" cy="0" rx="260" ry="160" class="solar-modal-orbit" />
+          <circle cx="280" cy="80" r="1.5" class="solar-modal-star" />
+          <circle cx="340" cy="180" r="1" class="solar-modal-star" />
+          <circle cx="200" cy="140" r="1.5" class="solar-modal-star" />
+        </svg>
+      </div>
+
       <header class="game-topbar">
         <button class="btn-back-to-main" id="btn-back-to-main" aria-label="На главный">← На главный</button>
       </header>
@@ -230,6 +241,10 @@ export function initApp(): void {
         <aside class="game-side-panel" id="game-side-panel">
           <div class="side-panel-header">
             <div class="status-info">
+              <svg class="orbit-mini-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <ellipse cx="8" cy="8" rx="6.5" ry="3.5" stroke="currentColor" stroke-dasharray="2,2" />
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+              </svg>
               <div class="status-text" id="status-text">Ход белых</div>
               <div id="status-badge-container"></div>
             </div>
@@ -495,6 +510,16 @@ export function initApp(): void {
     playerNameTop.textContent = getSideLabel(globalStore, topColor);
     playerNameBottom.textContent = getSideLabel(globalStore, bottomColor);
 
+    const turn = globalStore.getLiveState().turn;
+    const isGameOver = globalStore.isGameOver();
+    const isTurnTop = turn === topColor && !isGameOver;
+    const isTurnBottom = turn === bottomColor && !isGameOver;
+
+    playerBarTop.classList.toggle('active-turn', isTurnTop);
+    playerBarTop.classList.toggle('active-player-bar', isTurnTop);
+    playerBarBottom.classList.toggle('active-turn', isTurnBottom);
+    playerBarBottom.classList.toggle('active-player-bar', isTurnBottom);
+
     const clockMode = globalStore.getClockMode();
     if (clockMode === 'none') {
       playerClockTop.style.display = 'none';
@@ -514,7 +539,6 @@ export function initApp(): void {
       playerClockTop.textContent = topRes.text;
       playerClockBottom.textContent = bottomRes.text;
 
-      const turn = globalStore.getLiveState().turn;
       const isActiveClock = globalStore.isClockActive() && !globalStore.isGameOver();
 
       playerClockTop.classList.toggle('low-time', topRes.isLow);

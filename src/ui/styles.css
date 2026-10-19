@@ -46,7 +46,8 @@
   --hero-fallback-bg: rgba(15, 23, 42, 0.88);
 
   /* Solar Modal & Summary variables */
-  --solar-glow: rgba(245, 158, 11, 0.14);
+  --glow-color: rgba(245, 158, 11, 0.14);
+  --solar-glow: var(--glow-color);
   --solar-accent: #f59e0b;
   --solar-accent-hover: #d97706;
   --solar-halo: rgba(245, 158, 11, 0.28);
@@ -56,6 +57,11 @@
   --acc-low: #ef4444;
   --acc-mid: #f59e0b;
   --acc-high: #22c55e;
+
+  /* Theme-dependent orbit and star styling */
+  --orbit-stroke: rgba(251, 191, 36, 0.22);
+  --orbit-opacity: 0.18;
+  --star-fill: rgba(255, 255, 255, 0.75);
 
   /* Move class color palette */
   --class-best: #22c55e;
@@ -108,7 +114,8 @@
   --hero-fallback-bg: rgba(255, 255, 255, 0.94);
 
   /* Solar Modal & Summary variables in light mode */
-  --solar-glow: rgba(217, 119, 6, 0.08);
+  --glow-color: rgba(217, 119, 6, 0.16);
+  --solar-glow: var(--glow-color);
   --solar-accent: #d97706;
   --solar-accent-hover: #b45309;
   --solar-halo: rgba(217, 119, 6, 0.22);
@@ -118,6 +125,11 @@
   --acc-low: #dc2626;
   --acc-mid: #d97706;
   --acc-high: #16a34a;
+
+  /* Theme-dependent orbit and star styling in light mode */
+  --orbit-stroke: rgba(180, 83, 9, 0.35);
+  --orbit-opacity: 0.30;
+  --star-fill: rgba(217, 119, 6, 0.35);
 }
 
 * {
@@ -595,6 +607,14 @@ body.game-active #app {
   border-radius: 4px;
 }
 
+.history-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+[data-theme='light'] .history-row:nth-child(even) {
+  background: rgba(0, 0, 0, 0.03);
+}
+
 .history-num {
   color: var(--text-secondary);
   width: 32px;
@@ -604,7 +624,7 @@ body.game-active #app {
   cursor: pointer;
   padding: 0 4px;
   border-radius: 4px;
-  transition: background 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .history-move:hover {
@@ -612,8 +632,8 @@ body.game-active #app {
 }
 
 .history-move.active {
-  background: var(--accent);
-  color: var(--bg-primary);
+  background: var(--solar-halo);
+  color: var(--solar-accent);
   font-weight: 700;
 }
 
@@ -1058,7 +1078,8 @@ body.game-active #app {
   animation: modalPopIn 0.2s ease-out;
 }
 
-/* Static Solar Decorative Layer (pure SVG/CSS, aria-hidden, pointer-events none) */
+/* Reusable Solar Decorative Layer (aria-hidden, pointer-events none) */
+.solar-decor-layer,
 .game-over-solar-decor {
   position: absolute;
   inset: 0;
@@ -1070,15 +1091,133 @@ body.game-active #app {
 
 .solar-modal-orbit {
   fill: none;
-  stroke: var(--solar-orbit-border);
+  stroke: var(--orbit-stroke);
   stroke-width: 1px;
   stroke-dasharray: 4, 4;
-  opacity: 0.5;
+  opacity: var(--orbit-opacity);
 }
 
 .solar-modal-star {
-  fill: var(--solar-star-color);
+  fill: var(--star-fill);
   opacity: 0.65;
+}
+
+[data-theme='light'] .solar-modal-star {
+  display: block;
+  fill: var(--star-fill);
+  opacity: 0.35;
+}
+
+/* Moving chess piece silhouettes on orbits inside open modals (strictly <= 4 moving elements) */
+.modal-orbits-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.modal-moving-orbit {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-radius: 50%;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.modal-moving-orbit-1 {
+  width: 280px;
+  height: 90px;
+  margin-left: -140px;
+  animation: modalOrbitRotate1 45s linear infinite;
+}
+
+.modal-moving-orbit-2 {
+  width: 440px;
+  height: 150px;
+  margin-left: -220px;
+  animation: modalOrbitRotate2 65s linear infinite reverse;
+}
+
+.modal-moving-orbit-3 {
+  width: 600px;
+  height: 210px;
+  margin-left: -300px;
+  animation: modalOrbitRotate3 80s linear infinite;
+}
+
+.modal-moving-orbit-4 {
+  width: 760px;
+  height: 270px;
+  margin-left: -380px;
+  animation: modalOrbitRotate4 90s linear infinite reverse;
+}
+
+.modal-piece-counter {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.modal-moving-orbit-1 .modal-piece-counter {
+  animation: modalCounterRotate1 45s linear infinite;
+}
+
+.modal-moving-orbit-2 .modal-piece-counter {
+  animation: modalCounterRotate2 65s linear infinite reverse;
+}
+
+.modal-moving-orbit-3 .modal-piece-counter {
+  animation: modalCounterRotate3 80s linear infinite;
+}
+
+.modal-moving-orbit-4 .modal-piece-counter {
+  animation: modalCounterRotate4 90s linear infinite reverse;
+}
+
+@keyframes modalOrbitRotate1 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes modalCounterRotate1 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes modalOrbitRotate2 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes modalCounterRotate2 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes modalOrbitRotate3 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes modalCounterRotate3 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes modalOrbitRotate4 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes modalCounterRotate4 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+.solar-anim-paused,
+.solar-anim-paused * {
+  animation-play-state: paused !important;
 }
 
 .game-over-content {
@@ -1595,8 +1734,17 @@ body.game-active #app {
   .game-over-dialog,
   .game-over-card,
   .ring-progress,
+  .modal-moving-orbit,
+  .modal-piece-counter,
+  .player-bar,
+  .player-clock,
   .setup-modal-overlay,
   .setup-modal-dialog,
+  .setup-time-card,
+  .setup-level-card,
+  .setup-color-card,
+  .btn-setup-start,
+  .side-panel-actions .btn-action,
   .resign-modal-overlay,
   .resign-modal-dialog {
     animation: none !important;
@@ -1619,7 +1767,9 @@ body.game-active #app {
 }
 
 .setup-modal-dialog {
-  background: var(--bg-secondary);
+  background:
+    radial-gradient(ellipse 80% 45% at 50% 0%, var(--glow-color) 0%, transparent 70%),
+    var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--bg-tertiary);
   border-radius: var(--border-radius);
@@ -1629,7 +1779,7 @@ body.game-active #app {
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.6), 0 0 24px var(--solar-halo);
   animation: modalPopIn 0.2s ease-out;
 }
 
@@ -1645,6 +1795,8 @@ body.game-active #app {
   border-radius: 6px;
   padding: 4px 8px;
   line-height: 1;
+  z-index: 2;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .setup-modal-close:hover {
@@ -1654,6 +1806,8 @@ body.game-active #app {
 
 .setup-modal-header {
   margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .setup-modal-title {
@@ -1661,6 +1815,11 @@ body.game-active #app {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+.setup-modal-body {
+  position: relative;
+  z-index: 1;
 }
 
 .setup-section {
@@ -1703,22 +1862,28 @@ body.game-active #app {
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--bg-tertiary);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .setup-time-card:hover {
   background: var(--bg-tertiary);
   border-color: var(--text-secondary);
+  transform: translateY(-1px);
+}
+
+.setup-time-card:focus-visible {
+  outline: 2px solid var(--solar-accent);
+  outline-offset: 2px;
 }
 
 .setup-time-card.selected {
-  border-color: var(--accent);
+  border-color: var(--solar-accent);
   background: rgba(245, 158, 11, 0.12);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 14px var(--solar-halo), 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .setup-card-title {
@@ -1745,22 +1910,28 @@ body.game-active #app {
   padding: 10px 14px;
   border-radius: 8px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--bg-tertiary);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .setup-level-card:hover {
   background: var(--bg-tertiary);
   border-color: var(--text-secondary);
+  transform: translateY(-1px);
+}
+
+.setup-level-card:focus-visible {
+  outline: 2px solid var(--solar-accent);
+  outline-offset: 2px;
 }
 
 .setup-level-card.selected {
-  border-color: var(--accent);
+  border-color: var(--solar-accent);
   background: rgba(245, 158, 11, 0.12);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 14px var(--solar-halo), 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .setup-level-header {
@@ -1803,21 +1974,27 @@ body.game-active #app {
   padding: 12px 8px;
   border-radius: 8px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--bg-tertiary);
   color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .setup-color-card:hover {
   background: var(--bg-tertiary);
   border-color: var(--text-secondary);
+  transform: translateY(-1px);
+}
+
+.setup-color-card:focus-visible {
+  outline: 2px solid var(--solar-accent);
+  outline-offset: 2px;
 }
 
 .setup-color-card.selected {
-  border-color: var(--accent);
+  border-color: var(--solar-accent);
   background: rgba(245, 158, 11, 0.12);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 14px var(--solar-halo), 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .setup-color-icon {
@@ -1841,6 +2018,8 @@ body.game-active #app {
 
 .setup-modal-footer {
   margin-top: 24px;
+  position: relative;
+  z-index: 1;
 }
 
 .btn-setup-start {
@@ -1848,16 +2027,28 @@ body.game-active #app {
   padding: 12px 20px;
   font-size: 1.05rem;
   font-weight: 700;
-  background: var(--accent);
-  color: #0f172a;
+  background: linear-gradient(135deg, var(--solar-btn-start), var(--solar-btn-end));
+  color: #1e1b4b;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.28);
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .btn-setup-start:hover {
-  background: var(--accent-hover);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.38);
+  transform: translateY(-1px);
+}
+
+.btn-setup-start:active {
+  transform: translateY(1px);
+}
+
+.btn-setup-start:focus-visible {
+  outline: 2px solid var(--solar-accent);
+  outline-offset: 2px;
 }
 
 /* Resign Modal Dialog (Stage A2) */
@@ -1944,10 +2135,33 @@ body.game-active #app {
 }
 
 .screen-game {
-  background: var(--bg-primary);
+  position: relative;
+  background:
+    radial-gradient(ellipse 60% 40% at 85% 15%, var(--glow-color) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 20% 85%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+    var(--solar-bg-base);
+  background-color: var(--solar-bg-edge);
   align-items: stretch;
   gap: 10px;
   width: 100%;
+  overflow: hidden;
+}
+
+.game-solar-decor {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 460px;
+  height: 460px;
+  pointer-events: none;
+  opacity: 0.08;
+  z-index: 0;
+}
+
+@media (max-width: 800px) {
+  .game-solar-decor {
+    display: none;
+  }
 }
 
 .game-topbar {
@@ -1956,6 +2170,8 @@ body.game-active #app {
   justify-content: flex-start;
   height: 36px;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 /* Stage A2b: Chess.com-style Two-Column Game Layout */
@@ -1966,6 +2182,8 @@ body.game-active #app {
   align-items: start;
   justify-content: start;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .game-board-col {
@@ -1978,6 +2196,12 @@ body.game-active #app {
 .game-board-mount {
   width: 100%;
   aspect-ratio: 1 / 1;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--orbit-stroke);
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.45), 0 0 16px var(--solar-halo);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .player-bar {
@@ -1989,6 +2213,15 @@ body.game-active #app {
   background: var(--bg-secondary);
   border: 1px solid var(--bg-tertiary);
   border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.player-bar.active-turn,
+.player-bar.active-player-bar {
+  border-color: var(--solar-accent);
+  box-shadow: 0 0 14px var(--solar-halo);
 }
 
 .player-info {
@@ -2038,18 +2271,20 @@ body.game-active #app {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .player-clock.active-clock {
   color: var(--text-primary);
-  border-color: var(--accent);
+  border-color: var(--solar-accent);
   background: var(--bg-tertiary);
+  box-shadow: 0 0 10px var(--solar-halo);
 }
 
 .player-clock.low-time {
-  color: #ef4444;
-  border-color: #ef4444;
+  color: var(--class-blunder);
+  border-color: var(--class-blunder);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
 }
 
 /* Right Side Panel */
@@ -2064,6 +2299,8 @@ body.game-active #app {
   width: 100%;
   max-width: 400px;
   height: calc(clamp(320px, min(calc(100vh - 164px), calc(100vw - 436px)), 840px) + 104px);
+  position: relative;
+  z-index: 1;
 }
 
 .side-panel-header {
@@ -2081,6 +2318,14 @@ body.game-active #app {
   gap: 8px;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+.orbit-mini-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--solar-accent);
+  opacity: 0.8;
+  flex-shrink: 0;
 }
 
 .btn-icon-flip {
@@ -2142,8 +2387,68 @@ body.game-active #app {
   border-top: 1px solid var(--bg-tertiary);
 }
 
+.side-panel-actions .btn-action {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.side-panel-actions .btn-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.side-panel-actions .btn-action:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.side-panel-actions .btn-action:focus-visible {
+  outline: 2px solid var(--solar-accent);
+  outline-offset: 2px;
+}
+
+.side-panel-actions .btn-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+#btn-undo {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--solar-btn-outline);
+}
+
+#btn-undo:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  border-color: var(--text-secondary);
+}
+
+#btn-resign {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+#btn-resign:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: var(--class-blunder) !important;
+}
+
 .side-panel-actions #btn-show-summary {
   grid-column: 1 / -1;
+  background: linear-gradient(135deg, var(--solar-btn-start), var(--solar-btn-end));
+  color: #1e1b4b;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+.side-panel-actions #btn-show-summary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
 }
 
 /* Temporary Fullscreen Review Overlay (Stage A2b) */

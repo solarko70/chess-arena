@@ -1,5 +1,6 @@
 import { ChessStore } from '@/state/store';
 import { MOVE_CLASS_REGISTRY, formatMaterialPoints, type ReviewRunResult } from '@/analysis';
+import { createSolarDecorLayer, type SolarDecorElement } from '@/ui/solar-decor';
 
 export interface GameOverModalOptions {
   onStartReview?: () => void;
@@ -76,6 +77,7 @@ export class GameOverModalUI {
   private whiteCardDom: CardDomElements | null = null;
   private blackCardDom: CardDomElements | null = null;
   private srOnlyEl: HTMLElement | null = null;
+  private solarDecor: SolarDecorElement | null = null;
 
   // Progress throttling state (max ~10 fps)
   private lastProgressUpdate = 0;
@@ -98,23 +100,6 @@ export class GameOverModalUI {
     this.container.innerHTML = `
       <div class="game-over-overlay" id="game-over-overlay" style="display: none;">
         <div class="game-over-dialog" role="dialog" aria-modal="true" aria-labelledby="game-over-title">
-          <!-- Static Solar Decorative Layer (aria-hidden, pointer-events none) -->
-          <div class="game-over-solar-decor" aria-hidden="true" style="pointer-events: none;">
-            <svg width="100%" height="100%" viewBox="0 0 680 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <ellipse cx="340" cy="0" rx="140" ry="45" class="solar-modal-orbit" />
-              <ellipse cx="340" cy="0" rx="220" ry="75" class="solar-modal-orbit" />
-              <ellipse cx="340" cy="0" rx="300" ry="105" class="solar-modal-orbit" />
-              <ellipse cx="340" cy="0" rx="380" ry="135" class="solar-modal-orbit" />
-              <circle cx="120" cy="40" r="1.5" class="solar-modal-star" />
-              <circle cx="180" cy="95" r="1" class="solar-modal-star" />
-              <circle cx="260" cy="35" r="1.5" class="solar-modal-star" />
-              <circle cx="420" cy="45" r="1" class="solar-modal-star" />
-              <circle cx="490" cy="110" r="1.5" class="solar-modal-star" />
-              <circle cx="560" cy="30" r="1" class="solar-modal-star" />
-              <circle cx="610" cy="85" r="1.5" class="solar-modal-star" />
-            </svg>
-          </div>
-
           <button class="game-over-close-btn" id="game-over-close-btn" aria-label="Закрыть">✕</button>
           <div class="game-over-content">
             <div class="game-over-header">
@@ -287,6 +272,13 @@ export class GameOverModalUI {
     this.cardsBuilt = false;
     this.renderContent();
 
+    if (this.solarDecor) {
+      this.solarDecor.destroy();
+      this.solarDecor = null;
+    }
+    this.solarDecor = createSolarDecorLayer({ withAnimatedPieces: true, className: 'game-over-solar-decor' });
+    this.dialog.prepend(this.solarDecor);
+
     // Trigger entrance animation once per open, cleaned up on animationend
     this.dialog.classList.remove('modal-anim-enter');
     // Force layout reflow so animation re-runs on re-open
@@ -330,6 +322,11 @@ export class GameOverModalUI {
     if (!this.isOpenState) return;
     this.isOpenState = false;
     this.overlay.style.display = 'none';
+
+    if (this.solarDecor) {
+      this.solarDecor.destroy();
+      this.solarDecor = null;
+    }
 
     if (dismiss) {
       this.store.setGameOverModalDismissed(true);
@@ -827,6 +824,10 @@ export class GameOverModalUI {
   }
 
   public destroy(): void {
+    if (this.solarDecor) {
+      this.solarDecor.destroy();
+      this.solarDecor = null;
+    }
     if (this.progressThrottleTimer) {
       clearTimeout(this.progressThrottleTimer);
       this.progressThrottleTimer = null;
