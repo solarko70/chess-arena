@@ -62,6 +62,8 @@
   --orbit-stroke: rgba(251, 191, 36, 0.22);
   --orbit-opacity: 0.18;
   --star-fill: rgba(255, 255, 255, 0.75);
+  --game-orbit-opacity: 0.12;
+  --game-star-opacity: 0.12;
 
   /* Move class color palette */
   --class-best: #22c55e;
@@ -130,6 +132,8 @@
   --orbit-stroke: rgba(180, 83, 9, 0.35);
   --orbit-opacity: 0.30;
   --star-fill: rgba(217, 119, 6, 0.35);
+  --game-orbit-opacity: 0.26;
+  --game-star-opacity: 0.26;
 }
 
 * {
@@ -158,7 +162,9 @@ body.home-active {
   padding-bottom: 0;
 }
 
-body.game-active {
+body.game-active,
+body.review-active {
+  background-color: var(--solar-bg-edge);
   align-items: flex-start;
   padding: 12px 16px;
 }
@@ -171,7 +177,8 @@ body.game-active {
   gap: 16px;
 }
 
-body.game-active #app {
+body.game-active #app,
+body.review-active #app {
   max-width: 1360px;
 }
 
@@ -817,13 +824,9 @@ body.game-active #app {
 
 /* Review Panel */
 .review-panel {
-  background: var(--bg-secondary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: var(--border-radius);
-  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .review-toolbar {
@@ -841,9 +844,9 @@ body.game-active #app {
 }
 
 .btn-review {
-  background: var(--accent);
-  color: #0f172a;
-  font-weight: 600;
+  background: linear-gradient(135deg, var(--solar-btn-start) 0%, var(--solar-btn-end) 100%);
+  color: #040814;
+  font-weight: 700;
   border: none;
   padding: 7px 14px;
   border-radius: 8px;
@@ -852,8 +855,8 @@ body.game-active #app {
 }
 
 .btn-review:hover:not(:disabled) {
-  background: var(--accent-hover);
-  color: #ffffff;
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px var(--solar-halo);
 }
 
 .btn-review:disabled {
@@ -864,7 +867,7 @@ body.game-active #app {
 .btn-close-review {
   background: transparent;
   color: var(--text-secondary);
-  border: 1px solid var(--bg-tertiary);
+  border: 1px solid var(--orbit-stroke);
   padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
@@ -872,7 +875,7 @@ body.game-active #app {
 }
 
 .btn-close-review:hover {
-  background: var(--bg-tertiary);
+  background: var(--glow-color);
   color: var(--text-primary);
 }
 
@@ -886,17 +889,14 @@ body.game-active #app {
 }
 
 .review-progress-section {
-  background: var(--bg-primary);
-  border-radius: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--bg-tertiary);
+  padding: 10px 14px;
 }
 
 .review-progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 0.85rem;
 }
 
@@ -905,7 +905,7 @@ body.game-active #app {
   height: 8px;
   border-radius: 4px;
   overflow: hidden;
-  accent-color: var(--accent);
+  accent-color: var(--solar-accent);
 }
 
 .btn-cancel {
@@ -925,44 +925,73 @@ body.game-active #app {
 .review-results-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .review-fallback-banner {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid #f59e0b;
-  color: #f59e0b;
+  background: var(--glow-color);
+  border: 1px solid var(--solar-accent);
+  color: var(--solar-accent);
   padding: 8px 12px;
-  border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
 }
 
 .review-engine-info {
+  padding: 8px 12px;
+}
+
+.engine-info-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.engine-badges-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  font-size: 0.85rem;
+  gap: 8px;
+  align-items: center;
+}
+
+.solar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--orbit-stroke);
+  font-size: 0.82rem;
   color: var(--text-secondary);
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.solar-badge strong {
+  color: var(--text-primary);
 }
 
 .review-accuracies {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .accuracy-card {
-  background: var(--bg-primary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: 8px;
-  padding: 8px 12px;
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+}
+
+.accuracy-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .accuracy-label {
@@ -972,14 +1001,35 @@ body.game-active #app {
 
 .accuracy-value {
   font-size: 1.3rem;
-  color: var(--accent);
+  color: var(--solar-accent);
 }
 
 .review-subtitle {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+}
+
+.review-classes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.review-classes-col {
+  padding: 10px 12px;
+}
+
+.classes-col-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--orbit-stroke);
 }
 
 .classes-table {
@@ -991,15 +1041,17 @@ body.game-active #app {
 .classes-table th,
 .classes-table td {
   padding: 5px 8px;
-  border-bottom: 1px solid var(--bg-tertiary);
+  border-bottom: 1px solid var(--orbit-stroke);
+}
+
+.review-graph-card {
+  padding: 10px;
 }
 
 .review-eval-graph {
   width: 100%;
   height: 120px;
-  background: var(--bg-primary);
-  border-radius: 8px;
-  border: 1px solid var(--bg-tertiary);
+  background: transparent;
   cursor: crosshair;
 }
 
@@ -1009,15 +1061,15 @@ body.game-active #app {
 }
 
 .graph-point:hover {
-  r: 5.5;
-  fill: #f6e05e;
+  r: 5;
+  fill: var(--solar-accent);
 }
 
 .review-key-moments-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 160px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -1025,24 +1077,23 @@ body.game-active #app {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  background: var(--bg-primary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: 6px;
+  padding: 8px 12px;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .key-moment-item:hover {
-  background: var(--bg-tertiary);
+  border-color: var(--solar-accent);
+  box-shadow: 0 0 10px var(--solar-halo);
 }
 
 .key-moments-empty {
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-style: italic;
-  padding: 8px 0;
+  padding: 12px;
+  text-align: center;
 }
 
 /* Game Over Modal */
@@ -2134,13 +2185,129 @@ body.game-active #app {
   overflow: visible;
 }
 
-.screen-game {
-  position: relative;
+/* Fullscreen Solar Game Background Layer */
+.game-solar-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 40% at 85% 15%, var(--glow-color) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 30% at 20% 85%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 65% 45% at 85% 12%, var(--glow-color) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 15% 85%, rgba(245, 158, 11, 0.03) 0%, transparent 50%),
     var(--solar-bg-base);
   background-color: var(--solar-bg-edge);
+  overflow: hidden;
+}
+
+.game-solar-background .game-solar-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.game-solar-orbit {
+  stroke: var(--orbit-stroke);
+  stroke-width: 1px;
+  opacity: var(--game-orbit-opacity, 0.12);
+  fill: none;
+}
+
+.game-solar-star {
+  fill: var(--star-fill);
+  opacity: var(--game-star-opacity, 0.12);
+}
+
+@media (max-width: 800px) {
+  .game-solar-star.star-desktop-only {
+    display: none;
+  }
+}
+
+/* Shared Solar Components */
+.solar-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--orbit-stroke);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(251, 191, 36, 0.10);
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme='light'] .solar-card {
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.solar-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  position: relative;
+}
+
+.solar-section-title::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--solar-accent);
+  box-shadow: 0 0 6px var(--solar-halo);
+  flex-shrink: 0;
+}
+
+.solar-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--orbit-stroke) 0%, transparent 100%);
+  margin-left: 6px;
+}
+
+.solar-btn {
+  background: linear-gradient(135deg, var(--solar-btn-start) 0%, var(--solar-btn-end) 100%);
+  color: #040814;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 8px 16px;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.solar-btn:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px var(--solar-halo);
+}
+
+.solar-btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--orbit-stroke);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 6px 14px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.solar-btn-ghost:hover {
+  background: var(--glow-color);
+  border-color: var(--solar-accent);
+  color: var(--text-primary);
+  box-shadow: 0 0 8px var(--solar-halo);
+}
+
+.screen-game {
+  position: relative;
+  background: transparent;
+  color: var(--text-primary);
   align-items: stretch;
   gap: 10px;
   width: 100%;
@@ -2232,21 +2399,22 @@ body.game-active #app {
 }
 
 .player-color-indicator {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
   flex-shrink: 0;
   display: inline-block;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.25);
 }
 
 .player-color-indicator.white {
-  background: #f8fafc;
-  border: 1.5px solid #64748b;
+  background: #ffffff;
+  border: 1.5px solid #475569;
 }
 
 .player-color-indicator.black {
   background: #0f172a;
-  border: 1.5px solid #94a3b8;
+  border: 1.5px solid #cbd5e1;
 }
 
 .player-name {
@@ -2456,7 +2624,7 @@ body.game-active #app {
   position: fixed;
   inset: 0;
   z-index: 1050;
-  background: var(--bg-primary);
+  background: transparent;
   display: flex;
   flex-direction: column;
   padding: 16px 24px;
@@ -3121,7 +3289,11 @@ body.game-active #app {
   .home-toast,
   .btn-back-to-main,
   .theme-toggle-btn,
-  .screen {
+  .screen,
+  .ring-progress,
+  .solar-btn,
+  .solar-btn-ghost,
+  .key-moment-item {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
@@ -3131,5 +3303,13 @@ body.game-active #app {
     transform: translate(-50%, -50%) !important;
   }
 }
+
+@media (max-width: 800px) {
+  .review-accuracies,
+  .review-classes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 

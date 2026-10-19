@@ -97,9 +97,10 @@ export function initApp(): void {
     keydownCleanup = null;
   }
 
-  // Remove old modals mounted on document.body on re-init
+  // Remove old modals & background mounted on document.body on re-init
   document.getElementById('setup-modal-mount')?.remove();
   document.getElementById('game-over-modal-mount')?.remove();
+  document.getElementById('game-solar-bg')?.remove();
 
   document.title = APP_NAME;
   globalStore.loadSettingsFromStorage();
@@ -242,8 +243,8 @@ export function initApp(): void {
           <div class="side-panel-header">
             <div class="status-info">
               <svg class="orbit-mini-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <ellipse cx="8" cy="8" rx="6.5" ry="3.5" stroke="currentColor" stroke-dasharray="2,2" />
-                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                <ellipse cx="8" cy="8" rx="6" ry="3.2" stroke="currentColor" stroke-width="1.2" transform="rotate(-22 8 8)" />
+                <circle cx="12.5" cy="6.2" r="1.3" fill="currentColor" />
               </svg>
               <div class="status-text" id="status-text">Ход белых</div>
               <div id="status-badge-container"></div>
@@ -303,6 +304,31 @@ export function initApp(): void {
     </div>
   `;
 
+  // Fullscreen Solar Game background mounted directly into document.body
+  const gameSolarBg = document.createElement('div');
+  gameSolarBg.id = 'game-solar-bg';
+  gameSolarBg.className = 'game-solar-background';
+  gameSolarBg.setAttribute('aria-hidden', 'true');
+  gameSolarBg.style.pointerEvents = 'none';
+  gameSolarBg.style.display = 'none';
+  gameSolarBg.innerHTML = `
+    <svg class="game-solar-stars" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <ellipse cx="1650" cy="80" rx="600" ry="320" class="game-solar-orbit" />
+      <ellipse cx="1650" cy="80" rx="420" ry="220" class="game-solar-orbit" />
+      <ellipse cx="1650" cy="80" rx="260" ry="140" class="game-solar-orbit" />
+      <circle cx="1280" cy="90" r="1.5" class="game-solar-star" />
+      <circle cx="1450" cy="180" r="1.2" class="game-solar-star" />
+      <circle cx="1580" cy="60" r="1.6" class="game-solar-star" />
+      <circle cx="1720" cy="210" r="1.2" class="game-solar-star" />
+      <circle cx="1820" cy="110" r="1.4" class="game-solar-star" />
+      <circle cx="1390" cy="290" r="1.1" class="game-solar-star star-desktop-only" />
+      <circle cx="1690" cy="340" r="1.3" class="game-solar-star star-desktop-only" />
+    </svg>
+  `;
+  document.body.appendChild(gameSolarBg);
+
+  let isReviewOverlayOpen = false;
+
   // Setup router
   if (currentRouter) {
     currentRouter.destroy();
@@ -322,8 +348,9 @@ export function initApp(): void {
     const solarBg = document.getElementById('solar-bg');
 
     const isHome = route === 'home';
+    const isGame = route === 'game';
     document.body.classList.toggle('home-active', isHome);
-    document.body.classList.toggle('game-active', route === 'game');
+    document.body.classList.toggle('game-active', isGame);
 
     if (homeScreen) {
       homeScreen.style.display = isHome ? 'flex' : 'none';
@@ -333,9 +360,13 @@ export function initApp(): void {
       solarBg.style.display = isHome ? 'block' : 'none';
       solarBg.classList.toggle('active', isHome);
     }
+    if (gameSolarBg) {
+      const showGameBg = isGame || isReviewOverlayOpen;
+      gameSolarBg.style.display = showGameBg ? 'block' : 'none';
+    }
     if (gameScreen) {
-      gameScreen.style.display = route === 'game' ? 'flex' : 'none';
-      gameScreen.classList.toggle('active', route === 'game');
+      gameScreen.style.display = isGame ? 'flex' : 'none';
+      gameScreen.classList.toggle('active', isGame);
     }
     if (analysisScreen) {
       analysisScreen.style.display = route === 'analysis' ? 'flex' : 'none';
@@ -410,11 +441,13 @@ export function initApp(): void {
   const playerBarBottom = document.getElementById('player-bar-bottom') as HTMLElement;
   const gameSidePanel = document.getElementById('game-side-panel') as HTMLElement;
   const sidePanelActions = gameSidePanel.querySelector('.side-panel-actions') as HTMLElement;
-  let isReviewOverlayOpen = false;
-
   const openReviewOverlay = (): void => {
     if (isReviewOverlayOpen) return;
     isReviewOverlayOpen = true;
+    document.body.classList.add('review-active');
+    if (gameSolarBg) {
+      gameSolarBg.style.display = 'block';
+    }
     reviewBoardSlot.appendChild(boardMount);
     reviewHistorySlot.appendChild(historyMount);
     reviewOverlay.style.display = 'flex';
@@ -424,6 +457,11 @@ export function initApp(): void {
   const closeReviewOverlay = (returnToSummary = true): void => {
     if (!isReviewOverlayOpen) return;
     isReviewOverlayOpen = false;
+    document.body.classList.remove('review-active');
+    if (gameSolarBg) {
+      const isGame = currentRouter?.getRoute() === 'game';
+      gameSolarBg.style.display = isGame ? 'block' : 'none';
+    }
     globalStore.setReviewMode(false);
     gameBoardCol.insertBefore(boardMount, playerBarBottom);
     gameSidePanel.insertBefore(historyMount, sidePanelActions);

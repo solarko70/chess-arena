@@ -1,6 +1,8 @@
 import { ChessStore } from '@/state/store';
-import { MOVE_CLASS_REGISTRY, formatMaterialPoints, type ReviewRunResult } from '@/analysis';
+import { formatMaterialPoints, type ReviewRunResult } from '@/analysis';
 import { createSolarDecorLayer, type SolarDecorElement } from '@/ui/solar-decor';
+import { createAccuracyRing, type AccuracyRingDom } from '@/ui/accuracy-ring';
+import { createClassRowsList, type ClassRowsListDom } from '@/ui/class-rows';
 
 export interface GameOverModalOptions {
   onStartReview?: () => void;
@@ -30,15 +32,15 @@ const FLAG_SVG =
 const EQUALS_SVG =
   '<svg class="verdict-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3 5.5h10v1.8H3V5.5zm0 4.2h10v1.8H3V9.7z"/></svg>';
 
-const RING_CIRCUMFERENCE = 175.93; // 2 * PI * 28
-
 interface CardDomElements {
   cardEl: HTMLElement;
   headerEl: HTMLElement;
   titleEl: HTMLElement;
   winnerBadgeEl: HTMLElement;
+  accRing: AccuracyRingDom;
   ringProgressEl: SVGCircleElement;
   accuracyValEl: HTMLElement;
+  classesList: ClassRowsListDom;
   classRows: Map<
     string,
     {
@@ -126,8 +128,8 @@ export class GameOverModalUI {
             </div>
 
             <div class="game-over-actions">
-              <button class="btn-action btn-modal-primary" id="btn-modal-review">Разбор партии</button>
-              <button class="btn-action btn-modal-secondary" id="btn-modal-new-game">Играть снова</button>
+              <button class="btn-action btn-modal-primary solar-btn" id="btn-modal-review">Разбор партии</button>
+              <button class="btn-action btn-modal-secondary solar-btn-ghost" id="btn-modal-new-game">Играть снова</button>
             </div>
           </div>
         </div>
@@ -354,7 +356,7 @@ export class GameOverModalUI {
 
     const buildCard = (side: 'white' | 'black'): CardDomElements => {
       const cardEl = document.createElement('div');
-      cardEl.className = 'game-over-card';
+      cardEl.className = 'game-over-card solar-card';
       cardEl.setAttribute('data-side', side);
 
       const headerEl = document.createElement('div');
@@ -374,38 +376,8 @@ export class GameOverModalUI {
       const accSectionEl = document.createElement('div');
       accSectionEl.className = 'card-accuracy-section';
 
-      const ringWrapEl = document.createElement('div');
-      ringWrapEl.className = 'card-accuracy-ring-wrap';
-
-      const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svgEl.setAttribute('class', 'accuracy-ring-svg');
-      svgEl.setAttribute('viewBox', '0 0 72 72');
-      svgEl.setAttribute('aria-hidden', 'true');
-
-      const circleBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circleBg.setAttribute('class', 'ring-bg');
-      circleBg.setAttribute('cx', '36');
-      circleBg.setAttribute('cy', '36');
-      circleBg.setAttribute('r', '28');
-      svgEl.appendChild(circleBg);
-
-      const ringProgressEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      ringProgressEl.setAttribute('class', 'ring-progress');
-      ringProgressEl.setAttribute('cx', '36');
-      ringProgressEl.setAttribute('cy', '36');
-      ringProgressEl.setAttribute('r', '28');
-      ringProgressEl.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
-      ringProgressEl.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
-      svgEl.appendChild(ringProgressEl);
-
-      ringWrapEl.appendChild(svgEl);
-
-      const accuracyValEl = document.createElement('div');
-      accuracyValEl.className = 'card-accuracy-val';
-      accuracyValEl.innerHTML = '<span class="skeleton-pill skeleton-acc"></span>';
-      ringWrapEl.appendChild(accuracyValEl);
-
-      accSectionEl.appendChild(ringWrapEl);
+      const accRing = createAccuracyRing({ size: 72, radius: 28 });
+      accSectionEl.appendChild(accRing.wrapEl);
 
       const accLabelEl = document.createElement('div');
       accLabelEl.className = 'card-accuracy-label';
@@ -414,44 +386,13 @@ export class GameOverModalUI {
 
       cardEl.appendChild(accSectionEl);
 
-      const classesListEl = document.createElement('div');
-      classesListEl.className = 'card-classes-list';
+      const classesList = createClassRowsList();
+      cardEl.appendChild(classesList.containerEl);
 
       const classRows = new Map<string, { rowEl: HTMLElement; countEl: HTMLElement }>();
-
-      for (const meta of MOVE_CLASS_REGISTRY) {
-        if (!meta.showInSummary) continue;
-
-        const rowEl = document.createElement('div');
-        rowEl.className = 'card-class-row zero-count';
-        rowEl.setAttribute('data-class-id', meta.id);
-        rowEl.setAttribute('title', meta.nameRu);
-
-        const infoEl = document.createElement('div');
-        infoEl.className = 'card-class-info';
-
-        const badgeEl = document.createElement('span');
-        badgeEl.className = `move-class-badge badge-${meta.id}`;
-        badgeEl.textContent = meta.symbol;
-        infoEl.appendChild(badgeEl);
-
-        const labelEl = document.createElement('span');
-        labelEl.className = 'card-class-label';
-        labelEl.textContent = `${meta.nameRu}:`;
-        infoEl.appendChild(labelEl);
-
-        rowEl.appendChild(infoEl);
-
-        const countEl = document.createElement('span');
-        countEl.className = 'card-class-count';
-        countEl.textContent = '—';
-        rowEl.appendChild(countEl);
-
-        classesListEl.appendChild(rowEl);
-        classRows.set(meta.id, { rowEl, countEl });
+      for (const [id, item] of classesList.rows.entries()) {
+        classRows.set(id, { rowEl: item.rowEl, countEl: item.countEl });
       }
-
-      cardEl.appendChild(classesListEl);
 
       const materialEl = document.createElement('div');
       materialEl.className = 'card-material';
@@ -465,8 +406,10 @@ export class GameOverModalUI {
         headerEl,
         titleEl,
         winnerBadgeEl,
-        ringProgressEl,
-        accuracyValEl,
+        accRing,
+        ringProgressEl: accRing.progressCircle,
+        accuracyValEl: accRing.valueEl,
+        classesList,
         classRows,
         materialEl,
       };
@@ -514,66 +457,10 @@ export class GameOverModalUI {
     }
 
     // 2. Accuracy value & ring progress
-    if (review) {
-      const acc = review.accuracy[side];
-      const accText = acc.toFixed(1) + '%';
-      if (dom.accuracyValEl.textContent !== accText) {
-        dom.accuracyValEl.textContent = accText;
-        dom.accuracyValEl.classList.add('fade-in');
-      }
-
-      const offset = RING_CIRCUMFERENCE * (1 - Math.max(0, Math.min(100, acc)) / 100);
-      dom.ringProgressEl.style.strokeDashoffset = offset.toFixed(2);
-      dom.ringProgressEl.classList.remove('ring-high', 'ring-mid', 'ring-low');
-      if (acc >= 85) {
-        dom.ringProgressEl.classList.add('ring-high');
-      } else if (acc >= 70) {
-        dom.ringProgressEl.classList.add('ring-mid');
-      } else {
-        dom.ringProgressEl.classList.add('ring-low');
-      }
-    } else {
-      if (!dom.accuracyValEl.querySelector('.skeleton-pill')) {
-        dom.accuracyValEl.innerHTML = '<span class="skeleton-pill skeleton-acc"></span>';
-        dom.accuracyValEl.classList.remove('fade-in');
-      }
-      dom.ringProgressEl.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
-      dom.ringProgressEl.classList.remove('ring-high', 'ring-mid', 'ring-low');
-    }
+    dom.accRing.update(review ? review.accuracy[side] : null, isReviewing);
 
     // 3. Move class count rows
-    for (const meta of MOVE_CLASS_REGISTRY) {
-      if (!meta.showInSummary) continue;
-      const rowEntry = dom.classRows.get(meta.id);
-      if (!rowEntry) continue;
-
-      if (review) {
-        const count = review.counts[side][meta.id] ?? 0;
-        const countStr = count.toString();
-        if (rowEntry.countEl.textContent !== countStr) {
-          rowEntry.countEl.textContent = countStr;
-        }
-        if (count === 0) {
-          rowEntry.rowEl.classList.add('zero-count');
-          rowEntry.rowEl.style.removeProperty('--row-class-bg');
-        } else {
-          rowEntry.rowEl.classList.remove('zero-count');
-          rowEntry.rowEl.style.setProperty('--row-class-bg', `var(--class-${meta.id}-bg)`);
-        }
-      } else if (isReviewing) {
-        if (!rowEntry.countEl.querySelector('.skeleton-pill')) {
-          rowEntry.countEl.innerHTML = '<span class="skeleton-pill"></span>';
-        }
-        rowEntry.rowEl.classList.remove('zero-count');
-        rowEntry.rowEl.style.removeProperty('--row-class-bg');
-      } else {
-        if (rowEntry.countEl.textContent !== '—') {
-          rowEntry.countEl.textContent = '—';
-        }
-        rowEntry.rowEl.classList.add('zero-count');
-        rowEntry.rowEl.style.removeProperty('--row-class-bg');
-      }
-    }
+    dom.classesList.update(review ? review.counts[side] : null, isReviewing);
 
     // 4. Lost material points
     const pointsStr = formatMaterialPoints(lostPoints);

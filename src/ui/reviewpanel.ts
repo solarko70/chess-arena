@@ -1,10 +1,11 @@
 import { ChessStore } from '@/state/store';
 import {
   exportReviewedPGN,
-  MOVE_CLASS_REGISTRY,
   getMoveClassMeta,
   type GameReviewResult,
 } from '@/analysis';
+import { createAccuracyRing, type AccuracyRingDom } from '@/ui/accuracy-ring';
+import { createClassRowsList, type ClassRowsListDom } from '@/ui/class-rows';
 
 export class ReviewPanelUI {
   private container: HTMLElement;
@@ -18,9 +19,10 @@ export class ReviewPanelUI {
   private resultsSection!: HTMLElement;
   private fallbackBanner!: HTMLElement;
   private engineInfoEl!: HTMLElement;
-  private accWhiteEl!: HTMLElement;
-  private accBlackEl!: HTMLElement;
-  private classesTableEl!: HTMLElement;
+  private whiteRing!: AccuracyRingDom;
+  private blackRing!: AccuracyRingDom;
+  private whiteClassesList!: ClassRowsListDom;
+  private blackClassesList!: ClassRowsListDom;
   private graphSvgEl!: SVGElement;
   private keyMomentsListEl!: HTMLElement;
   private copyPgnBtn!: HTMLButtonElement;
@@ -31,47 +33,70 @@ export class ReviewPanelUI {
 
     this.container.innerHTML = `
       <div class="review-panel">
-        <div class="review-progress-section" id="review-progress-section" style="display: none;">
+        <div class="review-progress-section solar-card" id="review-progress-section" style="display: none;">
           <div class="review-progress-header">
             <span class="review-progress-text" id="review-progress-text">Проанализировано 0 из 0 позиций (0%)</span>
-            <button class="btn-cancel" id="btn-cancel-review">Отмена</button>
+            <button class="btn-cancel solar-btn-ghost" id="btn-cancel-review">Отмена</button>
           </div>
           <progress class="review-progress-bar" id="review-progress-bar" value="0" max="100"></progress>
         </div>
 
         <div class="review-results-section" id="review-results-section" style="display: none;">
-          <div class="review-fallback-banner" id="review-fallback-note" style="display: none;"></div>
+          <div class="review-fallback-banner solar-card" id="review-fallback-note" style="display: none;"></div>
 
-          <div class="review-engine-info" id="review-engine-info"></div>
+          <div class="review-engine-info solar-card" id="review-engine-info"></div>
 
           <div class="review-accuracies">
-            <div class="accuracy-card white">
-              <span class="accuracy-label">Точность белых</span>
-              <strong class="accuracy-value" id="review-acc-white">0%</strong>
+            <div class="accuracy-card white solar-card">
+              <div class="accuracy-card-header">
+                <span class="player-color-indicator white" aria-hidden="true"></span>
+                <span class="accuracy-label">Точность белых</span>
+              </div>
+              <div class="accuracy-ring-slot" id="review-ring-white-slot"></div>
             </div>
-            <div class="accuracy-card black">
-              <span class="accuracy-label">Точность чёрных</span>
-              <strong class="accuracy-value" id="review-acc-black">0%</strong>
+            <div class="accuracy-card black solar-card">
+              <div class="accuracy-card-header">
+                <span class="player-color-indicator black" aria-hidden="true"></span>
+                <span class="accuracy-label">Точность чёрных</span>
+              </div>
+              <div class="accuracy-ring-slot" id="review-ring-black-slot"></div>
             </div>
           </div>
 
           <div class="review-classes-table-wrap">
-            <div class="review-subtitle">Классификация ходов</div>
-            <div class="review-classes-table" id="review-classes-table"></div>
+            <div class="solar-section-title review-subtitle">Классификация ходов</div>
+            <div class="review-classes-grid" id="review-classes-table">
+              <div class="review-classes-col solar-card" id="review-classes-white-col">
+                <div class="classes-col-header">
+                  <span class="player-color-indicator white" aria-hidden="true"></span>
+                  <span class="classes-col-title">Белые</span>
+                </div>
+                <div class="classes-col-list" id="review-classes-white-list"></div>
+              </div>
+              <div class="review-classes-col solar-card" id="review-classes-black-col">
+                <div class="classes-col-header">
+                  <span class="player-color-indicator black" aria-hidden="true"></span>
+                  <span class="classes-col-title">Чёрные</span>
+                </div>
+                <div class="classes-col-list" id="review-classes-black-list"></div>
+              </div>
+            </div>
           </div>
 
           <div class="review-graph-wrap">
-            <div class="review-subtitle">График шанса на выигрыш (белые)</div>
-            <svg class="review-eval-graph" id="review-eval-graph" viewBox="0 0 500 120"></svg>
+            <div class="solar-section-title review-subtitle">График шанса на выигрыш (белые)</div>
+            <div class="solar-card review-graph-card">
+              <svg class="review-eval-graph" id="review-eval-graph" viewBox="0 0 500 120"></svg>
+            </div>
           </div>
 
           <div class="review-key-moments-wrap">
-            <div class="review-subtitle">Ключевые моменты</div>
+            <div class="solar-section-title review-subtitle">Ключевые моменты</div>
             <div class="review-key-moments-list" id="review-key-moments-list"></div>
           </div>
 
           <div class="review-actions">
-            <button class="btn-action" id="btn-copy-reviewed-pgn">Копировать PGN с оценками</button>
+            <button class="btn-action solar-btn-ghost" id="btn-copy-reviewed-pgn">Копировать PGN с оценками</button>
           </div>
         </div>
       </div>
@@ -84,12 +109,21 @@ export class ReviewPanelUI {
     this.resultsSection = this.container.querySelector('#review-results-section') as HTMLElement;
     this.fallbackBanner = this.container.querySelector('#review-fallback-note') as HTMLElement;
     this.engineInfoEl = this.container.querySelector('#review-engine-info') as HTMLElement;
-    this.accWhiteEl = this.container.querySelector('#review-acc-white') as HTMLElement;
-    this.accBlackEl = this.container.querySelector('#review-acc-black') as HTMLElement;
-    this.classesTableEl = this.container.querySelector('#review-classes-table') as HTMLElement;
     this.graphSvgEl = this.container.querySelector('#review-eval-graph') as SVGElement;
     this.keyMomentsListEl = this.container.querySelector('#review-key-moments-list') as HTMLElement;
     this.copyPgnBtn = this.container.querySelector('#btn-copy-reviewed-pgn') as HTMLButtonElement;
+
+    // Mount accuracy rings with backward-compatible IDs (review-acc-white / review-acc-black)
+    this.whiteRing = createAccuracyRing({ size: 72, radius: 28, valueId: 'review-acc-white' });
+    this.blackRing = createAccuracyRing({ size: 72, radius: 28, valueId: 'review-acc-black' });
+    this.container.querySelector('#review-ring-white-slot')?.appendChild(this.whiteRing.wrapEl);
+    this.container.querySelector('#review-ring-black-slot')?.appendChild(this.blackRing.wrapEl);
+
+    // Mount class rows lists in two columns
+    this.whiteClassesList = createClassRowsList();
+    this.blackClassesList = createClassRowsList();
+    this.container.querySelector('#review-classes-white-list')?.appendChild(this.whiteClassesList.containerEl);
+    this.container.querySelector('#review-classes-black-list')?.appendChild(this.blackClassesList.containerEl);
 
     this.initEvents();
     this.store.subscribe(() => this.render());
@@ -138,7 +172,7 @@ export class ReviewPanelUI {
         document.body.removeChild(textarea);
       }
       const prevText = this.copyPgnBtn.textContent;
-      this.copyPgnBtn.textContent = 'Скопировано!';
+      this.copyPgnBtn.textContent = 'Скопировано';
       setTimeout(() => {
         this.copyPgnBtn.textContent = prevText;
       }, 2000);
@@ -178,20 +212,29 @@ export class ReviewPanelUI {
         this.fallbackBanner.textContent = '';
       }
 
-      // Engine info
+      // Engine info badges with mini orbit icon
       const depth = reviewResult.depth ?? this.store.getReviewDepth();
       this.engineInfoEl.innerHTML = `
-        <span class="engine-badge">Движок: <strong>${reviewResult.engineName}</strong></span>
-        <span class="engine-depth">Глубина: <strong>${depth}</strong></span>
-        <span class="engine-reanalyzed">Пересчитано: <strong>${reviewResult.reanalyzed}</strong></span>
+        <div class="engine-info-inner">
+          <svg class="orbit-mini-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <ellipse cx="8" cy="8" rx="6" ry="3.2" stroke="currentColor" stroke-width="1.2" transform="rotate(-22 8 8)" />
+            <circle cx="12.5" cy="6.2" r="1.3" fill="currentColor" />
+          </svg>
+          <div class="engine-badges-list">
+            <span class="engine-badge solar-badge">Движок: <strong>${reviewResult.engineName}</strong></span>
+            <span class="engine-depth solar-badge">Глубина: <strong>${depth}</strong></span>
+            <span class="engine-reanalyzed solar-badge">Пересчитано: <strong>${reviewResult.reanalyzed}</strong></span>
+          </div>
+        </div>
       `;
 
-      // Accuracies
-      this.accWhiteEl.textContent = `${reviewResult.accuracy.white.toFixed(1)}%`;
-      this.accBlackEl.textContent = `${reviewResult.accuracy.black.toFixed(1)}%`;
+      // Accuracies via AccuracyRingDom
+      this.whiteRing.update(reviewResult.accuracy.white, isReviewing);
+      this.blackRing.update(reviewResult.accuracy.black, isReviewing);
 
-      // Classes table
-      this.renderClassesTable(reviewResult);
+      // Class rows via ClassRowsListDom
+      this.whiteClassesList.update(reviewResult.counts.white, isReviewing);
+      this.blackClassesList.update(reviewResult.counts.black, isReviewing);
 
       // SVG graph
       this.renderEvalGraph(reviewResult);
@@ -201,36 +244,6 @@ export class ReviewPanelUI {
     } else {
       this.resultsSection.style.display = 'none';
     }
-  }
-
-  private renderClassesTable(review: GameReviewResult): void {
-    let html = `
-      <table class="classes-table">
-        <thead>
-          <tr>
-            <th>Класс</th>
-            <th style="text-align: center;">Белые</th>
-            <th style="text-align: center;">Чёрные</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    for (const meta of MOVE_CLASS_REGISTRY) {
-      const label = meta.nameRu;
-      const wCount = review.counts.white[meta.id] ?? 0;
-      const bCount = review.counts.black[meta.id] ?? 0;
-      html += `
-        <tr>
-          <td><span class="move-class-badge badge-${meta.id}">${label}</span></td>
-          <td style="text-align: center;"><strong>${wCount}</strong></td>
-          <td style="text-align: center;"><strong>${bCount}</strong></td>
-        </tr>
-      `;
-    }
-
-    html += `</tbody></table>`;
-    this.classesTableEl.innerHTML = html;
   }
 
   private renderEvalGraph(review: GameReviewResult): void {
@@ -245,8 +258,8 @@ export class ReviewPanelUI {
     const padX = 20;
     const innerW = width - padX * 2;
 
-    const getX = (ply: number) => padX + (n > 0 ? (ply / n) * innerW : 0);
-    const getY = (chance: number) => {
+    const getX = (ply: number): number => padX + (n > 0 ? (ply / n) * innerW : 0);
+    const getY = (chance: number): number => {
       const clamped = Math.max(0, Math.min(100, chance));
       return 110 - (clamped / 100) * 100; // 100% -> y=10, 50% -> y=60, 0% -> y=110
     };
@@ -261,27 +274,45 @@ export class ReviewPanelUI {
       currentPly = Math.min(viewIndex + 1, n);
     }
     const cursorX = getX(currentPly);
+    const currentChance = points[currentPly]?.whiteWinChance ?? 50;
+    const cursorY = getY(currentChance);
+
+    // Area polygon under curve down to baseline y=110
+    const firstX = getX(0).toFixed(1);
+    const lastX = getX(n).toFixed(1);
+    const areaPoints = `${firstX},110 ${polyPoints} ${lastX},110`;
 
     let circlesHtml = '';
     for (let i = 0; i < points.length; i++) {
       const cx = getX(i);
       const cy = getY(points[i].whiteWinChance);
-      circlesHtml += `<circle class="graph-point" data-ply="${i}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="#38bdf8" />`;
+      circlesHtml += `<circle class="graph-point" data-ply="${i}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3" fill="var(--solar-accent)" />`;
     }
 
     this.graphSvgEl.innerHTML = `
+      <defs>
+        <linearGradient id="review-eval-area-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--solar-accent)" stop-opacity="0.25" />
+          <stop offset="100%" stop-color="var(--solar-accent)" stop-opacity="0.02" />
+        </linearGradient>
+      </defs>
+
       <!-- Midline (50% equality) -->
-      <line x1="${padX}" y1="60" x2="${width - padX}" y2="60" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1" />
-      <text x="${padX - 4}" y="63" fill="#64748b" font-size="9" text-anchor="end">50%</text>
+      <line x1="${padX}" y1="60" x2="${width - padX}" y2="60" stroke="var(--orbit-stroke)" stroke-dasharray="3,3" stroke-width="1" />
+      <text x="${padX - 4}" y="63" fill="var(--text-secondary)" font-size="9" text-anchor="end">50%</text>
+
+      <!-- Warm gradient area under polyline -->
+      <polygon points="${areaPoints}" fill="url(#review-eval-area-grad)" />
 
       <!-- Advantage polyline -->
-      <polyline points="${polyPoints}" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <polyline points="${polyPoints}" fill="none" stroke="var(--solar-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
 
       <!-- Clickable circles -->
       ${circlesHtml}
 
-      <!-- Current move cursor -->
-      <line class="graph-cursor" x1="${cursorX.toFixed(1)}" y1="10" x2="${cursorX.toFixed(1)}" y2="110" stroke="#f6e05e" stroke-width="2" />
+      <!-- Current move cursor line and soft circular marker -->
+      <line class="graph-cursor" x1="${cursorX.toFixed(1)}" y1="10" x2="${cursorX.toFixed(1)}" y2="110" stroke="var(--solar-accent)" stroke-width="2" />
+      <circle class="graph-cursor-marker" cx="${cursorX.toFixed(1)}" cy="${cursorY.toFixed(1)}" r="5.5" fill="var(--solar-accent)" stroke="var(--solar-halo)" stroke-width="3" />
     `;
 
     // Click handler on SVG to navigate to move
@@ -304,7 +335,7 @@ export class ReviewPanelUI {
       .filter(({ m }) => getMoveClassMeta(m.class).order >= 4);
 
     if (keyMoves.length === 0) {
-      this.keyMomentsListEl.innerHTML = `<div class="key-moments-empty">Ключевых ошибок в партии не обнаружено.</div>`;
+      this.keyMomentsListEl.innerHTML = `<div class="key-moments-empty solar-card">Ключевых ошибок в партии не обнаружено.</div>`;
       return;
     }
 
@@ -312,7 +343,7 @@ export class ReviewPanelUI {
     for (const { m, idx } of keyMoves) {
       const meta = getMoveClassMeta(m.class);
       const item = document.createElement('div');
-      item.className = 'key-moment-item';
+      item.className = 'key-moment-item solar-card';
       item.dataset.moveIndex = idx.toString();
 
       const moveNum = Math.floor(idx / 2) + 1;

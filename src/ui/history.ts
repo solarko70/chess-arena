@@ -14,14 +14,14 @@ export class HistoryUI {
 
     this.container.innerHTML = `
       <div class="history-panel">
-        <div class="history-header">История ходов</div>
-        <div class="history-detail-panel" id="history-detail-panel" style="display: none;"></div>
+        <div class="history-header solar-section-title">История ходов</div>
+        <div class="history-detail-panel solar-card" id="history-detail-panel" style="display: none;"></div>
         <div class="history-list"></div>
         <div class="history-nav">
-          <button id="hist-first" title="В начало (Home)">|&lt;</button>
-          <button id="hist-prev" title="Назад (&larr;)">&larr;</button>
-          <button id="hist-next" title="Вперед (&rarr;)">&rarr;</button>
-          <button id="hist-last" title="В конец (End)">&gt;|</button>
+          <button id="hist-first" class="solar-btn-ghost" title="В начало (Home)">|&lt;</button>
+          <button id="hist-prev" class="solar-btn-ghost" title="Назад (&larr;)">&larr;</button>
+          <button id="hist-next" class="solar-btn-ghost" title="Вперед (&rarr;)">&rarr;</button>
+          <button id="hist-last" class="solar-btn-ghost" title="В конец (End)">&gt;|</button>
         </div>
       </div>
     `;
