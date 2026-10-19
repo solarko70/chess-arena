@@ -416,4 +416,190 @@ describe('Game Review UI Integration Tests', () => {
       vi.useRealTimers();
     }
   });
+
+  it('Кнопки навигации смонтированы в review-board-nav под доской в оверлее разбора', () => {
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    modalReviewBtn.click();
+
+    const boardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement;
+    expect(boardSlot).toBeTruthy();
+
+    const nav = boardSlot.querySelector('.review-board-nav') as HTMLElement;
+    expect(nav).toBeTruthy();
+    expect(nav.id).toBe('review-board-nav');
+
+    // Board mount is placed directly above review-board-nav
+    const children = Array.from(boardSlot.children);
+    expect(children.length).toBe(2);
+    expect(children[0].id).toBe('board-mount');
+    expect(children[1].id).toBe('review-board-nav');
+  });
+
+  it('Кнопки review-board-nav имеют верные aria-label, SVG-иконки и не содержат эмодзи', () => {
+    const nav = document.getElementById('review-board-nav') as HTMLElement;
+    expect(nav).toBeTruthy();
+
+    const firstBtn = nav.querySelector('#review-nav-first') as HTMLButtonElement;
+    const prevBtn = nav.querySelector('#review-nav-prev') as HTMLButtonElement;
+    const nextBtn = nav.querySelector('#review-nav-next') as HTMLButtonElement;
+    const lastBtn = nav.querySelector('#review-nav-last') as HTMLButtonElement;
+
+    expect(firstBtn).toBeTruthy();
+    expect(prevBtn).toBeTruthy();
+    expect(nextBtn).toBeTruthy();
+    expect(lastBtn).toBeTruthy();
+
+    expect(firstBtn.getAttribute('aria-label')).toBe('В начало (Home)');
+    expect(prevBtn.getAttribute('aria-label')).toBe('Назад (←)');
+    expect(nextBtn.getAttribute('aria-label')).toBe('Вперёд (→)');
+    expect(lastBtn.getAttribute('aria-label')).toBe('В конец (End)');
+
+    // Ensure all 4 navigation buttons contain vector SVG icons with viewBox 0 0 24 24
+    [firstBtn, prevBtn, nextBtn, lastBtn].forEach((btn) => {
+      const svg = btn.querySelector('svg');
+      expect(svg).toBeTruthy();
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 24 24');
+      expect(svg?.getAttribute('fill')).toBe('none');
+      expect(svg?.getAttribute('stroke')).toBe('currentColor');
+    });
+
+    // Zero emojis in button text/titles
+    const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+    expect(emojiRegex.test(nav.textContent || '')).toBe(false);
+  });
+
+  it('Клики по кнопкам навигации review-board-nav корректно переключают viewIndex', () => {
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    modalReviewBtn.click();
+
+    const firstBtn = document.getElementById('review-nav-first') as HTMLButtonElement;
+    const prevBtn = document.getElementById('review-nav-prev') as HTMLButtonElement;
+    const nextBtn = document.getElementById('review-nav-next') as HTMLButtonElement;
+    const lastBtn = document.getElementById('review-nav-last') as HTMLButtonElement;
+
+    firstBtn.click();
+    expect(globalStore.getViewIndex()).toBe(-1);
+
+    nextBtn.click();
+    expect(globalStore.getViewIndex()).toBe(0);
+
+    nextBtn.click();
+    expect(globalStore.getViewIndex()).toBe(1);
+
+    prevBtn.click();
+    expect(globalStore.getViewIndex()).toBe(0);
+
+    lastBtn.click();
+    expect(globalStore.getViewIndex()).toBe(null);
+
+    prevBtn.click();
+    expect(globalStore.getViewIndex()).toBe(2);
+  });
+
+  it('Кнопки навигации review-board-nav корректно меняют disabled состояние', () => {
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    modalReviewBtn.click();
+
+    const firstBtn = document.getElementById('review-nav-first') as HTMLButtonElement;
+    const prevBtn = document.getElementById('review-nav-prev') as HTMLButtonElement;
+    const nextBtn = document.getElementById('review-nav-next') as HTMLButtonElement;
+    const lastBtn = document.getElementById('review-nav-last') as HTMLButtonElement;
+
+    // At the end of game (viewIndex = null)
+    expect(globalStore.getViewIndex()).toBe(null);
+    expect(firstBtn.disabled).toBe(false);
+    expect(prevBtn.disabled).toBe(false);
+    expect(nextBtn.disabled).toBe(true);
+    expect(lastBtn.disabled).toBe(true);
+
+    // Navigate to beginning
+    firstBtn.click();
+    expect(globalStore.getViewIndex()).toBe(-1);
+    expect(firstBtn.disabled).toBe(true);
+    expect(prevBtn.disabled).toBe(true);
+    expect(nextBtn.disabled).toBe(false);
+    expect(lastBtn.disabled).toBe(false);
+
+    // In the middle
+    nextBtn.click();
+    expect(globalStore.getViewIndex()).toBe(0);
+    expect(firstBtn.disabled).toBe(false);
+    expect(prevBtn.disabled).toBe(false);
+    expect(nextBtn.disabled).toBe(false);
+    expect(lastBtn.disabled).toBe(false);
+  });
+
+  it('Строки классов в модальном окне и панели разбора имеют значки class-row-badge', () => {
+    const f3 = globalStore.coordsToSquare(5, 5);
+    const f2 = globalStore.coordsToSquare(5, 6);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const g4 = globalStore.coordsToSquare(6, 4);
+    const g2 = globalStore.coordsToSquare(6, 6);
+    const h4 = globalStore.coordsToSquare(7, 4);
+    const d8 = globalStore.coordsToSquare(3, 0);
+
+    globalStore.makeMove(f2, f3);
+    globalStore.makeMove(e7, e5);
+    globalStore.makeMove(g2, g4);
+    globalStore.makeMove(d8, h4);
+
+    const modalRows = document.querySelectorAll('#game-over-modal-mount .card-class-row');
+    const reviewRows = document.querySelectorAll('#review-mount .card-class-row');
+
+    expect(modalRows.length).toBeGreaterThan(0);
+    expect(reviewRows.length).toBeGreaterThan(0);
+
+    const allBadges = document.querySelectorAll('.card-class-row .class-row-badge');
+    expect(allBadges.length).toBe(modalRows.length + reviewRows.length);
+
+    allBadges.forEach((badge) => {
+      expect(badge.classList.contains('class-row-badge')).toBe(true);
+      const svg = badge.querySelector('svg');
+      expect(svg).toBeTruthy();
+      expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+    });
+  });
 });

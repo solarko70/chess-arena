@@ -9,9 +9,46 @@ import {
 import { createAccuracyRing, type AccuracyRingDom } from '@/ui/accuracy-ring';
 import { createClassRowsList, type ClassRowsListDom } from '@/ui/class-rows';
 
+const FIRST_NAV_ICON = `
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <line x1="6" y1="6" x2="6" y2="18"></line>
+  <polyline points="18 6 10 12 18 18"></polyline>
+</svg>
+`.trim();
+
+const PREV_NAV_ICON = `
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <polyline points="15 6 9 12 15 18"></polyline>
+</svg>
+`.trim();
+
+const NEXT_NAV_ICON = `
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <polyline points="9 6 15 12 9 18"></polyline>
+</svg>
+`.trim();
+
+const LAST_NAV_ICON = `
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <polyline points="6 6 14 12 6 18"></polyline>
+  <line x1="18" y1="6" x2="18" y2="18"></line>
+</svg>
+`.trim();
+
+export interface ReviewPanelOptions {
+  navContainer?: HTMLElement | null;
+}
+
 export class ReviewPanelUI {
   private container: HTMLElement;
   private store: ChessStore;
+
+  // Review board navigation under the board
+  private navContainer: HTMLElement | null = null;
+  private navFirstBtn: HTMLButtonElement | null = null;
+  private navPrevBtn: HTMLButtonElement | null = null;
+  private navNextBtn: HTMLButtonElement | null = null;
+  private navLastBtn: HTMLButtonElement | null = null;
 
   // DOM elements
   private cancelBtn!: HTMLButtonElement;
@@ -31,7 +68,7 @@ export class ReviewPanelUI {
   private keyMomentsListEl!: HTMLElement;
   private copyPgnBtn!: HTMLButtonElement;
 
-  constructor(container: HTMLElement, store: ChessStore) {
+  constructor(container: HTMLElement, store: ChessStore, options?: ReviewPanelOptions) {
     this.container = container;
     this.store = store;
 
@@ -138,8 +175,84 @@ export class ReviewPanelUI {
     this.container.querySelector('#review-classes-white-list')?.appendChild(this.whiteClassesList.containerEl);
     this.container.querySelector('#review-classes-black-list')?.appendChild(this.blackClassesList.containerEl);
 
+    const navSlot = options?.navContainer ?? document.getElementById('review-board-nav');
+    if (navSlot) {
+      this.initBoardNav(navSlot);
+    }
+
     this.initEvents();
     this.store.subscribe(() => this.render());
+  }
+
+  public initBoardNav(container: HTMLElement): void {
+    this.navContainer = container;
+    this.navContainer.innerHTML = `
+      <button type="button" class="solar-card review-nav-btn" id="review-nav-first" title="В начало (Home)" aria-label="В начало (Home)">
+        ${FIRST_NAV_ICON}
+      </button>
+      <button type="button" class="solar-card review-nav-btn" id="review-nav-prev" title="Назад (←)" aria-label="Назад (←)">
+        ${PREV_NAV_ICON}
+      </button>
+      <button type="button" class="solar-card review-nav-btn" id="review-nav-next" title="Вперёд (→)" aria-label="Вперёд (→)">
+        ${NEXT_NAV_ICON}
+      </button>
+      <button type="button" class="solar-card review-nav-btn" id="review-nav-last" title="В конец (End)" aria-label="В конец (End)">
+        ${LAST_NAV_ICON}
+      </button>
+    `;
+
+    this.navFirstBtn = this.navContainer.querySelector('#review-nav-first') as HTMLButtonElement;
+    this.navPrevBtn = this.navContainer.querySelector('#review-nav-prev') as HTMLButtonElement;
+    this.navNextBtn = this.navContainer.querySelector('#review-nav-next') as HTMLButtonElement;
+    this.navLastBtn = this.navContainer.querySelector('#review-nav-last') as HTMLButtonElement;
+
+    this.navFirstBtn?.addEventListener('click', () => {
+      this.store.setViewIndex(-1);
+    });
+
+    this.navPrevBtn?.addEventListener('click', () => {
+      const historyLen = this.store.getLiveState().history.length;
+      if (historyLen === 0) return;
+      const current = this.store.getViewIndex();
+      const target = current === null ? historyLen - 2 : current - 1;
+      this.store.setViewIndex(Math.max(-1, target));
+    });
+
+    this.navNextBtn?.addEventListener('click', () => {
+      const historyLen = this.store.getLiveState().history.length;
+      if (historyLen === 0) return;
+      const current = this.store.getViewIndex();
+      if (current !== null) {
+        const target = current + 1;
+        if (target >= historyLen - 1) {
+          this.store.setViewIndex(null);
+        } else {
+          this.store.setViewIndex(target);
+        }
+      }
+    });
+
+    this.navLastBtn?.addEventListener('click', () => {
+      this.store.setViewIndex(null);
+    });
+
+    this.updateNavButtons();
+  }
+
+  public updateNavButtons(): void {
+    if (!this.navFirstBtn || !this.navPrevBtn || !this.navNextBtn || !this.navLastBtn) {
+      return;
+    }
+    const historyLen = this.store.getLiveState().history.length;
+    const viewIndex = this.store.getViewIndex();
+
+    const isAtStart = historyLen === 0 || viewIndex === -1;
+    const isAtEnd = historyLen === 0 || viewIndex === null || viewIndex >= historyLen - 1;
+
+    this.navFirstBtn.disabled = isAtStart;
+    this.navPrevBtn.disabled = isAtStart;
+    this.navNextBtn.disabled = isAtEnd;
+    this.navLastBtn.disabled = isAtEnd;
   }
 
   private initEvents(): void {
@@ -195,6 +308,15 @@ export class ReviewPanelUI {
   }
 
   private render(): void {
+    if (!this.navContainer) {
+      const navSlot = document.getElementById('review-board-nav');
+      if (navSlot) {
+        this.initBoardNav(navSlot);
+      }
+    } else {
+      this.updateNavButtons();
+    }
+
     const isReviewing = this.store.isReviewInProgress();
     const isReviewMode = this.store.isReviewMode();
     const reviewResult = this.store.getReviewResult();

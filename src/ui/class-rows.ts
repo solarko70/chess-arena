@@ -39,8 +39,8 @@ export function createClassRow(meta: MoveClassMeta): ClassRowItemDom {
   infoEl.className = 'card-class-info';
 
   const badgeEl = document.createElement('span');
-  badgeEl.className = `move-class-badge badge-${meta.id}`;
-  badgeEl.textContent = meta.symbol;
+  badgeEl.className = `move-class-badge class-row-badge badge-${meta.id}`;
+  badgeEl.innerHTML = meta.svg;
   infoEl.appendChild(badgeEl);
 
   const labelEl = document.createElement('span');

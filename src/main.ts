@@ -290,7 +290,9 @@ export function initApp(): void {
         <button class="review-overlay-close" id="btn-close-review-overlay" aria-label="Закрыть разбор"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg></button>
       </div>
       <div class="review-overlay-body">
-        <div class="review-overlay-board-col" id="review-overlay-board-slot"></div>
+        <div class="review-overlay-board-col" id="review-overlay-board-slot">
+          <nav class="review-board-nav" id="review-board-nav" aria-label="Навигация по ходам партии"></nav>
+        </div>
         <div class="review-overlay-side-col">
           <div id="review-overlay-history-slot" class="review-overlay-history-slot"></div>
           <div id="review-mount" class="review-overlay-panel-slot"></div>
@@ -496,7 +498,12 @@ export function initApp(): void {
     if (reviewSolarScene && !reviewSolarScene.querySelector('.space-anim-layer')) {
       reviewSolarScene.innerHTML = buildReviewScene();
     }
-    reviewBoardSlot.appendChild(boardMount);
+    const nav = reviewBoardSlot.querySelector('.review-board-nav');
+    if (nav) {
+      reviewBoardSlot.insertBefore(boardMount, nav);
+    } else {
+      reviewBoardSlot.appendChild(boardMount);
+    }
     reviewHistorySlot.appendChild(historyMount);
     reviewOverlay.style.display = 'flex';
     void reviewPanel.startReview();
