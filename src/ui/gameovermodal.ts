@@ -1,5 +1,5 @@
 import { ChessStore } from '@/state/store';
-import { MOVE_CLASS_REGISTRY, formatMaterialPoints } from '@/analysis';
+import { MOVE_CLASS_REGISTRY, formatMaterialPoints, type ReviewRunResult } from '@/analysis';
 
 export interface GameOverModalOptions {
   onStartReview?: () => void;
@@ -20,6 +20,33 @@ const BOT_LEVEL_NAMES: Record<string, string> = {
   expert: 'Эксперт',
   master: 'Мастер',
 };
+
+// SVG icons for verdict badge without any text inside SVG
+const CROWN_SVG =
+  '<svg class="verdict-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.5 12h11v1.5h-11V12zm1.2-1.5L2 4.5l3.8 2.5L8 3l2.2 4 3.8-2.5-1.7 6H3.7z"/></svg>';
+const FLAG_SVG =
+  '<svg class="verdict-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3 2v12h1.5V9.5h7.5l-1.5-3.5 1.5-3.5H4.5V2H3zm1.5 2h6.2l-1 2.5 1 2H4.5V4z"/></svg>';
+const EQUALS_SVG =
+  '<svg class="verdict-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3 5.5h10v1.8H3V5.5zm0 4.2h10v1.8H3V9.7z"/></svg>';
+
+const RING_CIRCUMFERENCE = 175.93; // 2 * PI * 28
+
+interface CardDomElements {
+  cardEl: HTMLElement;
+  headerEl: HTMLElement;
+  titleEl: HTMLElement;
+  winnerBadgeEl: HTMLElement;
+  ringProgressEl: SVGCircleElement;
+  accuracyValEl: HTMLElement;
+  classRows: Map<
+    string,
+    {
+      rowEl: HTMLElement;
+      countEl: HTMLElement;
+    }
+  >;
+  materialEl: HTMLElement;
+}
 
 export class GameOverModalUI {
   private container: HTMLElement;
@@ -44,6 +71,16 @@ export class GameOverModalUI {
   private reviewBtn!: HTMLButtonElement;
   private newGameBtn!: HTMLButtonElement;
 
+  // Card cache to prevent re-creating DOM nodes during progress updates
+  private cardsBuilt = false;
+  private whiteCardDom: CardDomElements | null = null;
+  private blackCardDom: CardDomElements | null = null;
+  private srOnlyEl: HTMLElement | null = null;
+
+  // Progress throttling state (max ~10 fps)
+  private lastProgressUpdate = 0;
+  private progressThrottleTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(container: HTMLElement, store: ChessStore, options?: GameOverModalOptions) {
     this.container = container;
     this.store = store;
@@ -61,6 +98,23 @@ export class GameOverModalUI {
     this.container.innerHTML = `
       <div class="game-over-overlay" id="game-over-overlay" style="display: none;">
         <div class="game-over-dialog" role="dialog" aria-modal="true" aria-labelledby="game-over-title">
+          <!-- Static Solar Decorative Layer (aria-hidden, pointer-events none) -->
+          <div class="game-over-solar-decor" aria-hidden="true" style="pointer-events: none;">
+            <svg width="100%" height="100%" viewBox="0 0 680 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <ellipse cx="340" cy="0" rx="140" ry="45" class="solar-modal-orbit" />
+              <ellipse cx="340" cy="0" rx="220" ry="75" class="solar-modal-orbit" />
+              <ellipse cx="340" cy="0" rx="300" ry="105" class="solar-modal-orbit" />
+              <ellipse cx="340" cy="0" rx="380" ry="135" class="solar-modal-orbit" />
+              <circle cx="120" cy="40" r="1.5" class="solar-modal-star" />
+              <circle cx="180" cy="95" r="1" class="solar-modal-star" />
+              <circle cx="260" cy="35" r="1.5" class="solar-modal-star" />
+              <circle cx="420" cy="45" r="1" class="solar-modal-star" />
+              <circle cx="490" cy="110" r="1.5" class="solar-modal-star" />
+              <circle cx="560" cy="30" r="1" class="solar-modal-star" />
+              <circle cx="610" cy="85" r="1.5" class="solar-modal-star" />
+            </svg>
+          </div>
+
           <button class="game-over-close-btn" id="game-over-close-btn" aria-label="Закрыть">✕</button>
           <div class="game-over-content">
             <div class="game-over-header">
@@ -184,7 +238,40 @@ export class GameOverModalUI {
       if (!this.isOpenState) {
         this.show();
       } else {
-        this.renderContent();
+        const isReviewing = this.store.isReviewInProgress();
+        const hasResult = this.store.getReviewResult() !== null;
+        const hasError = this.store.getReviewError() !== null;
+
+        // Throttle progress updates during active background review to <= ~10 fps (100 ms)
+        // Instant update when review completes, fails, or when not reviewing
+        if (isReviewing && !hasResult && !hasError) {
+          const now = Date.now();
+          const elapsed = now - this.lastProgressUpdate;
+          if (elapsed >= 100 || elapsed < 0) {
+            if (this.progressThrottleTimer) {
+              clearTimeout(this.progressThrottleTimer);
+              this.progressThrottleTimer = null;
+            }
+            this.lastProgressUpdate = now;
+            this.renderContent();
+          } else if (!this.progressThrottleTimer) {
+            const waitMs = Math.max(0, Math.min(100, 100 - elapsed));
+            this.progressThrottleTimer = setTimeout(() => {
+              this.progressThrottleTimer = null;
+              this.lastProgressUpdate = Date.now();
+              if (this.isOpenState) {
+                this.renderContent();
+              }
+            }, waitMs);
+          }
+        } else {
+          if (this.progressThrottleTimer) {
+            clearTimeout(this.progressThrottleTimer);
+            this.progressThrottleTimer = null;
+          }
+          this.lastProgressUpdate = 0;
+          this.renderContent();
+        }
       }
     } else {
       if (this.isOpenState) {
@@ -195,7 +282,36 @@ export class GameOverModalUI {
 
   public show(): void {
     this.previousActiveElement = document.activeElement as HTMLElement | null;
+
+    // Reset card cache so re-opening the modal builds DOM once anew
+    this.cardsBuilt = false;
     this.renderContent();
+
+    // Trigger entrance animation once per open, cleaned up on animationend
+    this.dialog.classList.remove('modal-anim-enter');
+    // Force layout reflow so animation re-runs on re-open
+    void this.dialog.offsetWidth;
+    this.dialog.classList.add('modal-anim-enter');
+    const onDialogAnimEnd = () => {
+      this.dialog.classList.remove('modal-anim-enter');
+      this.dialog.removeEventListener('animationend', onDialogAnimEnd);
+    };
+    this.dialog.addEventListener('animationend', onDialogAnimEnd);
+
+    const cards = [this.whiteCardDom?.cardEl, this.blackCardDom?.cardEl];
+    for (const card of cards) {
+      if (card) {
+        card.classList.remove('card-anim-enter');
+        void card.offsetWidth;
+        card.classList.add('card-anim-enter');
+        const onCardAnimEnd = () => {
+          card.classList.remove('card-anim-enter');
+          card.removeEventListener('animationend', onCardAnimEnd);
+        };
+        card.addEventListener('animationend', onCardAnimEnd);
+      }
+    }
+
     this.overlay.style.display = 'flex';
     this.isOpenState = true;
     setTimeout(() => {
@@ -206,6 +322,11 @@ export class GameOverModalUI {
   }
 
   public hide(dismiss = true): void {
+    if (this.progressThrottleTimer) {
+      clearTimeout(this.progressThrottleTimer);
+      this.progressThrottleTimer = null;
+    }
+
     if (!this.isOpenState) return;
     this.isOpenState = false;
     this.overlay.style.display = 'none';
@@ -227,6 +348,241 @@ export class GameOverModalUI {
     return this.isOpenState;
   }
 
+  private ensureCardsBuilt(): void {
+    if (this.cardsBuilt && this.whiteCardDom && this.blackCardDom) {
+      return;
+    }
+
+    this.cardsContainerEl.innerHTML = '';
+
+    const buildCard = (side: 'white' | 'black'): CardDomElements => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'game-over-card';
+      cardEl.setAttribute('data-side', side);
+
+      const headerEl = document.createElement('div');
+      headerEl.className = 'card-header';
+
+      const titleEl = document.createElement('span');
+      titleEl.className = 'card-title';
+      headerEl.appendChild(titleEl);
+
+      const winnerBadgeEl = document.createElement('span');
+      winnerBadgeEl.className = 'card-winner-badge';
+      winnerBadgeEl.textContent = 'Победитель';
+      // Appended to headerEl only when side is winner
+
+      cardEl.appendChild(headerEl);
+
+      const accSectionEl = document.createElement('div');
+      accSectionEl.className = 'card-accuracy-section';
+
+      const ringWrapEl = document.createElement('div');
+      ringWrapEl.className = 'card-accuracy-ring-wrap';
+
+      const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svgEl.setAttribute('class', 'accuracy-ring-svg');
+      svgEl.setAttribute('viewBox', '0 0 72 72');
+      svgEl.setAttribute('aria-hidden', 'true');
+
+      const circleBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circleBg.setAttribute('class', 'ring-bg');
+      circleBg.setAttribute('cx', '36');
+      circleBg.setAttribute('cy', '36');
+      circleBg.setAttribute('r', '28');
+      svgEl.appendChild(circleBg);
+
+      const ringProgressEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      ringProgressEl.setAttribute('class', 'ring-progress');
+      ringProgressEl.setAttribute('cx', '36');
+      ringProgressEl.setAttribute('cy', '36');
+      ringProgressEl.setAttribute('r', '28');
+      ringProgressEl.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
+      ringProgressEl.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
+      svgEl.appendChild(ringProgressEl);
+
+      ringWrapEl.appendChild(svgEl);
+
+      const accuracyValEl = document.createElement('div');
+      accuracyValEl.className = 'card-accuracy-val';
+      accuracyValEl.innerHTML = '<span class="skeleton-pill skeleton-acc"></span>';
+      ringWrapEl.appendChild(accuracyValEl);
+
+      accSectionEl.appendChild(ringWrapEl);
+
+      const accLabelEl = document.createElement('div');
+      accLabelEl.className = 'card-accuracy-label';
+      accLabelEl.textContent = 'Точность';
+      accSectionEl.appendChild(accLabelEl);
+
+      cardEl.appendChild(accSectionEl);
+
+      const classesListEl = document.createElement('div');
+      classesListEl.className = 'card-classes-list';
+
+      const classRows = new Map<string, { rowEl: HTMLElement; countEl: HTMLElement }>();
+
+      for (const meta of MOVE_CLASS_REGISTRY) {
+        if (!meta.showInSummary) continue;
+
+        const rowEl = document.createElement('div');
+        rowEl.className = 'card-class-row zero-count';
+        rowEl.setAttribute('data-class-id', meta.id);
+        rowEl.setAttribute('title', meta.nameRu);
+
+        const infoEl = document.createElement('div');
+        infoEl.className = 'card-class-info';
+
+        const badgeEl = document.createElement('span');
+        badgeEl.className = `move-class-badge badge-${meta.id}`;
+        badgeEl.textContent = meta.symbol;
+        infoEl.appendChild(badgeEl);
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'card-class-label';
+        labelEl.textContent = `${meta.nameRu}:`;
+        infoEl.appendChild(labelEl);
+
+        rowEl.appendChild(infoEl);
+
+        const countEl = document.createElement('span');
+        countEl.className = 'card-class-count';
+        countEl.textContent = '—';
+        rowEl.appendChild(countEl);
+
+        classesListEl.appendChild(rowEl);
+        classRows.set(meta.id, { rowEl, countEl });
+      }
+
+      cardEl.appendChild(classesListEl);
+
+      const materialEl = document.createElement('div');
+      materialEl.className = 'card-material';
+      materialEl.textContent = 'Потеряно материала: 0';
+      cardEl.appendChild(materialEl);
+
+      this.cardsContainerEl.appendChild(cardEl);
+
+      return {
+        cardEl,
+        headerEl,
+        titleEl,
+        winnerBadgeEl,
+        ringProgressEl,
+        accuracyValEl,
+        classRows,
+        materialEl,
+      };
+    };
+
+    this.whiteCardDom = buildCard('white');
+    this.blackCardDom = buildCard('black');
+
+    this.srOnlyEl = document.createElement('span');
+    this.srOnlyEl.className = 'sr-only';
+    this.srOnlyEl.style.display = 'none';
+    this.cardsContainerEl.appendChild(this.srOnlyEl);
+
+    this.cardsBuilt = true;
+  }
+
+  private updateCard(
+    dom: CardDomElements,
+    side: 'white' | 'black',
+    cardTitle: string,
+    isWinner: boolean,
+    isLoser: boolean,
+    review: ReviewRunResult | null,
+    isReviewing: boolean,
+    lostPoints: number,
+  ): void {
+    // 1. Header title & winner badge
+    dom.titleEl.textContent = cardTitle;
+    if (isWinner) {
+      dom.cardEl.classList.add('winner-card');
+      dom.cardEl.classList.remove('loser-card');
+      if (!dom.headerEl.contains(dom.winnerBadgeEl)) {
+        dom.headerEl.appendChild(dom.winnerBadgeEl);
+      }
+    } else {
+      dom.cardEl.classList.remove('winner-card');
+      if (isLoser) {
+        dom.cardEl.classList.add('loser-card');
+      } else {
+        dom.cardEl.classList.remove('loser-card');
+      }
+      if (dom.winnerBadgeEl.parentElement) {
+        dom.winnerBadgeEl.remove();
+      }
+    }
+
+    // 2. Accuracy value & ring progress
+    if (review) {
+      const acc = review.accuracy[side];
+      const accText = acc.toFixed(1) + '%';
+      if (dom.accuracyValEl.textContent !== accText) {
+        dom.accuracyValEl.textContent = accText;
+        dom.accuracyValEl.classList.add('fade-in');
+      }
+
+      const offset = RING_CIRCUMFERENCE * (1 - Math.max(0, Math.min(100, acc)) / 100);
+      dom.ringProgressEl.style.strokeDashoffset = offset.toFixed(2);
+      dom.ringProgressEl.classList.remove('ring-high', 'ring-mid', 'ring-low');
+      if (acc >= 85) {
+        dom.ringProgressEl.classList.add('ring-high');
+      } else if (acc >= 70) {
+        dom.ringProgressEl.classList.add('ring-mid');
+      } else {
+        dom.ringProgressEl.classList.add('ring-low');
+      }
+    } else {
+      if (!dom.accuracyValEl.querySelector('.skeleton-pill')) {
+        dom.accuracyValEl.innerHTML = '<span class="skeleton-pill skeleton-acc"></span>';
+        dom.accuracyValEl.classList.remove('fade-in');
+      }
+      dom.ringProgressEl.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
+      dom.ringProgressEl.classList.remove('ring-high', 'ring-mid', 'ring-low');
+    }
+
+    // 3. Move class count rows
+    for (const meta of MOVE_CLASS_REGISTRY) {
+      if (!meta.showInSummary) continue;
+      const rowEntry = dom.classRows.get(meta.id);
+      if (!rowEntry) continue;
+
+      if (review) {
+        const count = review.counts[side][meta.id] ?? 0;
+        const countStr = count.toString();
+        if (rowEntry.countEl.textContent !== countStr) {
+          rowEntry.countEl.textContent = countStr;
+        }
+        if (count === 0) {
+          rowEntry.rowEl.classList.add('zero-count');
+          rowEntry.rowEl.style.removeProperty('--row-class-bg');
+        } else {
+          rowEntry.rowEl.classList.remove('zero-count');
+          rowEntry.rowEl.style.setProperty('--row-class-bg', `var(--class-${meta.id}-bg)`);
+        }
+      } else if (isReviewing) {
+        if (!rowEntry.countEl.querySelector('.skeleton-pill')) {
+          rowEntry.countEl.innerHTML = '<span class="skeleton-pill"></span>';
+        }
+        rowEntry.rowEl.classList.remove('zero-count');
+        rowEntry.rowEl.style.removeProperty('--row-class-bg');
+      } else {
+        if (rowEntry.countEl.textContent !== '—') {
+          rowEntry.countEl.textContent = '—';
+        }
+        rowEntry.rowEl.classList.add('zero-count');
+        rowEntry.rowEl.style.removeProperty('--row-class-bg');
+      }
+    }
+
+    // 4. Lost material points
+    const pointsStr = formatMaterialPoints(lostPoints);
+    dom.materialEl.textContent = `Потеряно материала: ${pointsStr}`;
+  }
+
   public renderContent(): void {
     const result = this.store.getLiveGameResult();
     const timedOutLoser = this.store.getTimedOutLoser();
@@ -244,7 +600,6 @@ export class GameOverModalUI {
     }
 
     // 1. Verdict badge
-    this.verdictEl.style.display = 'inline-block';
     let verdict = '';
     let verdictClass = '';
 
@@ -291,8 +646,19 @@ export class GameOverModalUI {
       }
     }
 
-    this.verdictEl.textContent = verdict;
+    let iconSvg = '';
+    if (verdictClass === 'verdict-win') {
+      iconSvg = CROWN_SVG;
+    } else if (verdictClass === 'verdict-loss') {
+      iconSvg = FLAG_SVG;
+    } else if (verdictClass === 'verdict-draw') {
+      iconSvg = EQUALS_SVG;
+    }
+
+    // Set SVG icon and span; textContent strictly equals verdict because SVG has no text elements
+    this.verdictEl.innerHTML = `${iconSvg}<span class="verdict-text">${verdict}</span>`;
     this.verdictEl.className = `game-over-verdict ${verdictClass}`;
+    this.verdictEl.style.display = 'inline-flex';
 
     // 2. Title & Reason
     let title = '';
@@ -386,16 +752,28 @@ export class GameOverModalUI {
       this.progressWrapEl.style.display = 'block';
       const completed = reviewProgress ? reviewProgress.completed : 0;
       const total = reviewProgress ? reviewProgress.total : plies + 1;
-      this.progressWrapEl.innerHTML = `
-        <div class="analysis-progress-label">Анализ партии: ${completed} из ${total}</div>
-        <progress class="analysis-progress-bar" value="${completed}" max="${total}"></progress>
-      `;
+
+      let labelEl = this.progressWrapEl.querySelector('.analysis-progress-label') as HTMLElement | null;
+      let barEl = this.progressWrapEl.querySelector('.analysis-progress-bar') as HTMLProgressElement | null;
+      if (!labelEl || !barEl) {
+        this.progressWrapEl.innerHTML = `
+          <div class="analysis-progress-label"></div>
+          <progress class="analysis-progress-bar"></progress>
+        `;
+        labelEl = this.progressWrapEl.querySelector('.analysis-progress-label') as HTMLElement;
+        barEl = this.progressWrapEl.querySelector('.analysis-progress-bar') as HTMLProgressElement;
+      }
+      labelEl.textContent = `Анализ партии: ${completed} из ${total}`;
+      barEl.value = completed;
+      barEl.max = total;
     } else {
       this.progressWrapEl.style.display = 'none';
       this.progressWrapEl.innerHTML = '';
     }
 
-    // 5. Render Player Cards
+    // 5. Ensure cards DOM structure exists (created once on open)
+    this.ensureCardsBuilt();
+
     const isAi = gameMode === 'ai';
     const playerColor = this.store.getPlayerColor();
     const botLevelId = this.store.getAILevel();
@@ -408,82 +786,60 @@ export class GameOverModalUI {
       ? (playerColor === 'black' ? 'Вы' : `Компьютер: ${botLevelName}`)
       : 'Чёрные';
 
-    const renderCard = (side: 'white' | 'black', cardTitle: string, isWinner: boolean): string => {
-      const accuracyVal = review ? review.accuracy[side].toFixed(1) + '%' : null;
-      const accuracyHtml = accuracyVal !== null
-        ? `<div class="card-accuracy-val">${accuracyVal}</div>`
-        : `<div class="card-accuracy-val"><span class="skeleton-pill skeleton-acc"></span></div>`;
+    const isWhiteWinner = winner === 'white';
+    const isBlackWinner = winner === 'black';
+    const isWhiteLoser = winner === 'black';
+    const isBlackLoser = winner === 'white';
 
-      let classesRows = '';
-      for (const meta of MOVE_CLASS_REGISTRY) {
-        if (!meta.showInSummary) continue;
-        let countText: string;
-        let isZero = false;
-
-        if (review) {
-          const count = review.counts[side][meta.id] ?? 0;
-          countText = count.toString();
-          isZero = count === 0;
-        } else if (isReviewing) {
-          countText = '<span class="skeleton-pill"></span>';
-        } else {
-          countText = '—';
-          isZero = true;
-        }
-
-        classesRows += `
-          <div class="card-class-row ${isZero ? 'zero-count' : ''}">
-            <div class="card-class-info">
-              <span class="move-class-badge badge-${meta.id}">${meta.symbol}</span>
-              <span class="card-class-label">${meta.nameRu}:</span>
-            </div>
-            <span class="card-class-count">${countText}</span>
-          </div>
-        `;
-      }
-
-      const pointsStr = formatMaterialPoints(lost[side]);
-
-      return `
-        <div class="game-over-card ${isWinner ? 'winner-card' : ''}" data-side="${side}">
-          <div class="card-header">
-            <span class="card-title">${cardTitle}</span>
-            ${isWinner ? '<span class="card-winner-badge">Победитель</span>' : ''}
-          </div>
-          <div class="card-accuracy-section">
-            ${accuracyHtml}
-            <div class="card-accuracy-label">Точность</div>
-          </div>
-          <div class="card-classes-list">
-            ${classesRows}
-          </div>
-          <div class="card-material">Потеряно материала: ${pointsStr}</div>
-        </div>
-      `;
-    };
-
-    const whiteCardHtml = renderCard('white', whiteTitle, winner === 'white');
-    const blackCardHtml = renderCard('black', blackTitle, winner === 'black');
-
-    let srOnlyCounts = '';
-    if (review) {
-      srOnlyCounts = `
-        <span class="sr-only" style="display: none;">
-          Белые: Точность ${review.accuracy.white.toFixed(1)}% (неточностей: ${review.counts.white.inaccuracy}, ошибок: ${review.counts.white.mistake}, зевков: ${review.counts.white.blunder})
-          Чёрные: Точность ${review.accuracy.black.toFixed(1)}% (неточностей: ${review.counts.black.inaccuracy}, ошибок: ${review.counts.black.mistake}, зевков: ${review.counts.black.blunder})
-        </span>
-      `;
+    if (this.whiteCardDom) {
+      this.updateCard(
+        this.whiteCardDom,
+        'white',
+        whiteTitle,
+        isWhiteWinner,
+        isWhiteLoser,
+        review,
+        isReviewing,
+        lost.white,
+      );
     }
 
-    this.cardsContainerEl.innerHTML = whiteCardHtml + blackCardHtml + srOnlyCounts;
+    if (this.blackCardDom) {
+      this.updateCard(
+        this.blackCardDom,
+        'black',
+        blackTitle,
+        isBlackWinner,
+        isBlackLoser,
+        review,
+        isReviewing,
+        lost.black,
+      );
+    }
+
+    if (this.srOnlyEl) {
+      if (review) {
+        this.srOnlyEl.textContent = `Белые: Точность ${review.accuracy.white.toFixed(1)}% (неточностей: ${review.counts.white.inaccuracy}, ошибок: ${review.counts.white.mistake}, зевков: ${review.counts.white.blunder}) Чёрные: Точность ${review.accuracy.black.toFixed(1)}% (неточностей: ${review.counts.black.inaccuracy}, ошибок: ${review.counts.black.mistake}, зевков: ${review.counts.black.blunder})`;
+      } else {
+        this.srOnlyEl.textContent = '';
+      }
+    }
   }
 
   public destroy(): void {
+    if (this.progressThrottleTimer) {
+      clearTimeout(this.progressThrottleTimer);
+      this.progressThrottleTimer = null;
+    }
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
     }
     document.removeEventListener('keydown', this.handleKeyDown);
+    this.cardsBuilt = false;
+    this.whiteCardDom = null;
+    this.blackCardDom = null;
+    this.srOnlyEl = null;
     this.container.innerHTML = '';
   }
 }

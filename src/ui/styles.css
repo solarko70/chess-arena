@@ -45,6 +45,18 @@
   --hero-glass-border: rgba(255, 255, 255, 0.08);
   --hero-fallback-bg: rgba(15, 23, 42, 0.88);
 
+  /* Solar Modal & Summary variables */
+  --solar-glow: rgba(245, 158, 11, 0.14);
+  --solar-accent: #f59e0b;
+  --solar-accent-hover: #d97706;
+  --solar-halo: rgba(245, 158, 11, 0.28);
+  --solar-btn-start: #fbbf24;
+  --solar-btn-end: #f59e0b;
+  --solar-btn-outline: rgba(255, 255, 255, 0.2);
+  --acc-low: #ef4444;
+  --acc-mid: #f59e0b;
+  --acc-high: #22c55e;
+
   /* Move class color palette */
   --class-best: #22c55e;
   --class-best-bg: rgba(34, 197, 94, 0.15);
@@ -94,6 +106,18 @@
   --hero-glass-bg: rgba(255, 255, 255, 0.58);
   --hero-glass-border: rgba(180, 83, 9, 0.15);
   --hero-fallback-bg: rgba(255, 255, 255, 0.94);
+
+  /* Solar Modal & Summary variables in light mode */
+  --solar-glow: rgba(217, 119, 6, 0.08);
+  --solar-accent: #d97706;
+  --solar-accent-hover: #b45309;
+  --solar-halo: rgba(217, 119, 6, 0.22);
+  --solar-btn-start: #f59e0b;
+  --solar-btn-end: #d97706;
+  --solar-btn-outline: rgba(15, 23, 42, 0.25);
+  --acc-low: #dc2626;
+  --acc-mid: #d97706;
+  --acc-high: #16a34a;
 }
 
 * {
@@ -1005,7 +1029,7 @@ body.game-active #app {
 .game-over-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1015,7 +1039,9 @@ body.game-active #app {
 }
 
 .game-over-dialog {
-  background: var(--bg-secondary);
+  background:
+    radial-gradient(ellipse 80% 45% at 50% 0%, var(--solar-glow) 0%, transparent 70%),
+    var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--bg-tertiary);
   border-radius: var(--border-radius);
@@ -1025,8 +1051,39 @@ body.game-active #app {
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5), 0 0 24px var(--solar-halo);
+}
+
+.game-over-dialog.modal-anim-enter {
   animation: modalPopIn 0.2s ease-out;
+}
+
+/* Static Solar Decorative Layer (pure SVG/CSS, aria-hidden, pointer-events none) */
+.game-over-solar-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.solar-modal-orbit {
+  fill: none;
+  stroke: var(--solar-orbit-border);
+  stroke-width: 1px;
+  stroke-dasharray: 4, 4;
+  opacity: 0.5;
+}
+
+.solar-modal-star {
+  fill: var(--solar-star-color);
+  opacity: 0.65;
+}
+
+.game-over-content {
+  position: relative;
+  z-index: 1;
 }
 
 .game-over-close-btn {
@@ -1042,6 +1099,7 @@ body.game-active #app {
   padding: 4px 8px;
   line-height: 1;
   z-index: 2;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .game-over-close-btn:hover {
@@ -1051,8 +1109,10 @@ body.game-active #app {
 
 .game-over-close-btn:focus-visible,
 .btn-modal-primary:focus-visible,
-.btn-modal-secondary:focus-visible {
-  outline: 2px solid var(--accent);
+.btn-modal-secondary:focus-visible,
+.btn-retry-analysis:focus-visible {
+  outline: 2px solid var(--solar-accent);
+  outline-offset: 2px;
 }
 
 .game-over-header {
@@ -1061,31 +1121,44 @@ body.game-active #app {
 }
 
 .game-over-verdict {
-  display: inline-block;
-  padding: 5px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 16px;
   border-radius: 20px;
   font-weight: 700;
   font-size: 0.95rem;
   margin-bottom: 8px;
   text-align: center;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.verdict-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .game-over-verdict.verdict-win {
-  background: #166534;
-  color: #bbf7d0;
-  border: 1px solid #22c55e;
+  background: rgba(34, 197, 94, 0.18);
+  color: var(--class-best);
+  border: 1px solid var(--class-best);
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.25);
 }
 
 .game-over-verdict.verdict-loss {
-  background: #991b1b;
-  color: #fecaca;
-  border: 1px solid #ef4444;
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--class-blunder);
+  border: 1px solid var(--class-blunder);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.25);
 }
 
 .game-over-verdict.verdict-draw {
-  background: #334155;
-  color: #e2e8f0;
+  background: rgba(100, 116, 139, 0.22);
+  color: var(--text-primary);
   border: 1px solid #64748b;
+  box-shadow: 0 0 14px rgba(100, 116, 139, 0.2);
 }
 
 .game-over-title {
@@ -1134,7 +1207,8 @@ body.game-active #app {
   width: 100%;
   height: 6px;
   border-radius: 3px;
-  accent-color: var(--accent);
+  accent-color: var(--solar-accent);
+  transition: width 0.15s ease, transform 0.15s ease;
 }
 
 .analysis-error-row {
@@ -1179,7 +1253,7 @@ body.game-active #app {
   margin: 16px 0 20px 0;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .game-over-cards {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -1187,6 +1261,16 @@ body.game-active #app {
 
   .game-over-dialog {
     padding: 16px;
+  }
+
+  .accuracy-ring-svg {
+    width: 64px;
+    height: 64px;
+  }
+
+  .card-accuracy-ring-wrap {
+    width: 64px;
+    height: 64px;
   }
 }
 
@@ -1199,20 +1283,29 @@ body.game-active #app {
   flex-direction: column;
   gap: 12px;
   position: relative;
-  animation: cardSlideUp 0.35s ease-out backwards;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
-.game-over-card:nth-child(1) {
-  animation-delay: 0.08s;
+.game-over-card.card-anim-enter {
+  animation: cardSlideUp 0.3s ease-out backwards;
 }
 
-.game-over-card:nth-child(2) {
-  animation-delay: 0.18s;
+.game-over-card.card-anim-enter:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.game-over-card.card-anim-enter:nth-child(2) {
+  animation-delay: 0.12s;
 }
 
 .game-over-card.winner-card {
-  border: 2px solid var(--class-best);
-  box-shadow: 0 0 16px rgba(34, 197, 94, 0.25);
+  border: 2px solid var(--solar-accent);
+  box-shadow: 0 0 20px var(--solar-halo), 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.game-over-card.loser-card {
+  opacity: 0.82;
+  border-color: var(--bg-tertiary);
 }
 
 .card-header {
@@ -1234,9 +1327,9 @@ body.game-active #app {
   padding: 2px 8px;
   border-radius: 10px;
   font-weight: 700;
-  background: rgba(34, 197, 94, 0.2);
-  color: var(--class-best);
-  border: 1px solid var(--class-best);
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--solar-accent);
+  border: 1px solid var(--solar-accent);
 }
 
 .card-accuracy-section {
@@ -1244,11 +1337,61 @@ body.game-active #app {
   padding: 6px 0;
 }
 
+.card-accuracy-ring-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accuracy-ring-svg {
+  width: 72px;
+  height: 72px;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.ring-bg {
+  fill: none;
+  stroke: var(--bg-tertiary);
+  stroke-width: 5;
+}
+
+.ring-progress {
+  fill: none;
+  stroke: var(--solar-accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 175.93;
+  stroke-dashoffset: 175.93;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+}
+
+.ring-progress.ring-high {
+  stroke: var(--acc-high);
+}
+
+.ring-progress.ring-mid {
+  stroke: var(--acc-mid);
+}
+
+.ring-progress.ring-low {
+  stroke: var(--acc-low);
+}
+
 .card-accuracy-val {
-  font-size: 2rem;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
   font-weight: 800;
-  color: var(--accent);
-  line-height: 1.1;
+  color: var(--text-primary);
+  line-height: 1;
 }
 
 .card-accuracy-label {
@@ -1256,31 +1399,39 @@ body.game-active #app {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
-  margin-top: 3px;
+  margin-top: 6px;
 }
 
 .card-classes-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .card-class-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 6px;
+  padding: 4px 8px;
   border-radius: 6px;
   font-size: 0.85rem;
-  transition: background 0.15s;
+  min-height: 28px;
+  border-bottom: 1px solid var(--bg-tertiary);
+  background: var(--row-class-bg, transparent);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.card-class-row:last-child {
+  border-bottom: none;
 }
 
 .card-class-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .card-class-row.zero-count {
   opacity: 0.42;
+  background: transparent !important;
 }
 
 .card-class-info {
@@ -1319,8 +1470,21 @@ body.game-active #app {
 }
 
 .skeleton-acc {
-  min-width: 68px;
-  height: 32px;
+  min-width: 48px;
+  height: 24px;
+}
+
+.fade-in {
+  animation: fadeInVal 0.15s ease-out;
+}
+
+@keyframes fadeInVal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes skeletonPulse {
@@ -1357,38 +1521,53 @@ body.game-active #app {
 
 .game-over-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: flex-end;
+  margin-top: 8px;
 }
 
 .btn-modal-primary {
-  background: var(--accent);
-  color: #0f172a;
+  background: linear-gradient(135deg, var(--solar-btn-start), var(--solar-btn-end));
+  color: #1e1b4b;
   font-weight: 700;
   border: none;
-  padding: 9px 16px;
-  border-radius: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .btn-modal-primary:hover {
-  background: var(--accent-hover);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-modal-primary:active {
+  transform: translateY(1px);
 }
 
 .btn-modal-secondary {
-  background: var(--bg-tertiary);
+  background: transparent;
   color: var(--text-primary);
   font-weight: 600;
-  border: none;
-  padding: 9px 16px;
-  border-radius: 6px;
+  border: 1px solid var(--solar-btn-outline);
+  padding: 10px 18px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .btn-modal-secondary:hover {
-  background: #475569;
+  background: var(--bg-tertiary);
+  border-color: var(--text-secondary);
+}
+
+.btn-modal-secondary:active {
+  transform: translateY(1px);
 }
 
 @keyframes modalOverlayFade {
@@ -1403,7 +1582,7 @@ body.game-active #app {
 @keyframes modalPopIn {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.96);
   }
   to {
     opacity: 1;
@@ -1414,6 +1593,8 @@ body.game-active #app {
 @media (prefers-reduced-motion: reduce) {
   .game-over-overlay,
   .game-over-dialog,
+  .game-over-card,
+  .ring-progress,
   .setup-modal-overlay,
   .setup-modal-dialog,
   .resign-modal-overlay,
