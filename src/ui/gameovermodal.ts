@@ -1,5 +1,10 @@
 import { ChessStore } from '@/state/store';
-import { formatMaterialPoints, type ReviewRunResult } from '@/analysis';
+import {
+  formatMaterialPoints,
+  getSidePerformanceRating,
+  formatPerformanceRating,
+  type ReviewRunResult,
+} from '@/analysis';
 import { createSolarDecorLayer, type SolarDecorElement } from '@/ui/solar-decor';
 import { createAccuracyRing, type AccuracyRingDom } from '@/ui/accuracy-ring';
 import { createClassRowsList, type ClassRowsListDom } from '@/ui/class-rows';
@@ -48,6 +53,8 @@ interface CardDomElements {
       countEl: HTMLElement;
     }
   >;
+  ratingBadgeEl: HTMLElement;
+  ratingValEl: HTMLElement;
   materialEl: HTMLElement;
 }
 
@@ -384,6 +391,13 @@ export class GameOverModalUI {
       accLabelEl.textContent = 'Точность';
       accSectionEl.appendChild(accLabelEl);
 
+      const ratingBadgeEl = document.createElement('div');
+      ratingBadgeEl.className = 'card-performance-rating solar-badge';
+      ratingBadgeEl.setAttribute('title', 'Примерный уровень игры в этой партии');
+      ratingBadgeEl.innerHTML = 'Рейтинг: <strong class="rating-value">—</strong>';
+      const ratingValEl = ratingBadgeEl.querySelector('.rating-value') as HTMLElement;
+      accSectionEl.appendChild(ratingBadgeEl);
+
       cardEl.appendChild(accSectionEl);
 
       const classesList = createClassRowsList();
@@ -411,6 +425,8 @@ export class GameOverModalUI {
         accuracyValEl: accRing.valueEl,
         classesList,
         classRows,
+        ratingBadgeEl,
+        ratingValEl,
         materialEl,
       };
     };
@@ -435,6 +451,7 @@ export class GameOverModalUI {
     review: ReviewRunResult | null,
     isReviewing: boolean,
     lostPoints: number,
+    winner: 'white' | 'black' | 'draw' = 'draw',
   ): void {
     // 1. Header title & winner badge
     dom.titleEl.textContent = cardTitle;
@@ -459,10 +476,20 @@ export class GameOverModalUI {
     // 2. Accuracy value & ring progress
     dom.accRing.update(review ? review.accuracy[side] : null, isReviewing);
 
-    // 3. Move class count rows
+    // 3. Performance rating estimation
+    if (review) {
+      const rating = getSidePerformanceRating(review, side, winner);
+      dom.ratingValEl.textContent = formatPerformanceRating(rating);
+    } else if (isReviewing) {
+      dom.ratingValEl.innerHTML = '<span class="skeleton-pill skeleton-rating"></span>';
+    } else {
+      dom.ratingValEl.textContent = '—';
+    }
+
+    // 4. Move class count rows
     dom.classesList.update(review ? review.counts[side] : null, isReviewing);
 
-    // 4. Lost material points
+    // 5. Lost material points
     const pointsStr = formatMaterialPoints(lostPoints);
     dom.materialEl.textContent = `Потеряно материала: ${pointsStr}`;
   }
@@ -685,6 +712,7 @@ export class GameOverModalUI {
         review,
         isReviewing,
         lost.white,
+        winner,
       );
     }
 
@@ -698,6 +726,7 @@ export class GameOverModalUI {
         review,
         isReviewing,
         lost.black,
+        winner,
       );
     }
 

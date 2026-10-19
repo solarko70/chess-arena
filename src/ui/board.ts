@@ -1,5 +1,6 @@
 import { ChessStore } from '../state/store';
 import { getPieceSvg } from './pieces';
+import { getMoveClassMeta } from '@/analysis';
 import type { PieceType, Square } from '@/core';
 
 export class ChessBoardUI {
@@ -11,6 +12,7 @@ export class ChessBoardUI {
   private evalBarFillEl: HTMLElement;
   private evalBarTextEl: HTMLElement;
   private arrowLayerEl: SVGElement;
+  private badgeLayerEl: HTMLElement;
 
   // Drag state
   private isDragging = false;
@@ -31,6 +33,7 @@ export class ChessBoardUI {
         </div>
         <div class="board-container">
           <div class="chess-board"></div>
+          <div class="board-badge-layer" aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; z-index: 5;"></div>
           <svg class="board-arrow-layer" viewBox="0 0 800 800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;"></svg>
           <div class="promo-overlay" style="display: none;"></div>
         </div>
@@ -43,6 +46,7 @@ export class ChessBoardUI {
     this.evalBarFillEl = this.container.querySelector('#eval-bar-fill') as HTMLElement;
     this.evalBarTextEl = this.container.querySelector('#eval-bar-text') as HTMLElement;
     this.arrowLayerEl = this.container.querySelector('.board-arrow-layer') as SVGElement;
+    this.badgeLayerEl = this.container.querySelector('.board-badge-layer') as HTMLElement;
 
     this.initEvents();
     this.store.subscribe(() => this.render());
@@ -141,6 +145,78 @@ export class ChessBoardUI {
 
     this.renderEvalBar(flipped);
     this.renderBestMoveArrow(flipped);
+    this.renderMoveBadge(flipped);
+  }
+
+  private renderMoveBadge(flipped: boolean): void {
+    if (!this.badgeLayerEl) return;
+    this.badgeLayerEl.innerHTML = '';
+
+    const review = this.store.getReviewResult();
+    if (!review || !review.moves || review.moves.length === 0) {
+      return;
+    }
+
+    const viewIndex = this.store.getViewIndex();
+    // In start position before the first move (viewIndex = -1), badge must not be shown
+    if (viewIndex === -1) {
+      return;
+    }
+
+    let moveIndex: number;
+    if (viewIndex === null) {
+      // In live/current view, show badge in review mode or when game is finished
+      if (!this.store.isReviewMode() && !this.store.isGameOver()) {
+        return;
+      }
+      moveIndex = review.moves.length - 1;
+    } else {
+      moveIndex = viewIndex;
+    }
+
+    if (moveIndex < 0 || moveIndex >= review.moves.length) {
+      return;
+    }
+
+    const reviewedMove = review.moves[moveIndex];
+    if (!reviewedMove || !reviewedMove.move) {
+      return;
+    }
+
+    const toSquare = reviewedMove.move.to;
+    const moveClass = reviewedMove.class;
+    const meta = getMoveClassMeta(moveClass);
+
+    const { width, height } = this.store.getState().board;
+    const toX = toSquare % width;
+    const toY = Math.floor(toSquare / width);
+
+    const col = flipped ? width - 1 - toX : toX;
+    const row = flipped ? height - 1 - toY : toY;
+
+    const leftPct = (col / width) * 100;
+    const topPct = (row / height) * 100;
+    const widthPct = 100 / width;
+    const heightPct = 100 / height;
+
+    const slotEl = document.createElement('div');
+    slotEl.className = 'board-badge-slot';
+    slotEl.style.position = 'absolute';
+    slotEl.style.left = `${leftPct}%`;
+    slotEl.style.top = `${topPct}%`;
+    slotEl.style.width = `${widthPct}%`;
+    slotEl.style.height = `${heightPct}%`;
+    slotEl.style.pointerEvents = 'none';
+
+    const badgeEl = document.createElement('div');
+    badgeEl.className = `board-move-badge badge-${moveClass}`;
+    badgeEl.dataset.class = moveClass;
+    badgeEl.dataset.square = toSquare.toString();
+    badgeEl.title = meta.nameRu;
+    badgeEl.innerHTML = meta.svg;
+
+    slotEl.appendChild(badgeEl);
+    this.badgeLayerEl.appendChild(slotEl);
   }
 
   private renderEvalBar(flipped: boolean): void {

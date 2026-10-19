@@ -2,6 +2,8 @@ import { ChessStore } from '@/state/store';
 import {
   exportReviewedPGN,
   getMoveClassMeta,
+  getSidePerformanceRating,
+  formatPerformanceRating,
   type GameReviewResult,
 } from '@/analysis';
 import { createAccuracyRing, type AccuracyRingDom } from '@/ui/accuracy-ring';
@@ -21,6 +23,8 @@ export class ReviewPanelUI {
   private engineInfoEl!: HTMLElement;
   private whiteRing!: AccuracyRingDom;
   private blackRing!: AccuracyRingDom;
+  private whiteRatingEl!: HTMLElement;
+  private blackRatingEl!: HTMLElement;
   private whiteClassesList!: ClassRowsListDom;
   private blackClassesList!: ClassRowsListDom;
   private graphSvgEl!: SVGElement;
@@ -53,6 +57,9 @@ export class ReviewPanelUI {
                 <span class="accuracy-label">Точность белых</span>
               </div>
               <div class="accuracy-ring-slot" id="review-ring-white-slot"></div>
+              <div class="review-performance-rating solar-badge" id="review-rating-white" title="Примерный уровень игры в этой партии">
+                Рейтинг: <strong class="rating-value">—</strong>
+              </div>
             </div>
             <div class="accuracy-card black solar-card">
               <div class="accuracy-card-header">
@@ -60,6 +67,9 @@ export class ReviewPanelUI {
                 <span class="accuracy-label">Точность чёрных</span>
               </div>
               <div class="accuracy-ring-slot" id="review-ring-black-slot"></div>
+              <div class="review-performance-rating solar-badge" id="review-rating-black" title="Примерный уровень игры в этой партии">
+                Рейтинг: <strong class="rating-value">—</strong>
+              </div>
             </div>
           </div>
 
@@ -118,6 +128,9 @@ export class ReviewPanelUI {
     this.blackRing = createAccuracyRing({ size: 72, radius: 28, valueId: 'review-acc-black' });
     this.container.querySelector('#review-ring-white-slot')?.appendChild(this.whiteRing.wrapEl);
     this.container.querySelector('#review-ring-black-slot')?.appendChild(this.blackRing.wrapEl);
+
+    this.whiteRatingEl = this.container.querySelector('#review-rating-white') as HTMLElement;
+    this.blackRatingEl = this.container.querySelector('#review-rating-black') as HTMLElement;
 
     // Mount class rows lists in two columns
     this.whiteClassesList = createClassRowsList();
@@ -190,7 +203,7 @@ export class ReviewPanelUI {
 
     // Progress section
     if (isReviewing && progress) {
-      this.progressSection.style.display = 'block';
+      this.progressSection.style.display = 'flex';
       const pct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
       this.progressBar.max = progress.total;
       this.progressBar.value = progress.completed;
@@ -201,7 +214,7 @@ export class ReviewPanelUI {
 
     // Results section
     if (isReviewMode && reviewResult) {
-      this.resultsSection.style.display = 'block';
+      this.resultsSection.style.display = 'flex';
 
       // Fallback note
       if (fallbackNote) {
@@ -231,6 +244,31 @@ export class ReviewPanelUI {
       // Accuracies via AccuracyRingDom
       this.whiteRing.update(reviewResult.accuracy.white, isReviewing);
       this.blackRing.update(reviewResult.accuracy.black, isReviewing);
+
+      // Performance ratings
+      const result = this.store.getLiveGameResult();
+      const resignedPlayer = this.store.getResignedPlayer();
+      const timedOutLoser = this.store.getTimedOutLoser();
+      let winner: 'white' | 'black' | 'draw' = 'draw';
+      if (resignedPlayer !== null) {
+        winner = resignedPlayer === 'white' ? 'black' : 'white';
+      } else if (timedOutLoser !== null) {
+        winner = timedOutLoser === 'white' ? 'black' : 'white';
+      } else if (result.type === 'checkmate' && result.winner) {
+        winner = result.winner;
+      }
+
+      const whiteRating = getSidePerformanceRating(reviewResult, 'white', winner);
+      const blackRating = getSidePerformanceRating(reviewResult, 'black', winner);
+
+      const whiteValEl = this.whiteRatingEl.querySelector('.rating-value');
+      if (whiteValEl) {
+        whiteValEl.textContent = formatPerformanceRating(whiteRating);
+      }
+      const blackValEl = this.blackRatingEl.querySelector('.rating-value');
+      if (blackValEl) {
+        blackValEl.textContent = formatPerformanceRating(blackRating);
+      }
 
       // Class rows via ClassRowsListDom
       this.whiteClassesList.update(reviewResult.counts.white, isReviewing);

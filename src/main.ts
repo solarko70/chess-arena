@@ -10,6 +10,7 @@ import { GameOverModalUI } from './ui/gameovermodal';
 import { GameSetupModalUI } from './ui/setupmodals';
 import { LEVELS } from './ai';
 import { getPieceSvg } from './ui/pieces';
+import { buildGameScene, buildReviewScene } from './ui/space-scenes';
 import type { Color } from './core';
 
 function formatClockMs(ms: number): { text: string; isLow: boolean } {
@@ -67,6 +68,7 @@ const FLIP_ICON = `
 let currentRouter: HashRouter | null = null;
 let clockIntervalId: ReturnType<typeof setInterval> | null = null;
 let keydownCleanup: (() => void) | null = null;
+let visibilityCleanup: (() => void) | null = null;
 
 export function getRouter(): HashRouter | null {
   return currentRouter;
@@ -95,6 +97,10 @@ export function initApp(): void {
   if (keydownCleanup) {
     keydownCleanup();
     keydownCleanup = null;
+  }
+  if (visibilityCleanup) {
+    visibilityCleanup();
+    visibilityCleanup = null;
   }
 
   // Remove old modals & background mounted on document.body on re-init
@@ -274,11 +280,14 @@ export function initApp(): void {
       </div>
     </div>
 
-    <!-- Review Overlay (Stage A2b / A2c-6) -->
+    <!-- Review Overlay (Stage A2b / A2c-6 / A2c-7) -->
     <div class="review-overlay" id="review-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Разбор партии">
+      <div class="review-solar-scene" id="review-solar-scene" aria-hidden="true" style="position: absolute; inset: 0; z-index: 0; pointer-events: none;">
+        ${buildReviewScene()}
+      </div>
       <div class="review-overlay-header">
         <h2 class="review-overlay-title">Разбор партии</h2>
-        <button class="review-overlay-close" id="btn-close-review-overlay" aria-label="Закрыть разбор">✕</button>
+        <button class="review-overlay-close" id="btn-close-review-overlay" aria-label="Закрыть разбор"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg></button>
       </div>
       <div class="review-overlay-body">
         <div class="review-overlay-board-col" id="review-overlay-board-slot"></div>
@@ -311,57 +320,41 @@ export function initApp(): void {
   gameSolarBg.setAttribute('aria-hidden', 'true');
   gameSolarBg.style.pointerEvents = 'none';
   gameSolarBg.style.display = 'none';
-  gameSolarBg.innerHTML = `
-    <svg class="game-solar-stars" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs>
-        <radialGradient id="game-planet-glow" cx="60%" cy="30%" r="70%">
-          <stop offset="0%" stop-color="var(--planet-edge)" />
-          <stop offset="45%" stop-color="var(--planet-dark)" />
-          <stop offset="100%" stop-color="var(--solar-bg-edge)" />
-        </radialGradient>
-      </defs>
-
-      <!-- Planet cluster in bottom-left corner -->
-      <g class="game-solar-planet-cluster" id="game-solar-planet-cluster">
-        <ellipse cx="120" cy="980" rx="420" ry="240" transform="rotate(-15 120 980)" class="game-solar-orbit game-solar-planet-orbit" />
-        <ellipse cx="120" cy="980" rx="300" ry="170" transform="rotate(-15 120 980)" class="game-solar-orbit game-solar-planet-orbit" />
-        <circle cx="120" cy="980" r="170" class="game-solar-planet" fill="url(#game-planet-glow)" />
-        <ellipse cx="120" cy="980" rx="260" ry="55" transform="rotate(-25 120 980)" class="game-solar-ring" />
-        <circle cx="260" cy="850" r="8" class="game-solar-moon" />
-      </g>
-
-      <!-- Asteroid belt in bottom-right corner (10 dots, between 8 and 12) -->
-      <g class="game-solar-asteroid-belt" id="game-solar-asteroid-belt">
-        <circle cx="1480" cy="1020" r="2.2" class="game-solar-asteroid" />
-        <circle cx="1530" cy="980"  r="3.5" class="game-solar-asteroid" />
-        <circle cx="1580" cy="950"  r="2.0" class="game-solar-asteroid" />
-        <circle cx="1630" cy="910"  r="4.0" class="game-solar-asteroid" />
-        <circle cx="1690" cy="880"  r="2.5" class="game-solar-asteroid" />
-        <circle cx="1740" cy="840"  r="3.0" class="game-solar-asteroid" />
-        <circle cx="1790" cy="810"  r="1.8" class="game-solar-asteroid" />
-        <circle cx="1840" cy="770"  r="3.2" class="game-solar-asteroid" />
-        <circle cx="1890" cy="740"  r="2.4" class="game-solar-asteroid" />
-        <circle cx="1930" cy="700"  r="3.0" class="game-solar-asteroid" />
-      </g>
-
-      <!-- Stars distributed across window (12 stars <= 14, calm center) -->
-      <g class="game-solar-starfield" id="game-solar-starfield">
-        <circle cx="120" cy="80" r="1.5" class="game-solar-star" />
-        <circle cx="260" cy="150" r="1.2" class="game-solar-star" />
-        <circle cx="80" cy="280" r="1.8" class="game-solar-star" />
-        <circle cx="320" cy="380" r="1.0" class="game-solar-star" />
-        <circle cx="1550" cy="70" r="1.5" class="game-solar-star" />
-        <circle cx="1780" cy="90" r="2.0" class="game-solar-star" />
-        <circle cx="1680" cy="190" r="1.3" class="game-solar-star" />
-        <circle cx="1860" cy="260" r="1.6" class="game-solar-star" />
-        <circle cx="450" cy="850" r="1.4" class="game-solar-star" />
-        <circle cx="320" cy="720" r="1.2" class="game-solar-star" />
-        <circle cx="1820" cy="520" r="1.5" class="game-solar-star" />
-        <circle cx="1650" cy="620" r="1.2" class="game-solar-star" />
-      </g>
-    </svg>
-  `;
+  gameSolarBg.innerHTML = buildGameScene();
   document.body.appendChild(gameSolarBg);
+
+  const reviewSolarScene = document.getElementById('review-solar-scene');
+  reviewSolarScene?.querySelectorAll('.space-anim-layer').forEach((el) => el.remove());
+
+  const syncBgAnimState = (): void => {
+    try {
+      const pref = localStorage.getItem('chess_arena_bg_anim');
+      if (pref === 'off') {
+        document.body.classList.add('bg-anim-off');
+      } else if (pref === 'on') {
+        document.body.classList.remove('bg-anim-off');
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  };
+  syncBgAnimState();
+
+  const updateVisibilityPause = (): void => {
+    const paused = document.hidden;
+    const solarBgEl = document.getElementById('solar-bg');
+    gameSolarBg.classList.toggle('space-scene-paused', paused);
+    gameSolarBg.classList.toggle('solar-anim-paused', paused);
+    reviewSolarScene?.classList.toggle('space-scene-paused', paused);
+    reviewSolarScene?.classList.toggle('solar-anim-paused', paused);
+    solarBgEl?.classList.toggle('space-scene-paused', paused);
+    solarBgEl?.classList.toggle('solar-anim-paused', paused);
+  };
+  updateVisibilityPause();
+  document.addEventListener('visibilitychange', updateVisibilityPause);
+  visibilityCleanup = () => {
+    document.removeEventListener('visibilitychange', updateVisibilityPause);
+  };
 
   let isReviewOverlayOpen = false;
 
@@ -372,6 +365,7 @@ export function initApp(): void {
   }
 
   currentRouter = new HashRouter((route: AppRoute) => {
+    syncBgAnimState();
     // Redirect to home if opening game screen without an active game
     if (route === 'game' && !globalStore.isGameActive()) {
       currentRouter?.navigate('home');
@@ -397,8 +391,15 @@ export function initApp(): void {
       solarBg.classList.toggle('active', isHome);
     }
     if (gameSolarBg) {
-      const showGameBg = isGame || isReviewOverlayOpen;
+      const showGameBg = isGame && !isReviewOverlayOpen;
       gameSolarBg.style.display = showGameBg ? 'block' : 'none';
+      if (isGame) {
+        if (!isReviewOverlayOpen && !gameSolarBg.querySelector('.space-anim-layer')) {
+          gameSolarBg.innerHTML = buildGameScene();
+        }
+      } else {
+        gameSolarBg.querySelectorAll('.space-anim-layer').forEach((el) => el.remove());
+      }
     }
     if (gameScreen) {
       gameScreen.style.display = isGame && !isReviewOverlayOpen ? 'flex' : 'none';
@@ -480,6 +481,7 @@ export function initApp(): void {
   const openReviewOverlay = (): void => {
     if (isReviewOverlayOpen) return;
     isReviewOverlayOpen = true;
+    syncBgAnimState();
     document.body.classList.add('review-active');
     const screenGame = document.getElementById('screen-game');
     if (screenGame) {
@@ -488,7 +490,11 @@ export function initApp(): void {
       screenGame.setAttribute('inert', '');
     }
     if (gameSolarBg) {
-      gameSolarBg.style.display = 'block';
+      gameSolarBg.style.display = 'none';
+      gameSolarBg.querySelectorAll('.space-anim-layer').forEach((el) => el.remove());
+    }
+    if (reviewSolarScene && !reviewSolarScene.querySelector('.space-anim-layer')) {
+      reviewSolarScene.innerHTML = buildReviewScene();
     }
     reviewBoardSlot.appendChild(boardMount);
     reviewHistorySlot.appendChild(historyMount);
@@ -507,9 +513,15 @@ export function initApp(): void {
       screenGame.removeAttribute('aria-hidden');
       screenGame.removeAttribute('inert');
     }
+    if (reviewSolarScene) {
+      reviewSolarScene.querySelectorAll('.space-anim-layer').forEach((el) => el.remove());
+    }
     if (gameSolarBg) {
       const isGame = currentRouter?.getRoute() === 'game';
       gameSolarBg.style.display = isGame ? 'block' : 'none';
+      if (isGame && !gameSolarBg.querySelector('.space-anim-layer')) {
+        gameSolarBg.innerHTML = buildGameScene();
+      }
     }
     globalStore.setReviewMode(false);
     gameBoardCol.insertBefore(boardMount, playerBarBottom);

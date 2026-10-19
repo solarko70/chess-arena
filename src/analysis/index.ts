@@ -87,7 +87,15 @@ export {
   MOVE_CLASS_REGISTRY,
   MOVE_CLASS_MAP,
   getMoveClassMeta,
+  getMoveClassSvg,
   formatMaterialPoints,
 } from './classes';
 export type { MoveClassMeta } from './classes';
+
+export {
+  estimatePerformanceRating,
+  getSidePerformanceRating,
+  formatPerformanceRating,
+} from './performance-rating';
+export type { PerformanceRatingParams } from './performance-rating';
 

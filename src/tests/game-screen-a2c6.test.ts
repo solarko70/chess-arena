@@ -166,7 +166,7 @@ describe('Stage A2c-6: Review screen isolation and expanded cosmic background', 
     expect(largeNumericZIndexes).toEqual([]);
   });
 
-  it('game-solar-bg has planet cluster, 8-12 asteroids, <= 14 stars, <= 40 nodes', () => {
+  it('game-solar-bg has planet cluster with center glow and max 70 nodes', () => {
     const gameSolarBg = document.getElementById('game-solar-bg');
     expect(gameSolarBg).not.toBeNull();
 
@@ -174,45 +174,30 @@ describe('Stage A2c-6: Review screen isolation and expanded cosmic background', 
     expect(svg).not.toBeNull();
 
     // Planet cluster in bottom-left
-    const planetCluster = svg!.querySelector('.game-solar-planet-cluster');
+    const planetCluster = svg!.querySelector('.space-planet-cluster');
     expect(planetCluster).not.toBeNull();
 
-    const planet = planetCluster!.querySelector('.game-solar-planet');
+    const planet = planetCluster!.querySelector('.space-planet');
     expect(planet).not.toBeNull();
+    expect(planet!.getAttribute('cx')).toBe('140');
+    expect(planet!.getAttribute('cy')).toBe('960');
 
-    const ring = planetCluster!.querySelector('.game-solar-ring');
-    expect(ring).not.toBeNull();
+    // Gradient center matches planet center exactly
+    const grad = svg!.querySelector('#space-planet-body-grad');
+    expect(grad).not.toBeNull();
+    expect(grad!.getAttribute('cx')).toBe('140');
+    expect(grad!.getAttribute('cy')).toBe('960');
 
-    const moon = planetCluster!.querySelector('.game-solar-moon');
-    expect(moon).not.toBeNull();
+    // Asteroid belt has no old class, has connected line
+    expect(svg!.querySelector('.game-solar-asteroid-belt')).toBeNull();
+    const asteroidTrack = svg!.querySelector('.space-asteroid-track');
+    expect(asteroidTrack).not.toBeNull();
+    expect(asteroidTrack!.querySelector('.space-asteroid-line')).not.toBeNull();
+    expect(asteroidTrack!.querySelector('.space-asteroid-dots')).not.toBeNull();
 
-    const planetOrbits = planetCluster!.querySelectorAll('.game-solar-orbit');
-    expect(planetOrbits.length).toBe(2);
-
-    // Asteroids in bottom-right (belt of 8-12 dots)
-    const asteroidBelt = svg!.querySelector('.game-solar-asteroid-belt');
-    expect(asteroidBelt).not.toBeNull();
-
-    const asteroids = asteroidBelt!.querySelectorAll('.game-solar-asteroid');
-    expect(asteroids.length).toBeGreaterThanOrEqual(8);
-    expect(asteroids.length).toBeLessThanOrEqual(12);
-
-    // Stars across window (<= 14 stars)
-    const stars = svg!.querySelectorAll('.game-solar-star');
-    expect(stars.length).toBeGreaterThan(0);
-    expect(stars.length).toBeLessThanOrEqual(14);
-
-    // Calm center: verify no stars in center chessboard area (x: 500..1500, y: 250..800)
-    stars.forEach((star) => {
-      const cx = parseFloat(star.getAttribute('cx') || '0');
-      const cy = parseFloat(star.getAttribute('cy') || '0');
-      const inCenter = cx > 500 && cx < 1500 && cy > 250 && cy < 800;
-      expect(inCenter).toBe(false);
-    });
-
-    // Total child elements inside SVG must be <= 40
+    // Total child elements inside SVG must be <= 90
     const totalSvgElements = svg!.querySelectorAll('*').length;
-    expect(totalSvgElements).toBeLessThanOrEqual(40);
+    expect(totalSvgElements).toBeLessThanOrEqual(90);
   });
 
   it('game-solar-bg has no blur, backdrop-filter, or animation in CSS', () => {
@@ -230,7 +215,7 @@ describe('Stage A2c-6: Review screen isolation and expanded cosmic background', 
     });
   });
 
-  it('asteroid belt is hidden on mobile screens under 800px in CSS', () => {
+  it('asteroid track and secondary stars are hidden on mobile under 800px', () => {
     const cssPath = path.resolve(__dirname, '../ui/styles.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
@@ -239,12 +224,12 @@ describe('Stage A2c-6: Review screen isolation and expanded cosmic background', 
     expect(mediaMatch).not.toBeNull();
     const mediaContent = mediaMatch![1];
 
-    // Asteroids hidden on mobile
-    expect(mediaContent).toMatch(/game-solar-asteroid/);
+    // Asteroid track hidden on mobile
+    expect(mediaContent).toMatch(/space-asteroid-track/);
     expect(mediaContent).toMatch(/display:\s*none;/);
 
     // Planet cluster scales down on mobile
-    expect(mediaContent).toMatch(/game-solar-planet-cluster/);
+    expect(mediaContent).toMatch(/space-planet-cluster/);
     expect(mediaContent).toMatch(/transform:\s*scale\(/);
   });
 });

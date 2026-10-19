@@ -65,6 +65,12 @@
   --acc-mid: #f59e0b;
   --acc-high: #22c55e;
 
+  --gap-lg: 24px;
+
+  /* Scrollbar variables (dark theme) */
+  --scroll-thumb: rgba(251, 191, 36, 0.32);
+  --scroll-track: rgba(15, 23, 42, 0.45);
+
   /* Theme-dependent orbit and star styling */
   --orbit-stroke: rgba(251, 191, 36, 0.22);
   --orbit-opacity: 0.18;
@@ -74,11 +80,59 @@
 
   /* Game cosmic background variables (dark theme) */
   --planet-dark: #0a1128;
-  --planet-edge: #fbbf24;
+  --planet-edge: #b45309;
   --planet-ring: rgba(251, 191, 36, 0.35);
   --planet-moon: #cbd5e1;
   --asteroid-fill: rgba(251, 191, 36, 0.45);
   --game-cosmic-opacity: 0.14;
+
+  /* Stars & Sparkle variables (dark theme) */
+  --star-color: rgba(255, 255, 255, 0.85);
+  --star-opacity-min: 0.25;
+  --star-opacity-max: 0.55;
+  --sparkle-fill: #fffbeb;
+  --sparkle-halo: rgba(251, 191, 36, 0.24);
+
+  /* Constellations variables (dark theme) */
+  --constellation-line: rgba(251, 191, 36, 0.15);
+  --constellation-node: rgba(251, 191, 36, 0.65);
+
+  /* Sun System variables (dark theme) */
+  --sun-core: #fbbf24;
+  --sun-edge: #f59e0b;
+  --sun-glow: rgba(245, 158, 11, 0.22);
+  --sun-orbit: rgba(251, 191, 36, 0.25);
+  --sun-planet-1: #38bdf8;
+  --sun-planet-2: #f43f5e;
+  --sun-planet-3: #a855f7;
+  --sun-planet-4: #22c55e;
+
+  /* Planet with ring variables (dark theme) */
+  --planet-core: #fbbf24;
+  --planet-halo: rgba(245, 158, 11, 0.22);
+  --planet-ring-front: rgba(251, 191, 36, 0.55);
+  --planet-ring-back: rgba(251, 191, 36, 0.25);
+  --planet-orbit: rgba(251, 191, 36, 0.18);
+
+  /* Comet variables (dark theme) */
+  --comet-head: #38bdf8;
+  --comet-glow: rgba(56, 189, 248, 0.40);
+  --comet-tail-start: rgba(56, 189, 248, 0.32);
+  --comet-tail-end: rgba(56, 189, 248, 0);
+
+  /* Nebula & Spiral Galaxy variables (dark theme) */
+  --nebula-cyan: rgba(6, 182, 212, 0.08);
+  --nebula-purple: rgba(168, 85, 247, 0.08);
+  --nebula-amber: rgba(245, 158, 11, 0.08);
+  --galaxy-core: #fef3c7;
+  --galaxy-mid: rgba(251, 191, 36, 0.50);
+  --galaxy-arm: rgba(186, 230, 253, 0.85);
+  --galaxy-opacity: 0.45;
+
+  /* Eclipse variables (dark theme) */
+  --eclipse-disk: #040814;
+  --eclipse-corona-core: rgba(251, 191, 36, 0.65);
+  --eclipse-corona-outer: rgba(245, 158, 11, 0);
 
   /* Move class color palette */
   --class-best: #22c55e;
@@ -113,6 +167,10 @@
   --sq-dest-capture: rgba(220, 38, 38, 0.4);
 
   --board-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  /* Scrollbar variables (light theme) */
+  --scroll-thumb: rgba(180, 83, 9, 0.35);
+  --scroll-track: rgba(226, 232, 240, 0.65);
 
   /* Solar Background & Depth variables in light mode */
   --vignette-strength: 0.25;
@@ -152,11 +210,59 @@
 
   /* Game cosmic background variables (light theme) */
   --planet-dark: #fbf5e8;
-  --planet-edge: #d97706;
+  --planet-edge: #92400e;
   --planet-ring: rgba(217, 119, 6, 0.5);
   --planet-moon: #94a3b8;
   --asteroid-fill: rgba(180, 83, 9, 0.45);
   --game-cosmic-opacity: 0.28;
+
+  /* Stars & Sparkle variables (light theme) */
+  --star-color: rgba(180, 83, 9, 0.40);
+  --star-opacity-min: 0.30;
+  --star-opacity-max: 0.50;
+  --sparkle-fill: #b45309;
+  --sparkle-halo: rgba(217, 119, 6, 0.22);
+
+  /* Constellations variables (light theme) */
+  --constellation-line: rgba(180, 83, 9, 0.22);
+  --constellation-node: rgba(180, 83, 9, 0.65);
+
+  /* Sun System variables (light theme) */
+  --sun-core: #f59e0b;
+  --sun-edge: #d97706;
+  --sun-glow: rgba(217, 119, 6, 0.14);
+  --sun-orbit: rgba(180, 83, 9, 0.35);
+  --sun-planet-1: #0284c7;
+  --sun-planet-2: #e11d48;
+  --sun-planet-3: #7c3aed;
+  --sun-planet-4: #16a34a;
+
+  /* Planet with ring variables (light theme) */
+  --planet-core: #f59e0b;
+  --planet-halo: rgba(217, 119, 6, 0.16);
+  --planet-ring-front: rgba(217, 119, 6, 0.55);
+  --planet-ring-back: rgba(217, 119, 6, 0.25);
+  --planet-orbit: rgba(180, 83, 9, 0.28);
+
+  /* Comet variables (light theme) */
+  --comet-head: #0284c7;
+  --comet-glow: rgba(2, 132, 199, 0.30);
+  --comet-tail-start: rgba(2, 132, 199, 0.25);
+  --comet-tail-end: rgba(2, 132, 199, 0);
+
+  /* Nebula & Spiral Galaxy variables (light theme - warm amber tones) */
+  --nebula-cyan: rgba(249, 115, 22, 0.12);
+  --nebula-purple: rgba(251, 146, 60, 0.12);
+  --nebula-amber: rgba(253, 186, 116, 0.14);
+  --galaxy-core: #d97706;
+  --galaxy-mid: rgba(217, 119, 6, 0.55);
+  --galaxy-arm: rgba(180, 83, 9, 0.78);
+  --galaxy-opacity: 0.55;
+
+  /* Eclipse variables (light theme) */
+  --eclipse-disk: #1e293b;
+  --eclipse-corona-core: rgba(217, 119, 6, 0.60);
+  --eclipse-corona-outer: rgba(217, 119, 6, 0);
 }
 
 * {
@@ -429,6 +535,81 @@ body.review-active #app {
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+}
+
+/* Board Classification Badge Layer (Stage A3.1) */
+.board-badge-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.board-badge-slot {
+  position: absolute;
+  pointer-events: none;
+}
+
+.board-move-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: clamp(18px, 4.5vmin, 36px);
+  height: clamp(18px, 4.5vmin, 36px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  opacity: 1;
+  animation: badgeFadeIn 120ms ease-out;
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+}
+
+@keyframes badgeFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.board-move-badge.badge-best {
+  background: var(--class-best);
+}
+
+.board-move-badge.badge-excellent {
+  background: var(--class-excellent);
+}
+
+.board-move-badge.badge-good {
+  background: var(--class-good);
+}
+
+.board-move-badge.badge-inaccuracy {
+  background: var(--class-inaccuracy);
+}
+
+.board-move-badge.badge-mistake {
+  background: var(--class-mistake);
+}
+
+.board-move-badge.badge-blunder {
+  background: var(--class-blunder);
+}
+
+.board-move-badge svg {
+  width: 62%;
+  height: 62%;
+  display: block;
+  fill: #ffffff;
+  color: #ffffff;
 }
 
 /* Floating drag piece */
@@ -740,6 +921,8 @@ body.review-active #app {
   width: 24px;
   display: flex;
   flex-direction: column;
+  align-self: stretch;
+  flex-shrink: 0;
   border-radius: 6px;
   overflow: hidden;
   background: #1e293b;
@@ -849,7 +1032,7 @@ body.review-active #app {
 .review-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--gap-lg);
 }
 
 .review-toolbar {
@@ -912,14 +1095,16 @@ body.review-active #app {
 }
 
 .review-progress-section {
-  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
 }
 
 .review-progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
   font-size: 0.85rem;
 }
 
@@ -948,20 +1133,20 @@ body.review-active #app {
 .review-results-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--gap-lg);
 }
 
 .review-fallback-banner {
   background: var(--glow-color);
   border: 1px solid var(--solar-accent);
   color: var(--solar-accent);
-  padding: 8px 12px;
+  padding: 16px;
   font-size: 0.85rem;
   font-weight: 500;
 }
 
 .review-engine-info {
-  padding: 8px 12px;
+  padding: 16px;
 }
 
 .engine-info-inner {
@@ -997,11 +1182,11 @@ body.review-active #app {
 .review-accuracies {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 
 .accuracy-card {
-  padding: 12px 10px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1027,20 +1212,22 @@ body.review-active #app {
   color: var(--solar-accent);
 }
 
+.solar-section-title,
 .review-subtitle {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
+  margin-bottom: 12px;
 }
 
 .review-classes-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 
 .review-classes-col {
-  padding: 10px 12px;
+  padding: 16px;
 }
 
 .classes-col-header {
@@ -1050,7 +1237,7 @@ body.review-active #app {
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--orbit-stroke);
 }
@@ -1068,7 +1255,7 @@ body.review-active #app {
 }
 
 .review-graph-card {
-  padding: 10px;
+  padding: 16px;
 }
 
 .review-eval-graph {
@@ -1091,16 +1278,54 @@ body.review-active #app {
 .review-key-moments-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   max-height: 200px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+.review-key-moments-list,
+.history-list,
+.review-overlay,
+.game-over-dialog,
+.setup-modal-dialog {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+.review-key-moments-list::-webkit-scrollbar,
+.history-list::-webkit-scrollbar,
+.review-overlay::-webkit-scrollbar,
+.game-over-dialog::-webkit-scrollbar,
+.setup-modal-dialog::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.review-key-moments-list::-webkit-scrollbar-track,
+.history-list::-webkit-scrollbar-track,
+.review-overlay::-webkit-scrollbar-track,
+.game-over-dialog::-webkit-scrollbar-track,
+.setup-modal-dialog::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 3px;
+}
+
+.review-key-moments-list::-webkit-scrollbar-thumb,
+.history-list::-webkit-scrollbar-thumb,
+.review-overlay::-webkit-scrollbar-thumb,
+.game-over-dialog::-webkit-scrollbar-thumb,
+.setup-modal-dialog::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
 }
 
 .key-moment-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -1115,7 +1340,7 @@ body.review-active #app {
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-style: italic;
-  padding: 12px;
+  padding: 16px;
   text-align: center;
 }
 
@@ -1687,6 +1912,41 @@ body.review-active #app {
   height: 24px;
 }
 
+.skeleton-rating {
+  min-width: 44px;
+  height: 14px;
+}
+
+.card-performance-rating,
+.review-performance-rating {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--orbit-stroke);
+  color: var(--text-secondary);
+  cursor: default;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.card-performance-rating .rating-value,
+.review-performance-rating .rating-value {
+  color: var(--solar-accent);
+  font-weight: 700;
+}
+
+.card-performance-rating .rating-value-na,
+.review-performance-rating .rating-value-na {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-style: italic;
+}
+
 .fade-in {
   animation: fadeInVal 0.15s ease-out;
 }
@@ -1701,11 +1961,11 @@ body.review-active #app {
 }
 
 @keyframes skeletonPulse {
-  0% {
-    background-position: 200% 0;
+  0%, 100% {
+    opacity: 0.45;
   }
-  100% {
-    background-position: -200% 0;
+  50% {
+    opacity: 0.9;
   }
 }
 
@@ -1820,7 +2080,17 @@ body.review-active #app {
   .btn-setup-start,
   .side-panel-actions .btn-action,
   .resign-modal-overlay,
-  .resign-modal-dialog {
+  .resign-modal-dialog,
+  .space-anim-layer,
+  .space-anim-layer *,
+  .space-moon-orbit-spin,
+  .space-moon-counter,
+  .space-sun-planet,
+  .space-sparkle-use,
+  .space-stars-twinkle,
+  .space-galaxy-spin,
+  .space-comet-drift,
+  .space-eclipse-corona {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -2224,15 +2494,353 @@ body.review-active #app {
   overflow: hidden;
 }
 
-.game-solar-background .game-solar-stars {
+.game-solar-background .game-solar-stars,
+.space-static-svg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  opacity: var(--game-cosmic-opacity, 0.14);
 }
 
+/* Celestial space scene styles */
+.space-sun-cluster,
+.space-planet-cluster,
+.space-asteroid-track,
+.space-constellations,
+.space-stars,
+.space-nebulae,
+.space-eclipse-cluster,
+.space-comet-cluster,
+.space-galaxy-cluster,
+.space-chess-constellations {
+  pointer-events: none;
+}
+
+.space-sun-orbit {
+  fill: none;
+  stroke: var(--sun-orbit);
+  stroke-width: 1.2px;
+}
+
+.space-sun-disk {
+  stroke: var(--sun-edge);
+  stroke-width: 1.5px;
+}
+
+.space-planet-orbit {
+  fill: none;
+  stroke: var(--planet-orbit);
+  stroke-width: 1.2px;
+}
+
+.space-planet {
+  stroke: var(--planet-edge);
+  stroke-width: 1.5px;
+}
+
+.space-ring-front {
+  fill: none;
+  stroke: var(--planet-ring-front);
+  stroke-width: 3px;
+}
+
+.space-ring-back {
+  fill: none;
+  stroke: var(--planet-ring-back);
+  stroke-width: 3px;
+}
+
+.space-moon {
+  fill: var(--planet-moon);
+}
+
+.space-asteroid-line {
+  fill: none;
+  stroke: var(--asteroid-fill);
+  stroke-width: 1px;
+}
+
+.space-asteroid-dots {
+  fill: none;
+  stroke: var(--asteroid-fill);
+  stroke-linecap: round;
+}
+
+.space-constellation-lines {
+  fill: none;
+  stroke: var(--constellation-line);
+  stroke-width: 1px;
+}
+
+.space-constellation-nodes {
+  fill: none;
+  stroke: var(--constellation-node);
+  stroke-linecap: round;
+}
+
+.space-star-small,
+.space-star-medium,
+.space-star-large,
+.space-stars-twinkle {
+  fill: none;
+  stroke: var(--star-color);
+  stroke-linecap: round;
+}
+
+.space-eclipse-disk {
+  fill: var(--eclipse-disk);
+}
+
+.space-comet-nucleus {
+  fill: var(--comet-head);
+}
+
+.space-galaxy-cluster {
+  opacity: var(--galaxy-opacity);
+}
+
+/* Isolated Lightweight Animated Layers (Stage A2c-8, max 4 per scene, transform/opacity only) */
+.space-anim-layer {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+  contain: layout paint style;
+  overflow: hidden;
+}
+
+.space-layer-moon {
+  left: 0;
+  bottom: 0;
+  width: 32%;
+  height: 36%;
+}
+
+.space-layer-planets {
+  right: 0;
+  top: 0;
+  width: 26%;
+  height: 50%;
+}
+
+.space-layer-galaxy {
+  right: 0;
+  top: 0;
+  width: 25%;
+  height: 38%;
+}
+
+.space-layer-comet {
+  right: 0;
+  bottom: 0;
+  width: 25%;
+  height: 42%;
+}
+
+.space-layer-eclipse-corona {
+  left: 0;
+  top: 0;
+  width: 25%;
+  height: 38%;
+}
+
+.space-layer-sparkles,
+.space-layer-twinkle {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes spaceOrbitSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spaceOrbitCounterSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes spaceSparklePulse {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes spaceStarTwinkleA {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes spaceStarTwinkleB {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes spaceCometDrift {
+  0%, 100% {
+    opacity: 0.25;
+    transform: translate(-18px, -11px);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(18px, 11px);
+  }
+}
+
+@keyframes spaceCoronaPulse {
+  0%, 100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes spaceGalaxySpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spaceStarTwinkle {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes spaceGlowPulse {
+  0%, 100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.space-moon-orbit-spin {
+  will-change: transform;
+  animation: spaceOrbitSpin 45s linear infinite;
+}
+
+.space-moon-counter {
+  will-change: transform;
+  animation: spaceOrbitCounterSpin 45s linear infinite;
+}
+
+.space-sun-planet {
+  transform-origin: 1720px 60px;
+  will-change: transform;
+}
+
+.space-sun-planet-1 {
+  animation: spaceOrbitSpin 90s linear infinite;
+}
+
+.space-sun-planet-2 {
+  animation: spaceOrbitCounterSpin 135s linear infinite;
+}
+
+.space-sun-planet-3 {
+  animation: spaceOrbitSpin 180s linear infinite;
+}
+
+.space-sun-planet-4 {
+  animation: spaceOrbitCounterSpin 240s linear infinite;
+}
+
+.space-sparkle-use {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.space-sparkle-v1 {
+  animation: spaceSparklePulse 4.5s ease-in-out infinite -1.1s;
+}
+
+.space-sparkle-v2 {
+  animation: spaceSparklePulse 5.4s ease-in-out infinite -2.6s;
+}
+
+.space-sparkle-v3 {
+  animation: spaceSparklePulse 6.2s ease-in-out infinite -0.7s;
+}
+
+.space-sparkle-v4 {
+  animation: spaceSparklePulse 6.8s ease-in-out infinite -3.8s;
+}
+
+.space-stars-twinkle-a {
+  will-change: opacity;
+  animation: spaceStarTwinkle 6s ease-in-out infinite;
+}
+
+.space-stars-twinkle-b {
+  will-change: opacity;
+  animation: spaceStarTwinkleB 8s ease-in-out infinite -4s;
+}
+
+.space-galaxy-spin {
+  will-change: transform;
+  animation: spaceGalaxySpin 240s linear infinite;
+}
+
+.space-comet-drift {
+  will-change: transform, opacity;
+  animation: spaceCometDrift 40s ease-in-out infinite;
+}
+
+.space-eclipse-corona {
+  will-change: opacity;
+  animation: spaceGlowPulse 9s ease-in-out infinite;
+}
+
+.space-scene-paused,
+.space-scene-paused *,
+.space-scene-paused .space-anim-layer,
+.space-scene-paused .space-anim-layer *,
+.solar-anim-paused,
+.solar-anim-paused * {
+  animation-play-state: paused !important;
+}
+
+body.bg-anim-off .space-anim-layer,
+body.bg-anim-off .space-anim-layer *,
+body.bg-anim-off .solar-background,
+body.bg-anim-off .solar-background * {
+  animation: none !important;
+  animation-play-state: paused !important;
+}
+
+/* Fallback & legacy element compatibility */
 .game-solar-planet-cluster {
   pointer-events: none;
 }
@@ -2264,10 +2872,6 @@ body.review-active #app {
   opacity: var(--game-orbit-opacity, 0.12);
 }
 
-.game-solar-asteroid-belt {
-  pointer-events: none;
-}
-
 .game-solar-asteroid {
   fill: var(--asteroid-fill);
 }
@@ -2282,9 +2886,30 @@ body.review-active #app {
 }
 
 @media (max-width: 800px) {
+  :root {
+    --gap-lg: 18px;
+  }
+  .space-sun-cluster {
+    transform-origin: 1720px 60px;
+    transform: scale(0.65);
+  }
+  .space-planet-cluster,
   .game-solar-planet-cluster {
-    transform-origin: 120px 980px;
-    transform: scale(0.6);
+    transform-origin: 140px 960px;
+    transform: scale(0.65);
+  }
+  .space-eclipse-cluster {
+    transform-origin: 160px 120px;
+    transform: scale(0.65);
+  }
+  .space-asteroid-track {
+    display: none;
+  }
+  .space-constellation-secondary {
+    display: none;
+  }
+  .space-stars-desktop {
+    display: none;
   }
   .game-solar-asteroid-belt,
   .game-solar-asteroid {
@@ -2313,7 +2938,7 @@ body.review-active #app {
   font-size: 0.92rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   position: relative;
@@ -2686,7 +3311,7 @@ body.review-active #app {
   box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
 }
 
-/* Temporary Fullscreen Review Overlay (Stage A2b / A2c-6) */
+/* Fullscreen Review Overlay (Stage A2b / A2c-6 / A2c-7 / A2c-8) */
 .review-overlay {
   position: fixed;
   inset: 0;
@@ -2698,11 +3323,31 @@ body.review-active #app {
     var(--solar-bg-base);
   display: flex;
   flex-direction: column;
-  padding: 16px 24px;
+  padding: 16px;
   overflow-y: auto;
 }
 
+.review-solar-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.review-solar-scene .review-solar-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 .review-overlay-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2718,19 +3363,24 @@ body.review-active #app {
   margin: 0;
 }
 
-.review-overlay-close {
+.review-overlay-close,
+.btn-close-review-overlay {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: var(--z-modal);
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--bg-tertiary);
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   font-size: 1.1rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .review-overlay-close:hover {
@@ -2738,26 +3388,74 @@ body.review-active #app {
   border-color: var(--accent);
 }
 
+.review-overlay-close:focus-visible,
+.theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--solar-accent);
+  outline-offset: 2px;
+}
+
 .review-overlay-body {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: minmax(320px, 560px) minmax(320px, 480px);
+  grid-template-columns: auto minmax(340px, 480px);
   gap: 24px;
   align-items: start;
   justify-content: center;
   width: 100%;
-  max-width: 1120px;
+  max-width: 1240px;
   margin: 0 auto;
 }
 
 .review-overlay-board-col {
-  width: 100%;
+  width: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 10px;
+}
+
+.review-overlay .game-board-mount {
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+  min-height: 0;
+  padding: 10px;
+  border-radius: calc(var(--border-radius) + 10px);
+  background: var(--bg-secondary);
+  border: 1px solid var(--orbit-stroke);
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.45), 0 0 16px var(--solar-halo);
+  overflow: hidden;
+}
+
+.review-overlay .board-area {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: auto;
+}
+
+.review-overlay .board-container {
+  width: clamp(280px, min(calc(100vh - 140px), calc(100vw - 560px)), 740px);
+  aspect-ratio: 1 / 1;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.review-overlay .player-bar {
+  display: none !important;
 }
 
 .review-overlay-side-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--gap-lg);
   width: 100%;
+}
+
+.review-actions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 /* Mobile Responsive Layout for Game Screen (<= 800px) */
@@ -2830,6 +3528,10 @@ body.review-active #app {
   .review-overlay-body {
     grid-template-columns: 1fr;
   }
+
+  .review-overlay .board-container {
+    width: calc(100vw - 88px);
+  }
 }
 
 /* Fixed Theme Toggle Button in top-right corner */
@@ -2850,7 +3552,13 @@ body.review-active #app {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease, right 0.15s ease;
+}
+
+/* In Review Overlay, shift theme toggle 12px left of the 40px close button (16px + 40px + 12px = 68px) */
+body.review-active .theme-toggle-btn {
+  top: 16px;
+  right: 68px;
 }
 
 .theme-toggle-btn:hover {
@@ -3357,6 +4065,8 @@ body.review-active #app {
   .solar-orbit,
   .solar-piece-counter,
   .solar-star,
+  .space-anim-layer,
+  .space-anim-layer *,
   .home-title-wrapper,
   .btn-menu,
   .home-toast,
@@ -3366,7 +4076,8 @@ body.review-active #app {
   .ring-progress,
   .solar-btn,
   .solar-btn-ghost,
-  .key-moment-item {
+  .key-moment-item,
+  .board-move-badge {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;

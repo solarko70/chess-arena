@@ -66,7 +66,7 @@ describe('Stage A2c-5: Fullscreen Solar Background and Review Panel Styling', ()
     // Open review overlay
     const reviewBtn = document.getElementById('btn-modal-review');
     reviewBtn?.click();
-    expect(gameSolarBg?.style.display).toBe('block');
+    expect(gameSolarBg?.style.display).toBe('none');
     expect(document.body.classList.contains('review-active')).toBe(true);
 
     // Close review overlay
