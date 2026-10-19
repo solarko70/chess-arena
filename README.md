@@ -4,11 +4,11 @@ A browser-based almost fully vibecoded chess game with classic rules, variants, 
 
 ## Features
 
-### Classic Rules
+### Classic Rules 
 - Standard chess with all FIDE rules
-- Chess 960 (Fisher random chess)
+- Chess 960 (Fisher random chess) WIP
 
-### Variants
+### Variants WIP
 - King of the Hill
 - Three-check
 - Atomic
@@ -22,12 +22,12 @@ A browser-based almost fully vibecoded chess game with classic rules, variants, 
 - Big Board 12×12
 - Custom position editor
 
-### Chess with Abilities
+### Chess with Abilities WIP
 - Energy system
 - 12+ abilities with cooldowns
 - Draft or fixed ability sets
 
-### Game Modes
+### Game Modes WIP
 - Play against AI with different skill levels
 - Local two-player mode
 - Online multiplayer (optional)
@@ -37,9 +37,9 @@ A browser-based almost fully vibecoded chess game with classic rules, variants, 
 - Drag & drop or click-to-move
 - Move history and navigation
 - Timers (bullet, blitz, rapid, etc.)
-- Hints and position evaluation
-- Themes and customization
-- Accessibility features
+- Hints and position evaluation WIP
+- Themes and customization WIP
+- Accessibility features WIP
 
 ## Getting Started
 
