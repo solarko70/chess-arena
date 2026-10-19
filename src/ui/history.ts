@@ -138,10 +138,10 @@ export class HistoryUI {
       if (whiteReview) {
         const meta = getMoveClassMeta(whiteReview.class);
         const badge = document.createElement('span');
-        badge.className = `move-class-badge badge-${whiteReview.class}`;
+        badge.className = `move-class-badge review-move-badge badge-${whiteReview.class}`;
         badge.dataset.class = whiteReview.class;
         badge.title = meta.nameRu;
-        badge.textContent = meta.symbol;
+        badge.innerHTML = meta.svg;
         whiteSpan.appendChild(badge);
       }
 
@@ -163,10 +163,10 @@ export class HistoryUI {
         if (blackReview) {
           const meta = getMoveClassMeta(blackReview.class);
           const badge = document.createElement('span');
-          badge.className = `move-class-badge badge-${blackReview.class}`;
+          badge.className = `move-class-badge review-move-badge badge-${blackReview.class}`;
           badge.dataset.class = blackReview.class;
           badge.title = meta.nameRu;
-          badge.textContent = meta.symbol;
+          badge.innerHTML = meta.svg;
           blackSpan.appendChild(badge);
         }
 
