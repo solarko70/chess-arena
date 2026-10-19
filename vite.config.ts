@@ -16,6 +16,10 @@ export default defineConfig({
     environment: 'jsdom',
     passWithNoTests: true,
     setupFiles: ['src/tests/setup.ts'],
-    include: ['src/tests/**/*.test.ts']
+    include: ['src/tests/**/*.test.ts'],
+    maxWorkers: 2,
+    minWorkers: 1,
+    testTimeout: 20000,
+    teardownTimeout: 10000,
   }
 })
