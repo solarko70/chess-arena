@@ -16,6 +16,13 @@ export class ChessBoardUI {
   private badgeLayerEl: HTMLElement
   private lastHistoryLength = 0
 
+  // Review move sliding and wings
+  private lastAnimatedViewIndex: number | null = null
+  private lastSlideTime = 0
+  private isReviewModeWasActive = false
+  private currentWingsMountEl: HTMLElement | null = null
+  private wingsTimer: ReturnType<typeof setTimeout> | null = null
+
   // Drag state
   private isDragging = false
   private dragFromSquare: Square | null = null
@@ -96,6 +103,16 @@ export class ChessBoardUI {
       }
     }
     this.lastHistoryLength = historyLen
+
+    // Clean up any active solar wings before re-rendering
+    if (this.currentWingsMountEl) {
+      this.currentWingsMountEl.remove()
+      this.currentWingsMountEl = null
+    }
+    if (this.wingsTimer) {
+      clearTimeout(this.wingsTimer)
+      this.wingsTimer = null
+    }
 
     const state = this.store.getState()
     const { width, height, pieces } = state.board
@@ -183,6 +200,197 @@ export class ChessBoardUI {
     this.renderEvalBar(flipped)
     this.renderBestMoveArrow(flipped)
     this.renderMoveBadge(flipped)
+    this.handleReviewMoveKinematics(flipped, width, height)
+    this.renderSolarWings()
+  }
+
+  private handleReviewMoveKinematics(flipped: boolean, width: number, height: number): void {
+    const isReview = this.store.isReviewMode()
+    const viewIndex = this.store.getViewIndex()
+    const review = this.store.getReviewResult()
+
+    if (!isReview || !review || !review.moves || review.moves.length === 0) {
+      this.lastAnimatedViewIndex = null
+      this.isReviewModeWasActive = false
+      return
+    }
+
+    // When review mode is first entered, memorize position without sliding
+    if (!this.isReviewModeWasActive) {
+      this.isReviewModeWasActive = true
+      this.lastAnimatedViewIndex = viewIndex
+      return
+    }
+
+    const prevIndex = this.lastAnimatedViewIndex
+    this.lastAnimatedViewIndex = viewIndex
+
+    // If viewIndex hasn't changed, no animation
+    if (prevIndex === viewIndex) {
+      return
+    }
+
+    // Spam / rapid click protection (< 150ms): snap immediately without animation
+    const now = Date.now()
+    if (this.lastSlideTime > 0 && now - this.lastSlideTime < 150 && now >= this.lastSlideTime) {
+      this.lastSlideTime = now
+      return
+    }
+    this.lastSlideTime = now
+
+    const effectiveCurrent = viewIndex === null ? review.moves.length - 1 : viewIndex
+    const effectivePrev = prevIndex === null ? review.moves.length - 1 : prevIndex
+
+    if (effectiveCurrent === effectivePrev) {
+      return
+    }
+
+    if (effectiveCurrent > effectivePrev) {
+      // Step forward: the move at effectiveCurrent was made
+      const revMove = review.moves[effectiveCurrent]
+      if (revMove && revMove.move) {
+        this.animatePieceSlide(revMove.move.from, revMove.move.to, flipped, width, height)
+      }
+    } else if (effectiveCurrent === effectivePrev - 1) {
+      // Step backward 1 move: the move at effectivePrev was undone
+      const revMove = review.moves[effectivePrev]
+      if (revMove && revMove.move) {
+        this.animatePieceSlide(revMove.move.to, revMove.move.from, flipped, width, height)
+      }
+    } else if (effectiveCurrent >= 0) {
+      // Jumped to a move: animate the move landing
+      const revMove = review.moves[effectiveCurrent]
+      if (revMove && revMove.move) {
+        this.animatePieceSlide(revMove.move.from, revMove.move.to, flipped, width, height)
+      }
+    }
+  }
+
+  private animatePieceSlide(
+    fromSq: Square,
+    toSq: Square,
+    flipped: boolean,
+    width: number,
+    height: number
+  ): void {
+    const targetSqEl = this.boardEl.querySelector(`[data-square="${toSq}"]`) as HTMLElement | null
+    if (!targetSqEl) return
+
+    const pieceEl = targetSqEl.querySelector('.piece-wrapper') as HTMLElement | null
+    if (!pieceEl) return
+
+    const fromX = fromSq % width
+    const fromY = Math.floor(fromSq / width)
+    const toX = toSq % width
+    const toY = Math.floor(toSq / width)
+
+    const fromCol = flipped ? width - 1 - fromX : fromX
+    const fromRow = flipped ? height - 1 - fromY : fromY
+    const toCol = flipped ? width - 1 - toX : toX
+    const toRow = flipped ? height - 1 - toY : toY
+
+    const deltaCol = fromCol - toCol
+    const deltaRow = fromRow - toRow
+
+    if (deltaCol === 0 && deltaRow === 0) return
+
+    const sqRect = targetSqEl.getBoundingClientRect()
+    const usePx = sqRect && sqRect.width > 0
+    const dx = usePx ? `${deltaCol * sqRect.width}px` : `calc(${deltaCol} * 100% / 0.9)`
+    const dy = usePx ? `${deltaRow * sqRect.height}px` : `calc(${deltaRow} * 100% / 0.9)`
+
+    // Invert phase (FLIP)
+    pieceEl.style.transition = 'none'
+    pieceEl.style.transform = `translate(${dx}, ${dy})`
+
+    // Force reflow
+    void pieceEl.offsetHeight
+
+    // Play phase (FLIP)
+    pieceEl.classList.add('piece-sliding')
+    pieceEl.style.transition = ''
+    pieceEl.style.transform = 'translate(0px, 0px)'
+
+    const cleanup = () => {
+      pieceEl.classList.remove('piece-sliding')
+      pieceEl.style.transform = ''
+      pieceEl.removeEventListener('transitionend', cleanup)
+    }
+    pieceEl.addEventListener('transitionend', cleanup)
+  }
+
+  private renderSolarWings(): void {
+    const isReview = this.store.isReviewMode()
+    const review = this.store.getReviewResult()
+    if (!isReview || !review || !review.moves || review.moves.length === 0) {
+      return
+    }
+
+    const viewIndex = this.store.getViewIndex()
+    if (viewIndex === -1) {
+      return
+    }
+
+    const currentMoveIndex = viewIndex === null ? review.moves.length - 1 : viewIndex
+    if (currentMoveIndex < 0 || currentMoveIndex >= review.moves.length) {
+      return
+    }
+
+    const reviewedMove = review.moves[currentMoveIndex]
+    if (!reviewedMove || reviewedMove.class !== 'stellar' || !reviewedMove.move) {
+      return
+    }
+
+    const toSquare = reviewedMove.move.to
+    this.mountSolarWings(toSquare)
+  }
+
+  private mountSolarWings(toSquare: Square): void {
+    const targetSqEl = this.boardEl.querySelector(`[data-square="${toSquare}"]`) as HTMLElement | null
+    if (!targetSqEl) return
+
+    const wingsMount = document.createElement('div')
+    wingsMount.className = 'stellar-wings-mount'
+    wingsMount.setAttribute('aria-hidden', 'true')
+    wingsMount.innerHTML = `
+      <svg class="stellar-wings-svg stellar-wings-flutter" viewBox="0 0 140 80" width="140" height="80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="solar-wings-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fde68a" />
+            <stop offset="100%" stop-color="#ec4899" />
+          </linearGradient>
+        </defs>
+        <g class="stellar-wings-group" fill="url(#solar-wings-grad)">
+          <path class="stellar-wing-left" d="M 62 48 C 55 45 44 38 34 28 C 24 18 16 12 6 12 C 9 17 14 22 20 26 C 12 25 7 27 2 31 C 8 35 15 39 24 41 C 17 42 12 45 8 50 C 16 53 26 54 36 51 C 46 49 55 48 62 48 Z" />
+          <path class="stellar-wing-right" d="M 78 48 C 85 45 96 38 106 28 C 116 18 124 12 134 12 C 131 17 126 22 120 26 C 128 25 133 27 138 31 C 132 35 125 39 116 41 C 123 42 128 45 132 50 C 124 53 114 54 104 51 C 94 49 85 48 78 48 Z" />
+        </g>
+      </svg>
+    `.trim()
+
+    const pieceWrapper = targetSqEl.querySelector('.piece-wrapper')
+    if (pieceWrapper) {
+      targetSqEl.insertBefore(wingsMount, pieceWrapper)
+    } else {
+      targetSqEl.appendChild(wingsMount)
+    }
+
+    this.currentWingsMountEl = wingsMount
+
+    const cleanup = () => {
+      if (wingsMount.parentElement) {
+        wingsMount.remove()
+      }
+      if (this.currentWingsMountEl === wingsMount) {
+        this.currentWingsMountEl = null
+      }
+      if (this.wingsTimer) {
+        clearTimeout(this.wingsTimer)
+        this.wingsTimer = null
+      }
+    }
+
+    wingsMount.addEventListener('animationend', cleanup, { once: true })
+    this.wingsTimer = setTimeout(cleanup, 2500)
   }
 
   private renderMoveBadge(flipped: boolean): void {

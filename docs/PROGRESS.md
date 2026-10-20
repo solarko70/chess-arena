@@ -294,3 +294,25 @@
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (built bundle in 626ms with exit code 0).
   - Verified `npm test` (33 test files passed, 337 tests passed, watchdog clean).
+
+## Stage 5a-2: Smooth Piece Kinematics in Review & Solar Wings for Stellar Moves (Completed)
+- [x] Smooth Piece Sliding Kinematics (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Implemented FLIP kinematics for move navigation in review mode (`this.store.isReviewMode()`).
+  - Animated moving piece from `from` to `to` over 170ms using `transition: transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1) !important; will-change: transform;`.
+  - Inverted offset `translate(dx, dy) -> translate(0, 0)` applied via FLIP technique without modifying top/left coordinates.
+  - Handled forward steps, backward single undo steps, and jump steps cleanly.
+  - Spam and rapid click protection: if navigation step occurs < 150ms after previous, animation cancels immediately and snaps directly to position without lag.
+  - Strict isolation: live gameplay and drag-and-drop are unaffected (`.piece-sliding` only triggers when review mode is active).
+- [x] Angelic Solar Wings for Stellar Moves (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Mounted container `.stellar-wings-mount` on target square (`to`) behind the piece (`z-index: 2`, `pointer-events: none`).
+  - Pure vector SVG wings with symmetrical left and right wings featuring distinct feathers (`fill="url(#solar-wings-grad)"`).
+  - Feather gradient from golden `#fde68a` to cosmic magenta `#ec4899`, with cosmic glow `filter: drop-shadow(0 0 6px rgba(236, 72, 153, 0.75))`.
+  - 6-keyframe flutter animation `.stellar-wings-flutter` (~2.3s duration) with scale and rotation dynamics:
+    `0% { scale(0.2) rot 0deg, op 0 }`, `12% { scale(1.08) rot -6deg, op 1 }`, `32% { scale(0.96) rot 5deg }`, `55% { scale(1.03) rot -4deg, op 0.95 }`, `78% { scale(1.0) rot 0deg, op 0.8 }`, `100% { scale(1.15) translateY(-10px), op 0 }`.
+  - Automatic cleanup on `animationend` or 2500ms timeout; immediately dismantled if move changes before timeout.
+- [x] Test Suite & Verification (`src/tests/stellar-wings-anim.test.ts`):
+  - Added 7 unit and integration tests verifying `.stellar-wings-mount` presence on target square, SVG validity, emoji-free geometry, cleanup on move change, 2500ms timeout cleanup, `.piece-sliding` CSS application, and spam protection.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 344 tests passed, watchdog clean).
