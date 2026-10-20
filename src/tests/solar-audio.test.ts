@@ -760,5 +760,103 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
 
     getRouter()?.destroy();
   });
+
+  it('startMenuAmbient sets isAmbientRequested without creating nodes if context suspended', () => {
+    const mockCtx = {
+      currentTime: 10,
+      state: 'suspended',
+      createOscillator: vi.fn(),
+      createGain: vi.fn(),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    solarAudio.startMenuAmbient();
+
+    expect(solarAudio.getIsAmbientRequested()).toBe(true);
+    expect(solarAudio.isAmbientPlaying()).toBe(false);
+    expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    expect(mockCtx.createGain).not.toHaveBeenCalled();
+  });
+
+  it('repeated calls to startMenuAmbient and stopMenuAmbient before unlock are safe', () => {
+    solarAudio.setContextForTesting(null);
+    expect(() => {
+      solarAudio.startMenuAmbient();
+      solarAudio.startMenuAmbient();
+      solarAudio.stopMenuAmbient();
+      solarAudio.stopMenuAmbient();
+      solarAudio.startMenuAmbient();
+    }).not.toThrow();
+
+    expect(solarAudio.getIsAmbientRequested()).toBe(true);
+    solarAudio.stopMenuAmbient();
+    expect(solarAudio.getIsAmbientRequested()).toBe(false);
+  });
+
+  it('user gesture resumes suspended context and launches requested menu drone', async () => {
+    const mockCtx = {
+      currentTime: 10,
+      sampleRate: 44100,
+      state: 'suspended',
+      resume: vi.fn().mockImplementation(() => {
+        mockCtx.state = 'running';
+        return Promise.resolve();
+      }),
+      createOscillator: vi.fn().mockImplementation(() => ({
+        type: 'sine',
+        frequency: { setValueAtTime: vi.fn() },
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+      createGain: vi.fn().mockImplementation(() => ({
+        gain: {
+          setValueAtTime: vi.fn(),
+          linearRampToValueAtTime: vi.fn(),
+          cancelScheduledValues: vi.fn(),
+          value: 0.05,
+        },
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+      createBiquadFilter: vi.fn().mockImplementation(() => ({
+        type: 'bandpass',
+        frequency: { setValueAtTime: vi.fn() },
+        Q: { setValueAtTime: vi.fn() },
+        connect: vi.fn(),
+      })),
+      createBuffer: vi.fn().mockImplementation(() => ({
+        getChannelData: vi.fn().mockReturnValue(new Float32Array(100)),
+      })),
+      createBufferSource: vi.fn().mockImplementation(() => ({
+        buffer: null,
+        loop: false,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    solarAudio.resetUnlockForTesting();
+    solarAudio.startMenuAmbient();
+
+    expect(solarAudio.getIsAmbientRequested()).toBe(true);
+    expect(solarAudio.isAmbientPlaying()).toBe(false);
+
+    window.dispatchEvent(new Event('pointerdown'));
+    expect(mockCtx.resume).toHaveBeenCalled();
+
+    await Promise.resolve();
+
+    expect(solarAudio.isAmbientPlaying()).toBe(true);
+    expect(mockCtx.createGain).toHaveBeenCalled();
+
+    solarAudio.stopMenuAmbient(0);
+  });
 });
 

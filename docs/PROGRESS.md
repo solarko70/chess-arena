@@ -416,3 +416,21 @@
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 355 tests passed, watchdog clean).
+
+## Stage 5b-1: Autoplay Policy Resolution & Deferred Ambient Start (Completed)
+- [x] Autoplay Policy Compliance (`src/audio/solar-audio.ts`):
+  - Replaced eager startup with deferred intention flag: `isAmbientRequested: boolean`.
+  - Calling `startMenuAmbient()` before first user gesture marks `isAmbientRequested = true` without creating an `AudioContext` or calling `resume()`, eliminating browser console warnings.
+  - If `this.ctx` is already created and in `'running'` state, starts ambient immediately.
+  - Attached global gesture unlock listeners on `pointerdown`, `touchstart`, and `keydown`.
+  - Upon first user gesture, calls `ensureContext()` and `ctx.resume()`. Once resolved, launches ambient drone if `isAmbientRequested === true` and `!isMuted()`.
+  - Disconnects all gesture event listeners immediately after initial unlock.
+  - Calling `stopMenuAmbient()` sets `isAmbientRequested = false` and smoothly fades out active ambient nodes.
+- [x] Unit Tests & Verification (`src/tests/solar-audio.test.ts`):
+  - Added tests verifying `startMenuAmbient()` records request without creating nodes when context is suspended or null.
+  - Added tests verifying repeated calls to `startMenuAmbient()` and `stopMenuAmbient()` before unlock are safe.
+  - Added test verifying window gesture event (`pointerdown`) resumes suspended context and launches requested drone.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 358 tests passed, watchdog clean).

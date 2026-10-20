@@ -13,7 +13,7 @@ export class SolarAudio {
   private ctx: AudioContext | null = null;
   private isMutedState = false;
   private unlockListenersAttached = false;
-  private shouldPlayAmbient = false;
+  private isAmbientRequested = false;
   private ambientNodes: {
     masterGain: GainNode;
     sources: (OscillatorNode | AudioBufferSourceNode)[];
@@ -30,32 +30,44 @@ export class SolarAudio {
     this.initUnlockListeners();
   }
 
-  private initUnlockListeners(): void {
+  public initUnlockListeners(): void {
     if (typeof window === 'undefined' || this.unlockListenersAttached) return;
     this.unlockListenersAttached = true;
 
+    const unlockEvents = ['pointerdown', 'touchstart', 'keydown'];
+
     const unlock = () => {
-      this.ensureContext();
-      if (this.ctx && this.ctx.state === 'suspended') {
-        void this.ctx.resume();
+      const ctx = this.ensureContext();
+      if (ctx) {
+        if (ctx.state === 'suspended') {
+          void ctx.resume().then(() => {
+            if (this.isAmbientRequested && !this.isMutedState && !this.ambientNodes) {
+              this.launchAmbientDrone();
+            }
+          }).catch(() => {
+            // Autoplay rejection safety
+          });
+        } else if (ctx.state === 'running') {
+          if (this.isAmbientRequested && !this.isMutedState && !this.ambientNodes) {
+            this.launchAmbientDrone();
+          }
+        }
       }
-      if (this.shouldPlayAmbient && !this.ambientNodes && !this.isMutedState) {
-        this.startMenuAmbient();
+      for (const evt of unlockEvents) {
+        window.removeEventListener(evt, unlock, true);
       }
-      window.removeEventListener('click', unlock, true);
-      window.removeEventListener('touchstart', unlock, true);
-      window.removeEventListener('keydown', unlock, true);
+      this.unlockListenersAttached = false;
     };
 
-    window.addEventListener('click', unlock, true);
-    window.addEventListener('touchstart', unlock, true);
-    window.addEventListener('keydown', unlock, true);
+    for (const evt of unlockEvents) {
+      window.addEventListener(evt, unlock, true);
+    }
   }
 
   public ensureContext(): AudioContext | null {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') {
-        void this.ctx.resume();
+        void this.ctx.resume().catch(() => {});
       }
       return this.ctx;
     }
@@ -64,7 +76,7 @@ export class SolarAudio {
     try {
       this.ctx = new AudioCtx();
       if (this.ctx.state === 'suspended') {
-        void this.ctx.resume();
+        void this.ctx.resume().catch(() => {});
       }
       return this.ctx;
     } catch {
@@ -74,6 +86,21 @@ export class SolarAudio {
 
   public setContextForTesting(ctx: AudioContext | null): void {
     this.ctx = ctx;
+    this.ambientNodes = null;
+    this.isAmbientRequested = false;
+  }
+
+  public resetUnlockForTesting(): void {
+    this.unlockListenersAttached = false;
+    this.initUnlockListeners();
+  }
+
+  public getIsAmbientRequested(): boolean {
+    return this.isAmbientRequested;
+  }
+
+  public isAmbientPlaying(): boolean {
+    return this.ambientNodes !== null;
   }
 
   public setMuted(muted: boolean): void {
@@ -86,6 +113,7 @@ export class SolarAudio {
       // Storage unavailable
     }
     if (muted) {
+      this.isAmbientRequested = false;
       this.stopMenuAmbient(100);
     }
   }
@@ -138,18 +166,32 @@ export class SolarAudio {
 
   /**
    * Procedural cosmic black hole background ambient (Cosmic Drone):
+   * Sets isAmbientRequested = true. If AudioContext is already running, launches drone immediately.
+   * If AudioContext is not created or suspended, drone will be started upon first user unlock gesture.
+   */
+  public startMenuAmbient(): void {
+    if (this.isMutedState) return;
+    this.isAmbientRequested = true;
+    if (this.ambientNodes) return;
+
+    if (!this.ctx || this.ctx.state !== 'running') {
+      return;
+    }
+
+    this.launchAmbientDrone();
+  }
+
+  /**
+   * Synthesis graph for cosmic black hole background drone:
    * 1. Sub-bass oscillators: 48Hz sine + 51.5Hz triangle (~3.5Hz beat interference).
    * 2. Cosmic relic radiation noise: looped noise buffer passed through 160Hz bandpass filter (Q: 3.0),
    *    modulated by slow 0.08Hz LFO.
    * 3. Ambient master gain: delicate volume ~0.05 with smooth 2.5s fade-in.
    */
-  public startMenuAmbient(): void {
-    if (this.isMutedState) return;
-    this.shouldPlayAmbient = true;
-    if (this.ambientNodes) return;
-
+  private launchAmbientDrone(): void {
+    if (this.ambientNodes || this.isMutedState) return;
     const ctx = this.ensureContext();
-    if (!ctx) return;
+    if (!ctx || ctx.state !== 'running') return;
 
     try {
       const now = ctx.currentTime;
@@ -235,7 +277,7 @@ export class SolarAudio {
    * Smooth fade-out of menu ambient drone over fadeMs (default 1000ms).
    */
   public stopMenuAmbient(fadeMs = 1000): void {
-    this.shouldPlayAmbient = false;
+    this.isAmbientRequested = false;
     if (!this.ambientNodes) return;
 
     const nodes = this.ambientNodes;
