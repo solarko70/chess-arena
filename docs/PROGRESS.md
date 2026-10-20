@@ -482,3 +482,24 @@
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 361 tests passed, watchdog clean).
 
+## Stage 5b-4: Monolithic Solar Chord & Black Hole Gravitational Pulse (Completed)
+- [x] Return to Monolithic Solar Chord Tuning (`src/audio/solar-audio.ts`):
+  - Completely removed recurring interval timers (`progressionTimer`) and chord-switching pitch glissandos.
+  - Locked monolithic harmonic triad for deep, stable, meditative cosmic ambient:
+    * Fundamental tone: 110.0 Hz ($A_2$, warm triangle wave).
+    * Cosmic fifth: 164.8 Hz ($E_3$, pure sine wave for infinite space sensation).
+    * Event horizon sub-bass: 55.0 Hz ($A_1$, dense solid sine wave).
+- [x] Gravitational Pulse of the Event Horizon (LFO Modulation) (`src/audio/solar-audio.ts`):
+  - Added low-frequency LFO oscillator: sine wave at 0.20 Hz (~5.0s breathing cycle).
+  - Ambient density & volume modulation: LFO routed through `lfoVolumeGain` (amplitude 0.04) directly to `ambientMasterGain.gain` (base 0.12), smoothly swaying gain between 0.08 and 0.16 (hypnotic ebb and flow of the accretion disk).
+  - Synchronized cosmic wind bandpass filter cutoff modulation: LFO routed through `lfoFilterGain` (amplitude 100 Hz) to `noiseFilter.frequency` (base 380 Hz), smoothly breathing between 280 Hz and 480 Hz in unison with volume pulse.
+  - Safe fade-out: `stopMenuAmbient(fadeMs)` ramps master gain and LFO volume modulation down to 0.0001, and cleanly disconnects and stops all oscillators, noise sources, LFO, and gain nodes with zero leaks.
+- [x] Unit Tests & Verification (`src/tests/solar-audio.test.ts`):
+  - Updated audio synthesis test verifying monolithic chord frequencies, 0.20 Hz LFO, 0.08..0.16 volume modulation depth, and 280..480 Hz filter modulation depth.
+  - Updated timer leak test confirming zero `setInterval` calls, locked pitches over time without ramps, and safe resource release upon stop.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 361 tests passed, watchdog clean).
+
+

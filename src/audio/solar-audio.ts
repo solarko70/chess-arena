@@ -7,13 +7,18 @@ export interface AmbientChord {
   filterFreq: number;
 }
 
+export const MONOLITHIC_SOLAR_CHORD = {
+  osc1: 110.0, // A2 (triangle, warm fundamental)
+  osc2: 164.8, // E3 (sine, cosmic fifth)
+  osc3: 55.0,  // A1 (sine, event horizon sub-bass)
+  filterFreq: 380, // bandpass center
+  filterQ: 2.5,
+  lfoFreq: 0.20, // Gravitational pulse LFO (~5.0s pulse cycle, 0.20-0.22Hz)
+};
+
 export const AMBIENT_CHORDS: AmbientChord[] = [
-  // Chord 1 (Base Solar, A-space): 110.0 Hz (A2), 164.8 Hz (E3), 55.0 Hz (A1), filter 380 Hz
+  // Monolithic Solar chord: 110.0 Hz (A2), 164.8 Hz (E3), 55.0 Hz (A1), filter 380 Hz
   { osc1: 110.0, osc2: 164.8, osc3: 55.0, filterFreq: 380 },
-  // Chord 2 (Deep lower nebula, F-space): 87.3 Hz (F2), 130.8 Hz (C3), 43.65 Hz (F1), filter 310 Hz
-  { osc1: 87.3, osc2: 130.8, osc3: 43.65, filterFreq: 310 },
-  // Chord 3 (Elevated stellar, C-space): 130.8 Hz (C3), 196.0 Hz (G3), 65.4 Hz (C2), filter 440 Hz
-  { osc1: 130.8, osc2: 196.0, osc3: 65.4, filterFreq: 440 },
 ];
 
 function getAudioContextClass(): typeof AudioContext | null {
@@ -30,15 +35,11 @@ export class SolarAudio {
   private isMutedState = false;
   private unlockListenersAttached = false;
   private isAmbientRequested = false;
-  private progressionTimer: ReturnType<typeof setInterval> | null = null;
-  private currentChordIndex = 0;
   private ambientNodes: {
     masterGain: GainNode;
     sources: (OscillatorNode | AudioBufferSourceNode)[];
-    osc1?: OscillatorNode;
-    osc2?: OscillatorNode;
-    osc3?: OscillatorNode;
-    noiseFilter?: BiquadFilterNode;
+    gains?: GainNode[];
+    lfoVolumeGain?: GainNode;
   } | null = null;
 
   constructor() {
@@ -115,11 +116,6 @@ export class SolarAudio {
   }
 
   public setContextForTesting(ctx: AudioContext | null): void {
-    if (this.progressionTimer !== null) {
-      clearInterval(this.progressionTimer);
-      this.progressionTimer = null;
-    }
-    this.currentChordIndex = 0;
     this.ctx = ctx;
     this.ambientNodes = null;
     this.isAmbientRequested = false;
@@ -139,7 +135,7 @@ export class SolarAudio {
   }
 
   public getCurrentChordIndex(): number {
-    return this.currentChordIndex;
+    return 0;
   }
 
   public setMuted(muted: boolean): void {
@@ -221,15 +217,18 @@ export class SolarAudio {
   }
 
   /**
-   * Synthesis graph for cosmic black hole background drone:
-   * 1. Audible harmonic chord layer (audible on laptop/phone speakers + sub for headphones):
-   *    - Osc 1: 110Hz (A2, triangle wave) - warm lower-mid tone
-   *    - Osc 2: 164.8Hz (E3, sine wave) - deep cosmic fifth
-   *    - Osc 3: 55Hz (A1, sine wave) - rich sub-octave for bass headphones/monitors
+   * Synthesis graph for monolithic cosmic black hole background drone:
+   * 1. Monolithic harmonic chord layer:
+   *    - Osc 1: 110.0Hz (A2, triangle wave) - warm fundamental lower-mid tone
+   *    - Osc 2: 164.8Hz (E3, sine wave) - deep cosmic fifth for infinite space
+   *    - Osc 3: 55.0Hz (A1, sine wave) - event horizon sub-bass
    * 2. Cosmic wind / relic radiation noise layer:
-   *    - Looped noise buffer passed through 380Hz bandpass filter (Q: 2.5)
-   *    - Modulated by slow 0.06Hz LFO (~16.6s breathing cycle, 230Hz <-> 530Hz)
-   * 3. Master ambient gain: audible volume 0.16 with smooth 2.0s fade-in.
+   *    - Looped noise buffer filtered through 380Hz bandpass filter (Q: 2.5)
+   * 3. Gravitational Pulse LFO (0.20-0.22Hz, ~5.0s breathing cycle):
+   *    - Sine oscillator at 0.20Hz
+   *    - Volume modulation via lfoVolumeGain (0.04): master gain oscillates between 0.08 and 0.16 (base 0.12)
+   *    - Filter modulation via lfoFilterGain (100Hz): bandpass frequency breathes between 280Hz and 480Hz (center 380Hz)
+   * 4. Master ambient gain: ramps from 0.0001 to 0.12 over 2.0s.
    */
   private launchAmbientDrone(): void {
     if (this.ambientNodes || this.isMutedState) return;
@@ -241,19 +240,21 @@ export class SolarAudio {
 
       const ambientMasterGain = ctx.createGain();
       ambientMasterGain.gain.setValueAtTime(0.0001, now);
-      ambientMasterGain.gain.linearRampToValueAtTime(0.16, now + 2.0);
+      ambientMasterGain.gain.linearRampToValueAtTime(0.12, now + 2.0);
       ambientMasterGain.connect(ctx.destination);
 
       const sources: (OscillatorNode | AudioBufferSourceNode)[] = [];
+      const gains: GainNode[] = [ambientMasterGain];
 
       // Harmonic drone chord: 110Hz (A2) + 164.8Hz (E3) + 55Hz (A1)
       const chordGain = ctx.createGain();
       chordGain.gain.setValueAtTime(0.08, now);
       chordGain.connect(ambientMasterGain);
+      gains.push(chordGain);
 
       const osc1 = ctx.createOscillator();
       osc1.type = 'triangle';
-      osc1.frequency.setValueAtTime(110, now);
+      osc1.frequency.setValueAtTime(110.0, now);
       osc1.connect(chordGain);
       osc1.start(now);
       sources.push(osc1);
@@ -267,13 +268,13 @@ export class SolarAudio {
 
       const osc3 = ctx.createOscillator();
       osc3.type = 'sine';
-      osc3.frequency.setValueAtTime(55, now);
+      osc3.frequency.setValueAtTime(55.0, now);
       osc3.connect(chordGain);
       osc3.start(now);
       sources.push(osc3);
 
       let noiseFilter: BiquadFilterNode | undefined;
-      // Relic radiation noise layer with 380Hz bandpass filter (Q: 2.5) and slow 0.06Hz LFO
+      // Relic radiation noise layer with 380Hz bandpass filter (Q: 2.5)
       if (typeof ctx.createBuffer === 'function' && typeof ctx.createBufferSource === 'function') {
         const sampleRate = ctx.sampleRate || 44100;
         const bufferLength = Math.floor(sampleRate * 3);
@@ -289,113 +290,67 @@ export class SolarAudio {
 
         noiseFilter = ctx.createBiquadFilter();
         noiseFilter.type = 'bandpass';
-        noiseFilter.frequency.setValueAtTime(AMBIENT_CHORDS[0].filterFreq, now);
+        noiseFilter.frequency.setValueAtTime(380, now);
         noiseFilter.Q.setValueAtTime(2.5, now);
 
         const noiseGain = ctx.createGain();
         noiseGain.gain.setValueAtTime(0.06, now);
+        gains.push(noiseGain);
 
         noiseSource.connect(noiseFilter);
         noiseFilter.connect(noiseGain);
         noiseGain.connect(ambientMasterGain);
 
-        // Slow LFO for 0.06Hz cosmic breathing (~16.6s cycle)
-        const lfo = ctx.createOscillator();
-        lfo.type = 'sine';
-        lfo.frequency.setValueAtTime(0.06, now);
-
-        const lfoGain = ctx.createGain();
-        lfoGain.gain.setValueAtTime(150, now);
-
-        lfo.connect(lfoGain);
-        lfoGain.connect(noiseFilter.frequency);
-
         noiseSource.start(now);
-        lfo.start(now);
-        sources.push(noiseSource, lfo);
+        sources.push(noiseSource);
       }
 
-      this.currentChordIndex = 0;
+      // Gravitational Pulse LFO: 0.20Hz (~5.0s breathing cycle, 0.20-0.22Hz range)
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(0.20, now);
+
+      // Volume modulation: sway gain in 0.08..0.16 range around base 0.12 (depth: 0.04)
+      const lfoVolumeGain = ctx.createGain();
+      lfoVolumeGain.gain.setValueAtTime(0.04, now);
+      lfo.connect(lfoVolumeGain);
+      lfoVolumeGain.connect(ambientMasterGain.gain);
+      gains.push(lfoVolumeGain);
+
+      // Synchronous filter cutoff breathing: sway between 280Hz and 480Hz around 380Hz (depth: 100Hz)
+      if (noiseFilter) {
+        const lfoFilterGain = ctx.createGain();
+        lfoFilterGain.gain.setValueAtTime(100, now);
+        lfo.connect(lfoFilterGain);
+        lfoFilterGain.connect(noiseFilter.frequency);
+        gains.push(lfoFilterGain);
+      }
+
+      lfo.start(now);
+      sources.push(lfo);
+
       this.ambientNodes = {
         masterGain: ambientMasterGain,
         sources,
-        osc1,
-        osc2,
-        osc3,
-        noiseFilter,
+        gains,
+        lfoVolumeGain,
       };
-
-      if (this.progressionTimer !== null) {
-        clearInterval(this.progressionTimer);
-      }
-      this.progressionTimer = setInterval(() => {
-        this.advanceAmbientChord();
-      }, 4800);
     } catch {
       // Safe fallback on Web Audio API errors
     }
   }
 
   /**
-   * Advances cosmic chord progression in the main menu:
-   * Cycles through 3 harmonic chords:
-   * 1. Solar Base (A-space: 110Hz, 164.8Hz, 55Hz, filter: 380Hz)
-   * 2. Deep lower nebula (F-space: 87.3Hz, 130.8Hz, 43.65Hz, filter: 310Hz)
-   * 3. Elevated stellar (C-space: 130.8Hz, 196.0Hz, 65.4Hz, filter: 440Hz)
-   * Oscillator frequencies and noise filter smoothly glide via exponential glissando over 2.8s.
+   * Retained for compatibility. Monolithic chord mode does not cycle pitch.
    */
   public advanceAmbientChord(): void {
-    this.currentChordIndex = (this.currentChordIndex + 1) % AMBIENT_CHORDS.length;
-    if (!this.ambientNodes || !this.ctx) return;
-
-    const chord = AMBIENT_CHORDS[this.currentChordIndex];
-    const now = this.ctx.currentTime;
-    const glideSec = 2.8;
-
-    const glissando = (param: AudioParam | undefined, targetVal: number) => {
-      if (!param) return;
-      try {
-        if (typeof param.cancelScheduledValues === 'function') {
-          param.cancelScheduledValues(now);
-        }
-        const currentVal = param.value ?? targetVal;
-        if (typeof param.setValueAtTime === 'function') {
-          param.setValueAtTime(Math.max(0.0001, currentVal), now);
-        }
-        if (typeof param.exponentialRampToValueAtTime === 'function') {
-          param.exponentialRampToValueAtTime(Math.max(0.0001, targetVal), now + glideSec);
-        } else if (typeof param.linearRampToValueAtTime === 'function') {
-          param.linearRampToValueAtTime(targetVal, now + glideSec);
-        } else if (typeof param.setValueAtTime === 'function') {
-          param.setValueAtTime(targetVal, now);
-        }
-      } catch {
-        // Safe parameter update
-      }
-    };
-
-    if (this.ambientNodes.osc1) {
-      glissando(this.ambientNodes.osc1.frequency, chord.osc1);
-    }
-    if (this.ambientNodes.osc2) {
-      glissando(this.ambientNodes.osc2.frequency, chord.osc2);
-    }
-    if (this.ambientNodes.osc3) {
-      glissando(this.ambientNodes.osc3.frequency, chord.osc3);
-    }
-    if (this.ambientNodes.noiseFilter) {
-      glissando(this.ambientNodes.noiseFilter.frequency, chord.filterFreq);
-    }
+    // No-op: monolithic ambient preserves stable, meditative tuning without pitch jumps
   }
 
   /**
    * Smooth fade-out of menu ambient drone over fadeMs (default 800ms).
    */
   public stopMenuAmbient(fadeMs = 800): void {
-    if (this.progressionTimer !== null) {
-      clearInterval(this.progressionTimer);
-      this.progressionTimer = null;
-    }
     this.isAmbientRequested = false;
     if (!this.ambientNodes) return;
 
@@ -412,9 +367,17 @@ export class SolarAudio {
       if (typeof nodes.masterGain.gain.cancelScheduledValues === 'function') {
         nodes.masterGain.gain.cancelScheduledValues(now);
       }
-      const currentVal = nodes.masterGain.gain.value ?? 0.16;
+      const currentVal = nodes.masterGain.gain.value ?? 0.12;
       nodes.masterGain.gain.setValueAtTime(currentVal, now);
       nodes.masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeSec);
+
+      if (nodes.lfoVolumeGain && typeof nodes.lfoVolumeGain.gain.linearRampToValueAtTime === 'function') {
+        if (typeof nodes.lfoVolumeGain.gain.cancelScheduledValues === 'function') {
+          nodes.lfoVolumeGain.gain.cancelScheduledValues(now);
+        }
+        nodes.lfoVolumeGain.gain.setValueAtTime(nodes.lfoVolumeGain.gain.value ?? 0.04, now);
+        nodes.lfoVolumeGain.gain.linearRampToValueAtTime(0.0001, now + fadeSec);
+      }
 
       setTimeout(() => {
         try {
@@ -422,6 +385,13 @@ export class SolarAudio {
             src.stop();
             if (typeof src.disconnect === 'function') {
               src.disconnect();
+            }
+          }
+          if (nodes.gains) {
+            for (const g of nodes.gains) {
+              if (typeof g.disconnect === 'function') {
+                g.disconnect();
+              }
             }
           }
           if (typeof nodes.masterGain.disconnect === 'function') {

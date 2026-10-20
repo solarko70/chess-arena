@@ -515,7 +515,7 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     expect(createdOscillators[0].stop).toHaveBeenCalledWith(10.035);
   });
 
-  it('startMenuAmbient synthesizes audible drone with 110Hz, 164.8Hz, 55Hz and 380Hz wind', () => {
+  it('startMenuAmbient synthesizes monolithic chord with gravitational pulse LFO', () => {
     const createdOscillators: Array<{
       type: string;
       frequency: { setValueAtTime: ReturnType<typeof vi.fn> };
@@ -570,7 +570,7 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
             setValueAtTime: vi.fn(),
             linearRampToValueAtTime: vi.fn(),
             cancelScheduledValues: vi.fn(),
-            value: 0.16,
+            value: 0.12,
           },
           connect: vi.fn(),
           disconnect: vi.fn(),
@@ -610,18 +610,18 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     solarAudio.setMuted(false);
     solarAudio.startMenuAmbient();
 
-    // Master gain: ramps from 0.0001 to 0.16 over 2.0s
+    // Master gain: ramps from 0.0001 to 0.12 over 2.0s
     expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.0001, 10);
-    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.16, 12);
+    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.12, 12);
 
     // Harmonic chord: 110Hz triangle + 164.8Hz sine + 55Hz sine
     expect(createdOscillators.length).toBe(4);
     expect(createdOscillators[0].type).toBe('triangle');
-    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(110, 10);
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(110.0, 10);
     expect(createdOscillators[1].type).toBe('sine');
     expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(164.8, 10);
     expect(createdOscillators[2].type).toBe('sine');
-    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(55, 10);
+    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(55.0, 10);
 
     // Relic noise buffer source
     expect(createdBufferSources.length).toBe(1);
@@ -634,8 +634,12 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(380, 10);
     expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(2.5, 10);
 
-    // LFO at 0.06Hz
-    expect(createdOscillators[3].frequency.setValueAtTime).toHaveBeenCalledWith(0.06, 10);
+    // Gravitational pulse LFO at 0.20Hz (~5.0s breathing cycle)
+    expect(createdOscillators[3].frequency.setValueAtTime).toHaveBeenCalledWith(0.20, 10);
+
+    // Volume modulation (depth 0.04 -> gain range 0.08..0.16) and filter modulation (depth 100Hz -> 280..480Hz)
+    expect(createdGains[3].gain.setValueAtTime).toHaveBeenCalledWith(0.04, 10);
+    expect(createdGains[4].gain.setValueAtTime).toHaveBeenCalledWith(100, 10);
   });
 
   it('stopMenuAmbient performs smooth gain ramp down and stops audio sources', () => {
@@ -904,8 +908,10 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     solarAudio.stopMenuAmbient(0);
   });
 
-  it('advances 3-chord ambient progression with smooth glissando ramps', () => {
+  it('synthesizes monolithic solar chord and gravitational pulse without timer leaks', () => {
     vi.useFakeTimers();
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+
     const createdOscillators: Array<{
       type: string;
       frequency: {
@@ -996,52 +1002,36 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
     expect(solarAudio.getCurrentChordIndex()).toBe(0);
     expect(getCurrentChordIndex()).toBe(0);
+    expect(AMBIENT_CHORDS[0].osc1).toBe(110.0);
+    expect(typeof advanceAmbientChord).toBe('function');
+    advanceAmbientChord();
 
     solarAudio.startMenuAmbient();
     expect(solarAudio.isAmbientPlaying()).toBe(true);
-    expect(solarAudio.getCurrentChordIndex()).toBe(0);
 
-    // After 4800ms timer ticks, progression advances to chord 1 (Deep lower nebula)
-    vi.advanceTimersByTime(4800);
-    expect(solarAudio.getCurrentChordIndex()).toBe(1);
-    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
-      AMBIENT_CHORDS[1].osc1,
-      expect.any(Number)
-    );
-    expect(createdOscillators[1].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
-      AMBIENT_CHORDS[1].osc2,
-      expect.any(Number)
-    );
-    expect(createdOscillators[2].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
-      AMBIENT_CHORDS[1].osc3,
-      expect.any(Number)
-    );
-    expect(createdFilters[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
-      AMBIENT_CHORDS[1].filterFreq,
-      expect.any(Number)
-    );
+    // Verify absence of recurring interval timers (0 timer leaks)
+    expect(setIntervalSpy).not.toHaveBeenCalled();
 
-    // After another 4800ms, advances to chord 2 (Elevated stellar)
-    vi.advanceTimersByTime(4800);
-    expect(solarAudio.getCurrentChordIndex()).toBe(2);
-    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
-      AMBIENT_CHORDS[2].osc1,
-      expect.any(Number)
-    );
+    // Verify monolithic pitch locks: 110Hz (A2), 164.8Hz (E3), 55Hz (A1), LFO 0.20Hz
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(110.0, 20);
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(164.8, 20);
+    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(55.0, 20);
+    expect(createdOscillators[3].frequency.setValueAtTime).toHaveBeenCalledWith(0.20, 20);
 
-    // Manual advanceAmbientChord advances back to chord 0 (Solar Base)
-    advanceAmbientChord();
-    expect(solarAudio.getCurrentChordIndex()).toBe(0);
-    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
-      AMBIENT_CHORDS[0].osc1,
-      expect.any(Number)
-    );
-
-    // stopMenuAmbient clears the interval
-    solarAudio.stopMenuAmbient(0);
+    // Over time, no pitch-changing ramps are scheduled
     vi.advanceTimersByTime(5000);
-    expect(solarAudio.getCurrentChordIndex()).toBe(0);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).not.toHaveBeenCalled();
 
+    // stopMenuAmbient clears resources safely
+    solarAudio.stopMenuAmbient(500);
+    vi.advanceTimersByTime(550);
+    expect(solarAudio.isAmbientPlaying()).toBe(false);
+    expect(createdOscillators[0].stop).toHaveBeenCalled();
+    expect(createdOscillators[1].stop).toHaveBeenCalled();
+    expect(createdOscillators[2].stop).toHaveBeenCalled();
+    expect(createdOscillators[3].stop).toHaveBeenCalled();
+
+    setIntervalSpy.mockRestore();
     vi.useRealTimers();
   });
 });
