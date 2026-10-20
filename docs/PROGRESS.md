@@ -282,10 +282,10 @@
   - Safe no-op in Node/jsdom environments without errors or crashes.
   - Procedural sound palette:
     - `playMove()`: soft move click (frequency ramp 240Hz -> 90Hz in 0.05s).
-    - `playCapture()`: dual burst (180Hz click + 60Hz bass body in 0.12s).
-    - `playCheck()`: pure harmonic solar chime (880Hz + 1760Hz sines with 0.35s decay).
-    - `playCheckmate()`: solemn low victory chord (C3/G3/C4/E4 with 0.8s decay).
-    - `playStellar()`: Heavenly Choir Chord (4 oscillators: C6, E6, G6, B6 with micro-detuning ±6-8 cents, routed through a formant bandpass BiquadFilter at 1800Hz with Q=3.0, smooth attack 0.12s, soft plateau, release up to 2.0s).
+    - `playCapture()`: chess.com style tactile wooden knock (triangle wave 140Hz -> 45Hz in 0.08s, warm bone click shaped by a 550Hz lowpass filter, 0.09s gain decay).
+    - `playCheck()`: crystal warning chime in middle register (C5 523.25Hz + E5 659.25Hz, 0.015s soft attack without click wavefront, 1200Hz lowpass filter, 0.38s smooth decay).
+    - `playCheckmate()`: deep noble low victory chord in bass-mid range (C3 130.81Hz, G3 196.0Hz, E4 329.63Hz, 800Hz lowpass filter, 0.05s attack, 1.3s resonating decay).
+    - `playStellar()`: luminous vocal choir swell ("Ah-h-h", 4th-5th octave chord F4/A4/C5/F5, warm triangle waves with ±4-7 cents chorus detuning, vowel /ɑ/ bandpass formant filter at 800Hz with Q=2.2, 0.35s breath attack, 1.0s plateau, 1.55s ethereal release, total 2.9s).
 - [x] Gameplay & Review Mode Integration (`src/ui/board.ts`, `src/ui/history.ts`, `src/main.ts`):
   - In `ChessBoardUI`: live moves play `playCheckmate` on checkmate, `playCheck` on check, `playCapture` on piece capture, and `playMove` on quiet moves.
   - In `HistoryUI`: move navigation in review mode plays corresponding sound, and plays `playStellar()` when inspected move has `class === 'stellar'`.

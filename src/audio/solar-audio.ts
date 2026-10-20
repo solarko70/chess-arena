@@ -105,7 +105,10 @@ export class SolarAudio {
   }
 
   /**
-   * Dense impact with click and bass body: double burst 180Hz + 60Hz in 0.12s.
+   * Tactile wooden capture knock (chess.com style):
+   * Low-frequency thud with triangle wave (140Hz -> 45Hz in 0.08s),
+   * warm bone click shaped by a 550Hz lowpass filter,
+   * with a tight, dense gain decay to 0.001 over 0.09s.
    */
   public playCapture(): void {
     if (this.isMuted) return;
@@ -114,40 +117,38 @@ export class SolarAudio {
 
     try {
       const now = ctx.currentTime;
-      const duration = 0.12;
+      const duration = 0.09;
 
-      // Click / thud component (180Hz down to 80Hz)
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'triangle';
-      osc1.frequency.setValueAtTime(180, now);
-      osc1.frequency.exponentialRampToValueAtTime(80, now + duration);
-      gain1.gain.setValueAtTime(0.4, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + duration);
+      const osc = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
 
-      // Bass body component (60Hz down to 40Hz)
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(60, now);
-      osc2.frequency.exponentialRampToValueAtTime(40, now + duration);
-      gain2.gain.setValueAtTime(0.5, now);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(now);
-      osc2.stop(now + duration);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(550, now);
+
+      gain.gain.setValueAtTime(0.55, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + duration);
     } catch {
       // Safe fallback on Web Audio API errors
     }
   }
 
   /**
-   * Pure harmonic solar chime: high sines 880Hz + 1760Hz with smooth decay 0.35s.
+   * Soft warning chime (middle-register vibraphone / crystal bell):
+   * Pure harmonious sines at 523.25Hz (C5) and 659.25Hz (E5),
+   * gentle 0.015s attack to eliminate click wavefront,
+   * smooth warm decay over 0.38s shaped by a 1200Hz lowpass filter.
    */
   public playCheck(): void {
     if (this.isMuted) return;
@@ -156,55 +157,27 @@ export class SolarAudio {
 
     try {
       const now = ctx.currentTime;
-      const duration = 0.35;
+      const duration = 0.38;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1200, now);
 
       const masterGain = ctx.createGain();
-      masterGain.gain.setValueAtTime(0.3, now);
+      masterGain.gain.setValueAtTime(0.0001, now);
+      masterGain.gain.linearRampToValueAtTime(0.32, now + 0.015);
       masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      filter.connect(masterGain);
       masterGain.connect(ctx.destination);
 
-      const osc1 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(880, now);
-      osc1.connect(masterGain);
-      osc1.start(now);
-      osc1.stop(now + duration);
-
-      const osc2 = ctx.createOscillator();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(1760, now);
-      osc2.connect(masterGain);
-      osc2.start(now);
-      osc2.stop(now + duration);
-    } catch {
-      // Safe fallback on Web Audio API errors
-    }
-  }
-
-  /**
-   * Solemn low victory chord with 0.8s decay.
-   */
-  public playCheckmate(): void {
-    if (this.isMuted) return;
-    const ctx = this.ensureContext();
-    if (!ctx) return;
-
-    try {
-      const now = ctx.currentTime;
-      const duration = 0.8;
-
-      const masterGain = ctx.createGain();
-      masterGain.gain.setValueAtTime(0.35, now);
-      masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      masterGain.connect(ctx.destination);
-
-      // Low victory chord: C3 (130.81Hz), G3 (196.0Hz), C4 (261.63Hz), E4 (329.63Hz)
-      const freqs = [130.81, 196.0, 261.63, 329.63];
+      // C5 (523.25Hz) and E5 (659.25Hz)
+      const freqs = [523.25, 659.25];
       for (const freq of freqs) {
         const osc = ctx.createOscillator();
-        osc.type = 'triangle';
+        osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now);
-        osc.connect(masterGain);
+        osc.connect(filter);
         osc.start(now);
         osc.stop(now + duration);
       }
@@ -214,10 +187,53 @@ export class SolarAudio {
   }
 
   /**
-   * High celestial choir (Heavenly Choir Chord):
-   * Polyphonic chord from 4 oscillators (C6, E6, G6, B6) with micro-detuning (±6-8 cents),
-   * routed through a formant bandpass BiquadFilterNode (1800Hz, Q: 3.0),
-   * with smooth attack 0.12s, soft plateau, and soaring release up to 2.0s.
+   * Deep noble victory chord:
+   * Majestic major chord in bass-mid range: C3 (130.81Hz), G3 (196.0Hz), E4 (329.63Hz),
+   * warm triangle oscillators shaped through an 800Hz lowpass filter,
+   * soft 0.05s attack with prolonged resonating decay over 1.3s.
+   */
+  public playCheckmate(): void {
+    if (this.isMuted) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const duration = 1.3;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, now);
+
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.0001, now);
+      masterGain.gain.linearRampToValueAtTime(0.35, now + 0.05);
+      masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      filter.connect(masterGain);
+      masterGain.connect(ctx.destination);
+
+      // Low majestic chord: C3, G3, E4
+      const freqs = [130.81, 196.0, 329.63];
+      for (const freq of freqs) {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.connect(filter);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+    } catch {
+      // Safe fallback on Web Audio API errors
+    }
+  }
+
+  /**
+   * Luminous vocal choir swell ("Ah-h-h"):
+   * 4th-5th octave major vocal chord: F4 (349.23Hz), A4 (440.0Hz), C5 (523.25Hz), F5 (698.46Hz),
+   * warm triangle oscillators with chorus micro-detuning (±4-7 cents),
+   * human vowel /ɑ/ formant bandpass filter (800Hz, Q: 2.2),
+   * gentle swell attack (0.35s), 1.0s plateau, and long ethereal tail release (~1.55s, total ~2.9s).
    */
   public playStellar(): void {
     if (this.isMuted) return;
@@ -226,32 +242,34 @@ export class SolarAudio {
 
     try {
       const now = ctx.currentTime;
-      const duration = 2.0;
+      const attack = 0.35;
+      const hold = 1.0;
+      const duration = 2.9;
 
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(0.0001, now);
-      masterGain.gain.linearRampToValueAtTime(0.25, now + 0.12);
-      masterGain.gain.setValueAtTime(0.25, now + 0.35);
+      masterGain.gain.linearRampToValueAtTime(0.28, now + attack);
+      masterGain.gain.setValueAtTime(0.28, now + attack + hold);
       masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
       masterGain.connect(ctx.destination);
 
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1800, now);
-      filter.Q.setValueAtTime(3.0, now);
+      filter.frequency.setValueAtTime(800, now);
+      filter.Q.setValueAtTime(2.2, now);
       filter.connect(masterGain);
 
-      // Heavenly Choir Chord: C6, E6, G6, B6 with micro-detuning (±6-8 cents)
-      const chord = [
-        { freq: 1046.5, detune: -7 },
-        { freq: 1318.5, detune: 6 },
-        { freq: 1567.98, detune: -6 },
-        { freq: 1975.53, detune: 8 },
+      // Vocal choir chord: F4, A4, C5, F5 with micro-detuning for rich human choral ensemble
+      const voices = [
+        { freq: 349.23, detune: -5 },
+        { freq: 440.0, detune: 4 },
+        { freq: 523.25, detune: -6 },
+        { freq: 698.46, detune: 6 },
       ];
 
-      for (const voice of chord) {
+      for (const voice of voices) {
         const osc = ctx.createOscillator();
-        osc.type = 'sine';
+        osc.type = 'triangle';
         osc.frequency.setValueAtTime(voice.freq, now);
         osc.detune.setValueAtTime(voice.detune, now);
         osc.connect(filter);

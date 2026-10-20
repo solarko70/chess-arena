@@ -133,32 +133,49 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(lastOsc.frequency.setValueAtTime).toHaveBeenCalledWith(240, 10);
     expect(lastOsc.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(90, 10.05);
 
-    // Test playCapture synthesis (dual burst)
+    // Test playCapture synthesis (chess.com wooden knock: 140Hz -> 45Hz + 550Hz lowpass)
     createdOscillators.length = 0;
+    createdFilters.length = 0;
     solarAudio.playCapture();
-    expect(createdOscillators.length).toBe(2);
+    expect(createdOscillators.length).toBe(1);
+    expect(createdOscillators[0].type).toBe('triangle');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(140, 10);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(45, 10.08);
+    expect(createdFilters.length).toBe(1);
+    expect(createdFilters[0].type).toBe('lowpass');
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(550, 10);
 
-    // Test playCheck synthesis (880Hz + 1760Hz)
+    // Test playCheck synthesis (C5 523.25Hz + E5 659.25Hz + 1200Hz lowpass)
     createdOscillators.length = 0;
+    createdFilters.length = 0;
     solarAudio.playCheck();
     expect(createdOscillators.length).toBe(2);
-    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(880, 10);
-    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(1760, 10);
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(523.25, 10);
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(659.25, 10);
+    expect(createdFilters.length).toBe(1);
+    expect(createdFilters[0].type).toBe('lowpass');
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(1200, 10);
 
-    // Test playCheckmate synthesis (low chord)
+    // Test playCheckmate synthesis (low chord: C3 + G3 + E4 + 800Hz lowpass)
     createdOscillators.length = 0;
+    createdFilters.length = 0;
     solarAudio.playCheckmate();
-    expect(createdOscillators.length).toBe(4);
+    expect(createdOscillators.length).toBe(3);
+    expect(createdFilters.length).toBe(1);
+    expect(createdFilters[0].type).toBe('lowpass');
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10);
 
-    // Test playStellar synthesis (Heavenly choir: 4 oscs + bandpass filter)
+    // Test playStellar synthesis (vocal choir: 4 triangle oscs F4/A4/C5/F5 + 800Hz bandpass filter Q=2.2)
     createdOscillators.length = 0;
     createdFilters.length = 0;
     solarAudio.playStellar();
     expect(createdOscillators.length).toBe(4);
+    expect(createdOscillators[0].type).toBe('triangle');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(349.23, 10);
     expect(createdFilters.length).toBe(1);
     expect(createdFilters[0].type).toBe('bandpass');
-    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(1800, 10);
-    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(3.0, 10);
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10);
+    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(2.2, 10);
   });
 
   it('navigating to a stellar half-move in game review calls playStellar', () => {
