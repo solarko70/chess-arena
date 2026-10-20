@@ -15,6 +15,7 @@ import {
   type ReviewWorkerResponse,
 } from '@/analysis'
 import { createClassRow } from '@/ui/class-rows'
+import { HistoryUI } from '@/ui/history'
 
 import type { Move } from '@/core'
 
@@ -1194,4 +1195,38 @@ describe('Game Review UI Integration Tests', () => {
     expect(row.labelEl.textContent).toBe('Упущенный шанс:')
     expect(row.countEl.textContent).toBe('0')
   })
+
+  it('навигация по ходам не вызывает scrollIntoView или window.scrollTo', () => {
+    const scrollIntoViewMock = vi.fn();
+    (Element.prototype as unknown as { scrollIntoView: typeof scrollIntoViewMock }).scrollIntoView = scrollIntoViewMock;
+    const scrollToMock = vi.fn();
+    (window as unknown as { scrollTo: typeof scrollToMock }).scrollTo = scrollToMock;
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const store = new ChessStore();
+    store.makeMove(52, 36); // 1. e4
+    store.makeMove(12, 28); // 1... e5
+    store.makeMove(62, 45); // 2. Nf3
+    store.makeMove(1, 18);  // 2... Nc6
+
+    new HistoryUI(container, store);
+
+    // Navigate to move 0
+    store.setViewIndex(0);
+    // Navigate to move 1
+    store.setViewIndex(1);
+    // Navigate to move 2
+    store.setViewIndex(2);
+    // Navigate back to live state
+    store.setViewIndex(null);
+
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    expect(scrollToMock).not.toHaveBeenCalled();
+
+    delete (Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+    delete (window as unknown as { scrollTo?: unknown }).scrollTo;
+    container.remove();
+  });
 })

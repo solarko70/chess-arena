@@ -1,5 +1,21 @@
 // Procedural audio engine for Solar Chess using Web Audio API
 
+export interface AmbientChord {
+  osc1: number;
+  osc2: number;
+  osc3: number;
+  filterFreq: number;
+}
+
+export const AMBIENT_CHORDS: AmbientChord[] = [
+  // Chord 1 (Base Solar, A-space): 110.0 Hz (A2), 164.8 Hz (E3), 55.0 Hz (A1), filter 380 Hz
+  { osc1: 110.0, osc2: 164.8, osc3: 55.0, filterFreq: 380 },
+  // Chord 2 (Deep lower nebula, F-space): 87.3 Hz (F2), 130.8 Hz (C3), 43.65 Hz (F1), filter 310 Hz
+  { osc1: 87.3, osc2: 130.8, osc3: 43.65, filterFreq: 310 },
+  // Chord 3 (Elevated stellar, C-space): 130.8 Hz (C3), 196.0 Hz (G3), 65.4 Hz (C2), filter 440 Hz
+  { osc1: 130.8, osc2: 196.0, osc3: 65.4, filterFreq: 440 },
+];
+
 function getAudioContextClass(): typeof AudioContext | null {
   if (typeof window === 'undefined') return null;
   const win = window as unknown as {
@@ -14,9 +30,15 @@ export class SolarAudio {
   private isMutedState = false;
   private unlockListenersAttached = false;
   private isAmbientRequested = false;
+  private progressionTimer: ReturnType<typeof setInterval> | null = null;
+  private currentChordIndex = 0;
   private ambientNodes: {
     masterGain: GainNode;
     sources: (OscillatorNode | AudioBufferSourceNode)[];
+    osc1?: OscillatorNode;
+    osc2?: OscillatorNode;
+    osc3?: OscillatorNode;
+    noiseFilter?: BiquadFilterNode;
   } | null = null;
 
   constructor() {
@@ -93,6 +115,11 @@ export class SolarAudio {
   }
 
   public setContextForTesting(ctx: AudioContext | null): void {
+    if (this.progressionTimer !== null) {
+      clearInterval(this.progressionTimer);
+      this.progressionTimer = null;
+    }
+    this.currentChordIndex = 0;
     this.ctx = ctx;
     this.ambientNodes = null;
     this.isAmbientRequested = false;
@@ -109,6 +136,10 @@ export class SolarAudio {
 
   public isAmbientPlaying(): boolean {
     return this.ambientNodes !== null;
+  }
+
+  public getCurrentChordIndex(): number {
+    return this.currentChordIndex;
   }
 
   public setMuted(muted: boolean): void {
@@ -241,6 +272,7 @@ export class SolarAudio {
       osc3.start(now);
       sources.push(osc3);
 
+      let noiseFilter: BiquadFilterNode | undefined;
       // Relic radiation noise layer with 380Hz bandpass filter (Q: 2.5) and slow 0.06Hz LFO
       if (typeof ctx.createBuffer === 'function' && typeof ctx.createBufferSource === 'function') {
         const sampleRate = ctx.sampleRate || 44100;
@@ -255,9 +287,9 @@ export class SolarAudio {
         noiseSource.buffer = noiseBuffer;
         noiseSource.loop = true;
 
-        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter = ctx.createBiquadFilter();
         noiseFilter.type = 'bandpass';
-        noiseFilter.frequency.setValueAtTime(380, now);
+        noiseFilter.frequency.setValueAtTime(AMBIENT_CHORDS[0].filterFreq, now);
         noiseFilter.Q.setValueAtTime(2.5, now);
 
         const noiseGain = ctx.createGain();
@@ -283,12 +315,76 @@ export class SolarAudio {
         sources.push(noiseSource, lfo);
       }
 
+      this.currentChordIndex = 0;
       this.ambientNodes = {
         masterGain: ambientMasterGain,
         sources,
+        osc1,
+        osc2,
+        osc3,
+        noiseFilter,
       };
+
+      if (this.progressionTimer !== null) {
+        clearInterval(this.progressionTimer);
+      }
+      this.progressionTimer = setInterval(() => {
+        this.advanceAmbientChord();
+      }, 4800);
     } catch {
       // Safe fallback on Web Audio API errors
+    }
+  }
+
+  /**
+   * Advances cosmic chord progression in the main menu:
+   * Cycles through 3 harmonic chords:
+   * 1. Solar Base (A-space: 110Hz, 164.8Hz, 55Hz, filter: 380Hz)
+   * 2. Deep lower nebula (F-space: 87.3Hz, 130.8Hz, 43.65Hz, filter: 310Hz)
+   * 3. Elevated stellar (C-space: 130.8Hz, 196.0Hz, 65.4Hz, filter: 440Hz)
+   * Oscillator frequencies and noise filter smoothly glide via exponential glissando over 2.8s.
+   */
+  public advanceAmbientChord(): void {
+    this.currentChordIndex = (this.currentChordIndex + 1) % AMBIENT_CHORDS.length;
+    if (!this.ambientNodes || !this.ctx) return;
+
+    const chord = AMBIENT_CHORDS[this.currentChordIndex];
+    const now = this.ctx.currentTime;
+    const glideSec = 2.8;
+
+    const glissando = (param: AudioParam | undefined, targetVal: number) => {
+      if (!param) return;
+      try {
+        if (typeof param.cancelScheduledValues === 'function') {
+          param.cancelScheduledValues(now);
+        }
+        const currentVal = param.value ?? targetVal;
+        if (typeof param.setValueAtTime === 'function') {
+          param.setValueAtTime(Math.max(0.0001, currentVal), now);
+        }
+        if (typeof param.exponentialRampToValueAtTime === 'function') {
+          param.exponentialRampToValueAtTime(Math.max(0.0001, targetVal), now + glideSec);
+        } else if (typeof param.linearRampToValueAtTime === 'function') {
+          param.linearRampToValueAtTime(targetVal, now + glideSec);
+        } else if (typeof param.setValueAtTime === 'function') {
+          param.setValueAtTime(targetVal, now);
+        }
+      } catch {
+        // Safe parameter update
+      }
+    };
+
+    if (this.ambientNodes.osc1) {
+      glissando(this.ambientNodes.osc1.frequency, chord.osc1);
+    }
+    if (this.ambientNodes.osc2) {
+      glissando(this.ambientNodes.osc2.frequency, chord.osc2);
+    }
+    if (this.ambientNodes.osc3) {
+      glissando(this.ambientNodes.osc3.frequency, chord.osc3);
+    }
+    if (this.ambientNodes.noiseFilter) {
+      glissando(this.ambientNodes.noiseFilter.frequency, chord.filterFreq);
     }
   }
 
@@ -296,6 +392,10 @@ export class SolarAudio {
    * Smooth fade-out of menu ambient drone over fadeMs (default 800ms).
    */
   public stopMenuAmbient(fadeMs = 800): void {
+    if (this.progressionTimer !== null) {
+      clearInterval(this.progressionTimer);
+      this.progressionTimer = null;
+    }
     this.isAmbientRequested = false;
     if (!this.ambientNodes) return;
 
@@ -643,4 +743,13 @@ export function isAudioMuted(): boolean {
 export function isMuted(): boolean {
   return solarAudio.isMuted();
 }
+
+export function getCurrentChordIndex(): number {
+  return solarAudio.getCurrentChordIndex();
+}
+
+export function advanceAmbientChord(): void {
+  solarAudio.advanceAmbientChord();
+}
+
 

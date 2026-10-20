@@ -854,7 +854,7 @@ export function initApp(): void {
 
   const closeResignModal = (): void => {
     if (resignOverlay) resignOverlay.style.display = 'none';
-    resignBtn?.focus();
+    resignBtn?.focus({ preventScroll: true });
   };
 
   resignOverlay?.addEventListener('click', (e) => {
@@ -916,7 +916,7 @@ export function initApp(): void {
         <button class="btn-action btn-secondary" id="btn-cancel-resign">Отмена</button>
       `;
       resignOverlay.style.display = 'flex';
-      document.getElementById('btn-confirm-resign')?.focus();
+      document.getElementById('btn-confirm-resign')?.focus({ preventScroll: true });
 
       document.getElementById('btn-confirm-resign')?.addEventListener('click', () => {
         closeResignModal();
@@ -934,7 +934,7 @@ export function initApp(): void {
         <button class="btn-action btn-secondary" id="btn-cancel-resign">Отмена</button>
       `;
       resignOverlay.style.display = 'flex';
-      document.getElementById('btn-resign-white')?.focus();
+      document.getElementById('btn-resign-white')?.focus({ preventScroll: true });
 
       document.getElementById('btn-resign-white')?.addEventListener('click', () => {
         closeResignModal();

@@ -460,3 +460,25 @@
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 359 tests passed, watchdog clean).
+
+## Stage 5b-3: Dynamic 3-Chord Solar Progression & Mobile Scroll Elimination (Completed)
+- [x] Dynamic 3-Chord Ambient Progression (`src/audio/solar-audio.ts`):
+  - Defined 3 atmospheric space chords cycling every 4.8 seconds:
+    - Chord 1 (Base Solar, A-space): Osc 1: 110.0 Hz ($A_2$), Osc 2: 164.8 Hz ($E_3$), Osc 3: 55.0 Hz ($A_1$), Bandpass Filter: 380 Hz.
+    - Chord 2 (Deep lower nebula, F-space): Osc 1: 87.3 Hz ($F_2$), Osc 2: 130.8 Hz ($C_3$), Osc 3: 43.65 Hz ($F_1$), Bandpass Filter: 310 Hz.
+    - Chord 3 (Elevated stellar, C-space): Osc 1: 130.8 Hz ($C_3$), Osc 2: 196.0 Hz ($G_3$), Osc 3: 65.4 Hz ($C_2$), Bandpass Filter: 440 Hz.
+  - Implemented smooth cosmic glissando: 2.8s `exponentialRampToValueAtTime` glides frequencies smoothly across oscillators and noise bandpass filter center.
+  - Automatic progression loop via 4.8s timer interval started on drone launch.
+  - Immediate cleanup of progression timer interval and glissando scheduling on `stopMenuAmbient()`.
+  - Added public methods and helpers `getCurrentChordIndex()`, `advanceAmbientChord()`.
+- [x] Complete Elimination of Mobile Viewport Shifts (`src/ui/history.ts`, `src/ui/gameovermodal.ts`, `src/ui/setupmodals.ts`, `src/main.ts`):
+  - Replaced browser `Element.prototype.scrollIntoView()` in `HistoryUI` with localized container-only scrolling: `this.listEl.scrollTop` calculated from active row offset relative to `this.listEl.scrollTop` and `this.listEl.clientHeight`. This guarantees zero window scrolling or mobile page jumps.
+  - Added `{ preventScroll: true }` to all element `.focus()` calls in `GameOverModalUI`, `GameSetupModalUI`, and `src/main.ts` resignation modal.
+- [x] Unit Tests & Verification:
+  - In `src/tests/solar-audio.test.ts`: added test verifying start, timer advancement (0 -> 1 -> 2 -> 0), glissando ramps, and interval cleanup for the 3-chord ambient progression.
+  - In `src/tests/review-ui.test.ts`: added test asserting that move navigation across game history never calls `scrollIntoView` or `window.scrollTo`.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 361 tests passed, watchdog clean).
+

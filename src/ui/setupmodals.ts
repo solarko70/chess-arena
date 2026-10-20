@@ -229,12 +229,12 @@ export class GameSetupModalUI {
       if (e.shiftKey) {
         if (document.activeElement === first || !this.dialog.contains(document.activeElement)) {
           e.preventDefault();
-          last.focus();
+          last.focus({ preventScroll: true });
         }
       } else {
         if (document.activeElement === last || !this.dialog.contains(document.activeElement)) {
           e.preventDefault();
-          first.focus();
+          first.focus({ preventScroll: true });
         }
       }
     }
@@ -267,14 +267,14 @@ export class GameSetupModalUI {
     this.isOpenState = true;
 
     try {
-      this.startBtn.focus();
+      this.startBtn.focus({ preventScroll: true });
     } catch {
       // Ignore
     }
 
     setTimeout(() => {
       if (this.isOpenState) {
-        this.startBtn.focus();
+        this.startBtn.focus({ preventScroll: true });
       }
     }, 0);
   }
@@ -291,7 +291,7 @@ export class GameSetupModalUI {
 
     if (this.triggerElement && typeof this.triggerElement.focus === 'function') {
       try {
-        this.triggerElement.focus();
+        this.triggerElement.focus({ preventScroll: true });
       } catch {
         // Ignore focus errors
       }

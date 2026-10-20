@@ -13,6 +13,9 @@ import {
   toggleMute,
   isAudioMuted,
   isMuted,
+  AMBIENT_CHORDS,
+  getCurrentChordIndex,
+  advanceAmbientChord,
 } from '@/audio/solar-audio';
 import { ChessStore } from '@/state/store';
 import { HistoryUI } from '@/ui/history';
@@ -899,6 +902,147 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     expect(mockCtx.createGain).toHaveBeenCalled();
 
     solarAudio.stopMenuAmbient(0);
+  });
+
+  it('advances 3-chord ambient progression with smooth glissando ramps', () => {
+    vi.useFakeTimers();
+    const createdOscillators: Array<{
+      type: string;
+      frequency: {
+        value: number;
+        setValueAtTime: ReturnType<typeof vi.fn>;
+        exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
+        cancelScheduledValues: ReturnType<typeof vi.fn>;
+      };
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const createdFilters: Array<{
+      type: string;
+      frequency: {
+        value: number;
+        setValueAtTime: ReturnType<typeof vi.fn>;
+        exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
+        cancelScheduledValues: ReturnType<typeof vi.fn>;
+      };
+      Q: { setValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const mockCtx = {
+      currentTime: 20,
+      sampleRate: 44100,
+      state: 'running',
+      createOscillator: vi.fn().mockImplementation(() => {
+        const osc = {
+          type: 'sine',
+          frequency: {
+            value: 100,
+            setValueAtTime: vi.fn(),
+            exponentialRampToValueAtTime: vi.fn(),
+            cancelScheduledValues: vi.fn(),
+          },
+          connect: vi.fn(),
+          start: vi.fn(),
+          stop: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        createdOscillators.push(osc);
+        return osc;
+      }),
+      createGain: vi.fn().mockImplementation(() => ({
+        gain: {
+          value: 0.1,
+          setValueAtTime: vi.fn(),
+          linearRampToValueAtTime: vi.fn(),
+          exponentialRampToValueAtTime: vi.fn(),
+          cancelScheduledValues: vi.fn(),
+        },
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+      createBiquadFilter: vi.fn().mockImplementation(() => {
+        const f = {
+          type: 'bandpass',
+          frequency: {
+            value: 380,
+            setValueAtTime: vi.fn(),
+            exponentialRampToValueAtTime: vi.fn(),
+            cancelScheduledValues: vi.fn(),
+          },
+          Q: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        };
+        createdFilters.push(f);
+        return f;
+      }),
+      createBuffer: vi.fn().mockReturnValue({
+        getChannelData: vi.fn().mockReturnValue(new Float32Array(100)),
+      }),
+      createBufferSource: vi.fn().mockReturnValue({
+        buffer: null,
+        loop: false,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        disconnect: vi.fn(),
+      }),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    expect(solarAudio.getCurrentChordIndex()).toBe(0);
+    expect(getCurrentChordIndex()).toBe(0);
+
+    solarAudio.startMenuAmbient();
+    expect(solarAudio.isAmbientPlaying()).toBe(true);
+    expect(solarAudio.getCurrentChordIndex()).toBe(0);
+
+    // After 4800ms timer ticks, progression advances to chord 1 (Deep lower nebula)
+    vi.advanceTimersByTime(4800);
+    expect(solarAudio.getCurrentChordIndex()).toBe(1);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      AMBIENT_CHORDS[1].osc1,
+      expect.any(Number)
+    );
+    expect(createdOscillators[1].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      AMBIENT_CHORDS[1].osc2,
+      expect.any(Number)
+    );
+    expect(createdOscillators[2].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      AMBIENT_CHORDS[1].osc3,
+      expect.any(Number)
+    );
+    expect(createdFilters[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      AMBIENT_CHORDS[1].filterFreq,
+      expect.any(Number)
+    );
+
+    // After another 4800ms, advances to chord 2 (Elevated stellar)
+    vi.advanceTimersByTime(4800);
+    expect(solarAudio.getCurrentChordIndex()).toBe(2);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      AMBIENT_CHORDS[2].osc1,
+      expect.any(Number)
+    );
+
+    // Manual advanceAmbientChord advances back to chord 0 (Solar Base)
+    advanceAmbientChord();
+    expect(solarAudio.getCurrentChordIndex()).toBe(0);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      AMBIENT_CHORDS[0].osc1,
+      expect.any(Number)
+    );
+
+    // stopMenuAmbient clears the interval
+    solarAudio.stopMenuAmbient(0);
+    vi.advanceTimersByTime(5000);
+    expect(solarAudio.getCurrentChordIndex()).toBe(0);
+
+    vi.useRealTimers();
   });
 });
 

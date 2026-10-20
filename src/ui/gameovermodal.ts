@@ -256,12 +256,12 @@ export class GameOverModalUI {
       if (e.shiftKey) {
         if (document.activeElement === first || !this.dialog.contains(document.activeElement)) {
           e.preventDefault();
-          last.focus();
+          last.focus({ preventScroll: true });
         }
       } else {
         if (document.activeElement === last || !this.dialog.contains(document.activeElement)) {
           e.preventDefault();
-          first.focus();
+          first.focus({ preventScroll: true });
         }
       }
     }
@@ -365,7 +365,7 @@ export class GameOverModalUI {
     this.isOpenState = true;
     setTimeout(() => {
       if (this.isOpenState) {
-        this.reviewBtn.focus();
+        this.reviewBtn.focus({ preventScroll: true });
       }
     }, 0);
   }
@@ -391,7 +391,7 @@ export class GameOverModalUI {
 
     if (this.previousActiveElement && typeof this.previousActiveElement.focus === 'function') {
       try {
-        this.previousActiveElement.focus();
+        this.previousActiveElement.focus({ preventScroll: true });
       } catch {
         // Ignore focus restore errors
       }

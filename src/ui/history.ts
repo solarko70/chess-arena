@@ -385,10 +385,18 @@ export class HistoryUI {
 
     const activeEl = this.listEl.querySelector('.history-move.active') as HTMLElement | null;
     if (activeEl) {
-      if (typeof activeEl.scrollIntoView === 'function') {
-        activeEl.scrollIntoView({ block: 'nearest' });
-      } else {
-        this.listEl.scrollTop = activeEl.offsetTop - this.listEl.offsetTop;
+      const activeRow = (activeEl.closest('.history-row') as HTMLElement | null) ?? activeEl;
+      const container = this.listEl;
+      if (container) {
+        const rowTop = activeRow.offsetTop;
+        const rowHeight = activeRow.offsetHeight;
+        const containerTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+        if (rowTop < containerTop) {
+          container.scrollTop = rowTop;
+        } else if (rowTop + rowHeight > containerTop + containerHeight) {
+          container.scrollTop = rowTop + rowHeight - containerHeight;
+        }
       }
     } else {
       this.listEl.scrollTop = this.listEl.scrollHeight;
