@@ -190,3 +190,24 @@
   - Added strict emoji-free validation across all move class SVG markups.
   - Added comprehensive eval bar styling and DOM mount test.
 - [x] Verification: 32 test files, 331 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
+
+## Stage 4d-4.1: Cosmic Nebula Eval Bar & Celestial Vector Icons (Completed)
+- [x] Vivid Cosmic Purple Nebula Eval Bar (`src/ui/styles.css`, `src/tests/review-ui.test.ts`):
+  - Black side (`.eval-bar-track`, `.eval-bar-wrapper`): updated background to a deep cosmic purple nebula `linear-gradient(180deg, #2a114f 0%, #1a0a33 50%, #0f0521 100%)` with `background-color: #1a0a33`.
+  - Multi-layered celestial stardust: integrated 6 visible radial star-speckles with radii between 1.5px and 2.2px using bright white `#ffffff`, pink/rose `#f472b6`, and neon cyan `#67e8f9` halos.
+- [x] Text Sticking Bug Fix for Class Rows (`src/ui/class-rows.ts`, `src/ui/styles.css`, `src/tests/review-ui.test.ts`):
+  - Separated label and count by appending an explicit text node space (`document.createTextNode(' ')`) between `.card-class-info` and `.card-class-count` in `createClassRow()`, guaranteeing proper spacing in plain text (`«Упущенный шанс: 0»`).
+  - Added `gap: 8px; justify-content: space-between;` to `.card-class-row, .class-row`, `min-width: 0; flex: 1;` to `.card-class-info`, `text-overflow: ellipsis; overflow: hidden;` to `.card-class-label`, and `flex-shrink: 0; min-width: 16px; text-align: right;` to `.card-class-count` both in base styles and mobile `@media (max-width: 800px)`.
+  - Supported `circle[fill='none']` in SVG icon fill-rule resets.
+- [x] Celestial Vector Redesign of Move Class Icons (`src/analysis/classes.ts`, `src/tests/classes-icons.test.ts`):
+  - `best` (★): 10-pointed radiant solar star with 5 protruding rays and 5 inner vertices (`fill="white"`).
+  - `good` (✓): orbital trajectory curve with planetary satellite node (`fill="none"`, `stroke="white"`, `stroke-width="2.5"`, `<circle cx="20" cy="5" r="1.5" fill="white"/>`).
+  - `inaccuracy` (?!): solar flare question curve, vertical beam, and twin 4-pointed diamond sparkle dots (`fill="white"`).
+  - `mistake` (?): red supergiant flash question mark with cosmic 4-pointed diamond star dot (`fill="white"`).
+  - `blunder` (??): dual gravitational collapse question marks with symmetrical singularity dots (`fill="white"`, `<circle>` at x=7.5 and x=16.5).
+  - `missed` (✖!): solar eclipse corona with clean diagonal cross lines (`stroke-width="2"`, `stroke="white"`).
+- [x] Unit & Regression Tests:
+  - Updated `src/tests/classes-icons.test.ts` to validate vector geometry for `inaccuracy`, `mistake`, `blunder`, `best`, and `good`.
+  - Updated `src/tests/review-ui.test.ts` to assert the `#1a0a33` / `#2a114f` cosmic purple track gradient and added unit test for `«Упущенный шанс: 0»` spacing.
+  - Synchronized `src/tests/game-screen-a2c5.test.ts` line 165 for the new vector badge markup.
+- [x] Verification: 32 test files, 332 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.

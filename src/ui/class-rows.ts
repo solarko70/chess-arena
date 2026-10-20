@@ -49,6 +49,7 @@ export function createClassRow(meta: MoveClassMeta): ClassRowItemDom {
   infoEl.appendChild(labelEl);
 
   rowEl.appendChild(infoEl);
+  rowEl.appendChild(document.createTextNode(' '));
 
   const countEl = document.createElement('span');
   countEl.className = 'card-class-count';

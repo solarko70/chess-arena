@@ -65,7 +65,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 3,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2.5l2.6 6.6 7 .3-5.5 4.6 1.9 6.8L12 17.2l-6 3.6 1.9-6.8-5.5-4.6 7-.3z" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2L13.2 8.4L15.6 7L15.1 9.8L21.5 8.9L15.8 12L17.9 13.9L15.1 14.2L17.9 20.1L13.2 15.6L12 18.2L10.8 15.6L6.1 20.1L8.9 14.2L6.1 13.9L8.2 12L2.5 8.9L8.9 9.8L8.4 7L10.8 8.4Z" fill="white"/></svg>',
   },
   {
     id: 'excellent',
@@ -89,7 +89,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 5,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l4.5 4.5L19.5 6.5" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13c1.5 1.5 3.5 3.8 5.5 5.5C13 14 17 8 20 5" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="5" r="1.5" fill="white"/></svg>',
   },
   {
     id: 'inaccuracy',
@@ -101,7 +101,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 6,
     showInSummary: true,
     nag: '?!',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="19" text-anchor="middle" font-size="17" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white"><tspan x="8.2" text-anchor="middle">?</tspan><tspan x="15.8" text-anchor="middle">!</tspan></text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M5.5 7.5c0-2.2 1.8-3.8 4-3.8s4 1.5 4 3.5c0 1.6-1.1 2.6-2.3 3.4-.8.6-1.2 1.1-1.2 2.2h-2c0-1.7.8-2.6 2-3.4.9-.6 1.5-1.2 1.5-2.2 0-1-.8-1.7-2-1.7s-2 .8-2 2h-2z" fill="white"/><path d="M8.5 15.5l1-1.8 1 1.8-1 1.8z" fill="white"/><path d="M14.5 4h2l-.5 9h-1z" fill="white"/><path d="M15.5 15.5l1-1.8 1 1.8-1 1.8z" fill="white"/></svg>',
   },
   {
     id: 'mistake',
@@ -113,7 +113,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 7,
     showInSummary: true,
     nag: '?',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="19.5" text-anchor="middle" font-size="20" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">?</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M7 8c0-3 2.2-5 5-5s5 2 5 4.8c0 2.2-1.4 3.5-2.8 4.6-1.1.9-1.7 1.6-1.7 3.1h-2.5c0-2.3 1.1-3.6 2.6-4.7 1.2-.9 2-1.7 2-3 0-1.4-1.1-2.4-2.6-2.4s-2.6 1-2.6 2.6H7z" fill="white"/><path d="M10.2 17.5L12 15L13.8 17.5L12 20Z" fill="white"/></svg>',
   },
   {
     id: 'blunder',
@@ -125,7 +125,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 8,
     showInSummary: true,
     nag: '??',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="19" text-anchor="middle" font-size="17" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white"><tspan x="7" text-anchor="middle">?</tspan><tspan x="17" text-anchor="middle">?</tspan></text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M4.2 7c0-2 1.4-3.5 3.3-3.5 1.8 0 3.3 1.4 3.3 3.3 0 1.5-.9 2.4-1.9 3.2-.7.6-1.2 1.1-1.2 2.2H5.9c0-1.6.8-2.5 1.8-3.3.8-.6 1.4-1.2 1.4-2.1 0-1-.7-1.7-1.6-1.7s-1.6.7-1.6 1.9H4.2z" fill="white"/><circle cx="7.5" cy="16.5" r="1.3" fill="white"/><path d="M13.2 7c0-2 1.4-3.5 3.3-3.5 1.8 0 3.3 1.4 3.3 3.3 0 1.5-.9 2.4-1.9 3.2-.7.6-1.2 1.1-1.2 2.2h-1.8c0-1.6.8-2.5 1.8-3.3.8-.6 1.4-1.2 1.4-2.1 0-1-.7-1.7-1.6-1.7s-1.6.7-1.6 1.9h-1.7z" fill="white"/><circle cx="16.5" cy="16.5" r="1.3" fill="white"/></svg>',
   },
   {
     id: 'missed',
@@ -137,7 +137,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 9,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.2"/><path d="M8 8l8 8m0-8l-8 8" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2"/><path d="M8 8l8 8m0-8l-8 8" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>',
   },
 ]
 

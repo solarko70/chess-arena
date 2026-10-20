@@ -162,7 +162,8 @@ describe('Stage A2c-5: Fullscreen Solar Background and Review Panel Styling', ()
   it('class-rows module outputs registry badge and name with zero-count class for zeroes', () => {
     const singleRow = createClassRow(getMoveClassMeta('blunder'));
     expect(singleRow.rowEl.getAttribute('data-class-id')).toBe('blunder');
-    expect(singleRow.badgeEl.textContent).toBe('??');
+    expect(singleRow.badgeEl.querySelector('svg')).toBeTruthy();
+    expect(singleRow.meta.symbol).toBe('??');
     expect(singleRow.labelEl.textContent).toBe('Зевок:');
 
     singleRow.update(0);

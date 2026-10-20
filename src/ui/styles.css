@@ -705,11 +705,22 @@ body.review-active #app {
 
 .board-move-badge svg path[fill='none'],
 .board-move-badge svg polyline[fill='none'],
+.board-move-badge svg circle[fill='none'],
 .review-move-badge svg path[fill='none'],
+.review-move-badge svg polyline[fill='none'],
+.review-move-badge svg circle[fill='none'],
 .move-feedback-card svg path[fill='none'],
+.move-feedback-card svg polyline[fill='none'],
+.move-feedback-card svg circle[fill='none'],
 .class-row svg path[fill='none'],
+.class-row svg polyline[fill='none'],
+.class-row svg circle[fill='none'],
 .card-class-row svg path[fill='none'],
-.move-class-badge svg path[fill='none'] {
+.card-class-row svg polyline[fill='none'],
+.card-class-row svg circle[fill='none'],
+.move-class-badge svg path[fill='none'],
+.move-class-badge svg polyline[fill='none'],
+.move-class-badge svg circle[fill='none'] {
   fill: none !important;
 }
 
@@ -1037,7 +1048,7 @@ body.review-active #app {
   flex-shrink: 0;
   border-radius: 6px;
   overflow: hidden;
-  background: #0d0824;
+  background: #1a0a33;
   border: 1px solid var(--bg-tertiary);
   position: relative;
   box-shadow: var(--board-shadow);
@@ -1049,13 +1060,15 @@ body.review-active #app {
   position: relative;
   display: flex;
   flex-direction: column-reverse;
-  background-color: #0d0824;
+  background-color: #1a0a33;
   background-image:
-    radial-gradient(1px 1px at 25% 20%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
-    radial-gradient(1px 1px at 75% 45%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
-    radial-gradient(1.2px 1.2px at 40% 70%, rgba(236, 72, 153, 0.7) 50%, transparent 100%),
-    radial-gradient(1px 1px at 80% 85%, rgba(255, 255, 255, 0.75) 50%, transparent 100%),
-    linear-gradient(180deg, #130a2e 0%, #080415 100%);
+    radial-gradient(1.8px 1.8px at 20% 15%, #ffffff 60%, rgba(255, 255, 255, 0.2) 100%),
+    radial-gradient(1.5px 1.5px at 75% 25%, #f472b6 60%, transparent 100%),
+    radial-gradient(2.2px 2.2px at 35% 45%, #ffffff 70%, rgba(255, 255, 255, 0.3) 100%),
+    radial-gradient(1.5px 1.5px at 80% 60%, #67e8f9 60%, transparent 100%),
+    radial-gradient(2px 2px at 25% 75%, #ffffff 60%, transparent 100%),
+    radial-gradient(1.6px 1.6px at 70% 85%, #ffffff 60%, transparent 100%),
+    linear-gradient(180deg, #2a114f 0%, #1a0a33 50%, #0f0521 100%);
   background-size: 100% 100%;
 }
 
@@ -2442,6 +2455,7 @@ body.review-active #app {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -2473,18 +2487,25 @@ body.review-active #app {
 .card-class-info {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .card-class-label {
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-class-count {
   font-weight: 700;
   color: var(--text-primary);
+  flex-shrink: 0;
+  min-width: 16px;
+  text-align: right;
 }
 
 .card-material {
@@ -4845,6 +4866,7 @@ body.review-active .review-overlay-side-col .history-nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     padding: 0 10px;
     margin-bottom: 6px;
     box-sizing: border-box;
@@ -4854,12 +4876,23 @@ body.review-active .review-overlay-side-col .history-nav {
   }
 
   .class-row .card-class-label,
-  .card-class-row .card-class-label,
+  .card-class-row .card-class-label {
+    color: var(--solar-text, #f8fafc);
+    font-size: 13.5px;
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .class-row .card-class-count,
   .card-class-row .card-class-count {
     color: var(--solar-text, #f8fafc);
     font-size: 13.5px;
     display: inline-block;
+    flex-shrink: 0;
+    min-width: 16px;
+    text-align: right;
   }
 
   .btn-action,
