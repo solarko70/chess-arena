@@ -101,7 +101,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 6,
     showInSummary: true,
     nag: '?!',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="16.5" text-anchor="middle" font-size="12" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">?!</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="17.2" text-anchor="middle" font-size="14.5" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">?!</text></svg>',
   },
   {
     id: 'mistake',
@@ -113,7 +113,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 7,
     showInSummary: true,
     nag: '?',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="17" text-anchor="middle" font-size="14" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">?</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="17.5" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">?</text></svg>',
   },
   {
     id: 'blunder',
@@ -125,7 +125,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 8,
     showInSummary: true,
     nag: '??',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="16.5" text-anchor="middle" font-size="12" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">??</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="17.2" text-anchor="middle" font-size="14.5" font-weight="900" letter-spacing="-0.5" font-family="system-ui, -apple-system, sans-serif" fill="white">??</text></svg>',
   },
   {
     id: 'missed',
@@ -133,11 +133,11 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     shortRu: 'Упущенный',
     cssVar: '--class-missed',
     color: '#e11d48',
-    symbol: '✖!',
+    symbol: '✖',
     order: 9,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="16" text-anchor="middle" font-size="11.5" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">✖!</text></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><text x="12" y="17.5" text-anchor="middle" font-size="16" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">✖</text></svg>',
   },
 ]
 

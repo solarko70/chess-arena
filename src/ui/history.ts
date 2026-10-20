@@ -111,7 +111,7 @@ export class HistoryUI {
   private getFeedbackVerdictTitle(moveClass: string, defaultName: string): string {
     if (moveClass === 'stellar') return 'Звёздный !!';
     if (moveClass === 'superb') return 'Превосходный !';
-    if (moveClass === 'missed') return 'Упущенный шанс ✖!';
+    if (moveClass === 'missed') return 'Упущенный шанс ✖';
     return defaultName;
   }
 

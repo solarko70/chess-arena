@@ -100,13 +100,13 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
 
       const fontSize = parseFloat(textEl?.getAttribute('font-size') || '0');
       expect(fontSize).toBeGreaterThanOrEqual(11);
-      expect(fontSize).toBeLessThanOrEqual(15);
+      expect(fontSize).toBeLessThanOrEqual(18);
 
       const content = textEl?.textContent?.trim();
       if (id === 'mistake') expect(content).toBe('?');
       if (id === 'inaccuracy') expect(content).toBe('?!');
       if (id === 'blunder') expect(content).toBe('??');
-      if (id === 'missed') expect(content).toBe('✖!');
+      if (id === 'missed') expect(content).toBe('✖');
     }
   });
 
@@ -124,7 +124,7 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
 
     const missedSvg = getMoveClassSvg('missed');
     expect(missedSvg).toContain('viewBox="0 0 24 24"');
-    expect(missedSvg).toContain('✖!');
+    expect(missedSvg).toContain('✖');
 
     const bestSvg = getMoveClassSvg('best');
     expect(bestSvg).toContain('viewBox="0 0 24 24"');

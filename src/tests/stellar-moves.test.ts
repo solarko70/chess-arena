@@ -247,7 +247,7 @@ describe('Stage 4d-3.2: Stellar, Superb & Missed Move Classification & UI Polish
 
     // Select ply 3 ('missed')
     store.setViewIndex(2);
-    expect(card.querySelector('.feedback-card-verdict')?.textContent).toBe('Упущенный шанс ✖!');
+    expect(card.querySelector('.feedback-card-verdict')?.textContent).toBe('Упущенный шанс ✖');
     expect(card.querySelector('.feedback-card-desc')?.textContent).toBe(
       'Упущена возможность победить',
     );

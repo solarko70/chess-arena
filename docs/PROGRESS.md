@@ -255,3 +255,21 @@
   - Synchronized `src/tests/classes-icons.test.ts` for clean vector/text layout and chevron stroke-width.
   - Synchronized `src/tests/review-ui.test.ts` for `#05020a` / `#160429` / `#28064a` gradient.
 - [x] Verification: 32 test files, 332 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
+
+
+## Stage 4d-4.4: Move Class Font Scaling & Concise Missed Symbol (Completed)
+- [x] Enlarged Typography & Vertical Centering for Move Badges (`src/analysis/classes.ts`):
+  - `inaccuracy` (?!): increased `font-size` from `12` to `14.5`, centered baseline at `y="17.2"`.
+  - `mistake` (?): increased `font-size` from `14` to `17.5`, centered baseline at `y="18"`.
+  - `blunder` (??): increased `font-size` from `12` to `14.5`, centered baseline at `y="17.2"` with `letter-spacing="-0.5"`.
+- [x] Concise Missed Symbol (`src/analysis/classes.ts`, `src/ui/history.ts`):
+  - Replaced symbol `'✖!'` with concise `'✖'`: `symbol: '✖'`.
+  - Updated SVG text to clean centered cross: `<text x="12" y="17.5" text-anchor="middle" font-size="16" font-weight="900" font-family="system-ui, -apple-system, sans-serif" fill="white">✖</text>`.
+  - Updated feedback verdict title in `src/ui/history.ts`: `getFeedbackVerdictTitle` returns `'Упущенный шанс ✖'`.
+- [x] Test Suite Synchronization:
+  - Updated `src/tests/classes-icons.test.ts`: allowed `fontSize <= 18` for `mistake` (17.5) and `missed` (16), updated expected content and markup for `missed` to `'✖'`.
+  - Updated `src/tests/stellar-moves.test.ts`: updated verdict title expectation for `missed` move card from `'Упущенный шанс ✖!'` to `'Упущенный шанс ✖'`.
+- [x] Verification:
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npm run build`: built production bundle in 597ms with exit code 0.
+  - `npm test`: 32 test files passed, 332 tests passed (80s, watchdog clean).
