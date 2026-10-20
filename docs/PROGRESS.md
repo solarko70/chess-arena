@@ -391,3 +391,28 @@
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 347 tests passed, watchdog clean).
+
+## Stage 5b: Ambient Cosmic Drone, Button Click Sound, and Mute Toggle (Completed)
+- [x] Procedural Sound Engine Enhancements (`src/audio/solar-audio.ts`):
+  - Added global mute management: `isMuted(): boolean`, `toggleMute(): boolean`, `setMuted(val: boolean)`, with backward-compatible alias `isAudioMuted(): boolean`.
+  - Persisted user mute choice in `localStorage` under key `'solar_chess_sound_muted'`.
+  - Complete silence across moves, captures, checks, checkmates, stellar moves, ambient drone, and tactile clicks when muted.
+  - Implemented tactile button click sound `playButtonClick()`: short high-tech click (~35ms), triangle wave frequency drop 600Hz -> 180Hz in 0.035s, delicate peak gain 0.09 decaying exponentially to 0.001.
+  - Implemented procedural cosmic black hole menu drone `startMenuAmbient()` / `stopMenuAmbient(fadeMs = 1000)`:
+    - Sub-bass layer: 48Hz sine + 51.5Hz triangle interference beats (~3.5Hz beat frequency).
+    - Relic radiation noise layer: looped random noise buffer filtered through 160Hz BiquadFilter (bandpass, Q: 3.0), modulated by slow 0.08Hz LFO (12.5s breathing cycle).
+    - Master ambient gain ~0.05 with smooth 2.5s fade-in upon start and 1.0s fade-out upon stop.
+- [x] UI & Navigation Integration (`src/main.ts`, `src/ui/styles.css`):
+  - Added vector SVG mute toggle button `#sound-btn` (`.sound-toggle-btn`) in top bar next to `#theme-btn` with crisp speaker icons (`SOUND_ON_ICON` and `SOUND_OFF_ICON`), zero emojis.
+  - Shifted button positioning to `right: 64px` in standard view and `right: 116px` in review overlay (`body.review-active`).
+  - Automated ambient drone lifecycle: starts on home/lobby screen upon user interaction and fades out smoothly over 1s when entering game or review.
+  - Suspended drone automatically on page hide (`document.hidden`) and resumed on return to home screen.
+  - Added delegated tactile button click listener triggering `playButtonClick()` across menu buttons, actions, setup cards, and review tabs.
+- [x] Unit & Integration Tests (`src/tests/solar-audio.test.ts`):
+  - Added tests for `toggleMute`, `isMuted`, `setMuted`, and `localStorage` persistence.
+  - Added tests for `playButtonClick()`, `startMenuAmbient()`, and `stopMenuAmbient()` audio graph synthesis.
+  - Added tests for silence when muted, sound toggle button interactions, and delegated tactile click sounds.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 355 tests passed, watchdog clean).

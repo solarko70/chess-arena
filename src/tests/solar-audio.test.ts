@@ -7,12 +7,19 @@ import {
   playCheck,
   playCheckmate,
   playStellar,
+  playButtonClick,
+  startMenuAmbient,
+  stopMenuAmbient,
+  toggleMute,
+  isAudioMuted,
+  isMuted,
 } from '@/audio/solar-audio';
 import { ChessStore } from '@/state/store';
 import { HistoryUI } from '@/ui/history';
 import { ChessBoardUI } from '@/ui/board';
 import type { GameReviewResult } from '@/analysis';
 import type { Move } from '@/core';
+import { initApp, getRouter } from '@/main';
 
 describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => {
   let container: HTMLElement;
@@ -397,6 +404,361 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     // 2. Qh5+ (check!)
     store.makeMove(store.coordsToSquare(3, 7), store.coordsToSquare(7, 3));
     expect(checkSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
+  beforeEach(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      // safe
+    }
+    solarAudio.setMuted(false);
+    solarAudio.setContextForTesting(null);
+  });
+
+  afterEach(() => {
+    solarAudio.stopMenuAmbient(0);
+    solarAudio.setMuted(false);
+    solarAudio.setContextForTesting(null);
+    vi.restoreAllMocks();
+  });
+
+  it('standalone audio methods playButtonClick, startMenuAmbient, stopMenuAmbient run safely', () => {
+    expect(typeof playButtonClick).toBe('function');
+    expect(typeof startMenuAmbient).toBe('function');
+    expect(typeof stopMenuAmbient).toBe('function');
+    expect(typeof toggleMute).toBe('function');
+    expect(typeof isAudioMuted).toBe('function');
+    expect(typeof isMuted).toBe('function');
+
+    expect(() => playButtonClick()).not.toThrow();
+    expect(() => startMenuAmbient()).not.toThrow();
+    expect(() => stopMenuAmbient()).not.toThrow();
+  });
+
+  it('toggleMute, isMuted, setMuted update state and persist to localStorage', () => {
+    solarAudio.setMuted(false);
+    expect(solarAudio.isMuted()).toBe(false);
+    expect(isMuted()).toBe(false);
+    expect(isAudioMuted()).toBe(false);
+    expect(localStorage.getItem('solar_chess_sound_muted')).toBe('false');
+
+    const toggled = solarAudio.toggleMute();
+    expect(toggled).toBe(true);
+    expect(solarAudio.isMuted()).toBe(true);
+    expect(localStorage.getItem('solar_chess_sound_muted')).toBe('true');
+
+    toggleMute();
+    expect(solarAudio.isMuted()).toBe(false);
+    expect(localStorage.getItem('solar_chess_sound_muted')).toBe('false');
+
+    solarAudio.setMuted(true);
+    expect(solarAudio.isMuted()).toBe(true);
+    expect(localStorage.getItem('solar_chess_sound_muted')).toBe('true');
+  });
+
+  it('playButtonClick synthesizes short high-tech click when audio is unmuted', () => {
+    const createdOscillators: Array<{
+      type: string;
+      frequency: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    }> = [];
+    const createdGains: Array<{
+      gain: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const mockCtx = {
+      currentTime: 10,
+      state: 'running',
+      createOscillator: vi.fn().mockImplementation(() => {
+        const osc = {
+          type: 'sine',
+          frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+          connect: vi.fn(),
+          start: vi.fn(),
+          stop: vi.fn(),
+        };
+        createdOscillators.push(osc);
+        return osc;
+      }),
+      createGain: vi.fn().mockImplementation(() => {
+        const gain = {
+          gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        };
+        createdGains.push(gain);
+        return gain;
+      }),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    solarAudio.setMuted(false);
+    solarAudio.playButtonClick();
+
+    expect(createdOscillators.length).toBe(1);
+    expect(createdOscillators[0].type).toBe('triangle');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(600, 10);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(180, 10.035);
+    expect(createdGains.length).toBe(1);
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.09, 10);
+    expect(createdGains[0].gain.exponentialRampToValueAtTime).toHaveBeenCalledWith(0.001, 10.035);
+    expect(createdOscillators[0].start).toHaveBeenCalledWith(10);
+    expect(createdOscillators[0].stop).toHaveBeenCalledWith(10.035);
+  });
+
+  it('startMenuAmbient synthesizes low sub-bass drone with relic noise and LFO', () => {
+    const createdOscillators: Array<{
+      type: string;
+      frequency: { setValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    }> = [];
+    const createdGains: Array<{
+      gain: {
+        setValueAtTime: ReturnType<typeof vi.fn>;
+        linearRampToValueAtTime: ReturnType<typeof vi.fn>;
+        cancelScheduledValues: ReturnType<typeof vi.fn>;
+        value: number;
+      };
+      connect: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+    const createdFilters: Array<{
+      type: string;
+      frequency: { setValueAtTime: ReturnType<typeof vi.fn> };
+      Q: { setValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+    }> = [];
+    const createdBufferSources: Array<{
+      buffer: unknown;
+      loop: boolean;
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const mockCtx = {
+      currentTime: 10,
+      sampleRate: 44100,
+      state: 'running',
+      createOscillator: vi.fn().mockImplementation(() => {
+        const osc = {
+          type: 'sine',
+          frequency: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+          start: vi.fn(),
+          stop: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        createdOscillators.push(osc);
+        return osc;
+      }),
+      createGain: vi.fn().mockImplementation(() => {
+        const gain = {
+          gain: {
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+            cancelScheduledValues: vi.fn(),
+            value: 0.05,
+          },
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        createdGains.push(gain);
+        return gain;
+      }),
+      createBiquadFilter: vi.fn().mockImplementation(() => {
+        const filter = {
+          type: 'bandpass',
+          frequency: { setValueAtTime: vi.fn() },
+          Q: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        };
+        createdFilters.push(filter);
+        return filter;
+      }),
+      createBuffer: vi.fn().mockImplementation(() => ({
+        getChannelData: vi.fn().mockReturnValue(new Float32Array(100)),
+      })),
+      createBufferSource: vi.fn().mockImplementation(() => {
+        const src = {
+          buffer: null,
+          loop: false,
+          connect: vi.fn(),
+          start: vi.fn(),
+          stop: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        createdBufferSources.push(src);
+        return src;
+      }),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    solarAudio.setMuted(false);
+    solarAudio.startMenuAmbient();
+
+    // Master gain: ramps from 0.0001 to 0.05 over 2.5s
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.0001, 10);
+    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.05, 12.5);
+
+    // Sub-bass layer: 48Hz sine + 51.5Hz triangle
+    expect(createdOscillators.length).toBeGreaterThanOrEqual(2);
+    expect(createdOscillators[0].type).toBe('sine');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(48, 10);
+    expect(createdOscillators[1].type).toBe('triangle');
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(51.5, 10);
+
+    // Relic noise buffer source
+    expect(createdBufferSources.length).toBe(1);
+    expect(createdBufferSources[0].loop).toBe(true);
+    expect(createdBufferSources[0].start).toHaveBeenCalledWith(10);
+
+    // Filter bandpass 160Hz with Q 3.0
+    expect(createdFilters.length).toBe(1);
+    expect(createdFilters[0].type).toBe('bandpass');
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(160, 10);
+    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(3.0, 10);
+
+    // LFO at 0.08Hz
+    expect(createdOscillators.length).toBe(3);
+    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(0.08, 10);
+  });
+
+  it('stopMenuAmbient performs smooth gain ramp down and stops audio sources', () => {
+    const createdGains: Array<{
+      gain: {
+        setValueAtTime: ReturnType<typeof vi.fn>;
+        linearRampToValueAtTime: ReturnType<typeof vi.fn>;
+        cancelScheduledValues: ReturnType<typeof vi.fn>;
+        value: number;
+      };
+      connect: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const mockCtx = {
+      currentTime: 10,
+      sampleRate: 44100,
+      state: 'running',
+      createOscillator: vi.fn().mockImplementation(() => ({
+        type: 'sine',
+        frequency: { setValueAtTime: vi.fn() },
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+      createGain: vi.fn().mockImplementation(() => {
+        const gain = {
+          gain: {
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+            cancelScheduledValues: vi.fn(),
+            value: 0.05,
+          },
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        createdGains.push(gain);
+        return gain;
+      }),
+      createBiquadFilter: vi.fn().mockImplementation(() => ({
+        type: 'bandpass',
+        frequency: { setValueAtTime: vi.fn() },
+        Q: { setValueAtTime: vi.fn() },
+        connect: vi.fn(),
+      })),
+      createBuffer: vi.fn().mockImplementation(() => ({
+        getChannelData: vi.fn().mockReturnValue(new Float32Array(100)),
+      })),
+      createBufferSource: vi.fn().mockImplementation(() => ({
+        buffer: null,
+        loop: false,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    solarAudio.setMuted(false);
+    solarAudio.startMenuAmbient();
+
+    solarAudio.stopMenuAmbient(1000);
+    const masterGain = createdGains[0];
+    expect(masterGain.gain.cancelScheduledValues).toHaveBeenCalledWith(10);
+    expect(masterGain.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.0001, 11);
+  });
+
+  it('when audio is muted, playButtonClick and startMenuAmbient produce no sound', () => {
+    const mockCtx = {
+      currentTime: 10,
+      state: 'running',
+      createOscillator: vi.fn(),
+      createGain: vi.fn(),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    solarAudio.setMuted(true);
+
+    solarAudio.playButtonClick();
+    expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    expect(mockCtx.createGain).not.toHaveBeenCalled();
+
+    solarAudio.startMenuAmbient();
+    expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    expect(mockCtx.createGain).not.toHaveBeenCalled();
+
+    solarAudio.setMuted(false);
+  });
+
+  it('sound toggle button updates UI state and toggles audio mute on click', () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    initApp();
+    const soundBtn = document.getElementById('sound-btn') as HTMLButtonElement | null;
+    expect(soundBtn).not.toBeNull();
+
+    solarAudio.setMuted(false);
+    expect(solarAudio.isMuted()).toBe(false);
+
+    soundBtn?.click();
+    expect(solarAudio.isMuted()).toBe(true);
+    expect(soundBtn?.classList.contains('muted')).toBe(true);
+    expect(soundBtn?.getAttribute('aria-label')).toBe('Включить звук');
+
+    soundBtn?.click();
+    expect(solarAudio.isMuted()).toBe(false);
+    expect(soundBtn?.classList.contains('muted')).toBe(false);
+    expect(soundBtn?.getAttribute('aria-label')).toBe('Выключить звук');
+
+    getRouter()?.destroy();
+  });
+
+  it('clicking interactive buttons triggers playButtonClick sound feedback', () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    initApp();
+    const clickSpy = vi.spyOn(solarAudio, 'playButtonClick');
+
+    const menuBtn = document.getElementById('btn-play-local') as HTMLButtonElement | null;
+    expect(menuBtn).not.toBeNull();
+    menuBtn?.click();
+
+    expect(clickSpy).toHaveBeenCalled();
+
+    getRouter()?.destroy();
   });
 });
 

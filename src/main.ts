@@ -1,5 +1,10 @@
 import './ui/styles.css';
-import './audio/solar-audio';
+import {
+  solarAudio,
+  playButtonClick,
+  startMenuAmbient,
+  stopMenuAmbient,
+} from './audio/solar-audio';
 import { APP_NAME } from './config';
 import { t } from './i18n';
 import { HashRouter, type AppRoute } from './router';
@@ -37,6 +42,21 @@ function formatClockMs(ms: number): { text: string; isLow: boolean } {
   };
 }
 
+const SOUND_ON_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+  </svg>
+`;
+
+const SOUND_OFF_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+    <line x1="23" y1="9" x2="17" y2="15"></line>
+    <line x1="17" y1="9" x2="23" y2="15"></line>
+  </svg>
+`;
+
 const MOON_ICON = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -70,6 +90,7 @@ let currentRouter: HashRouter | null = null;
 let clockIntervalId: ReturnType<typeof setInterval> | null = null;
 let keydownCleanup: (() => void) | null = null;
 let visibilityCleanup: (() => void) | null = null;
+let clickCleanup: (() => void) | null = null;
 
 export function getRouter(): HashRouter | null {
   return currentRouter;
@@ -103,6 +124,10 @@ export function initApp(): void {
     visibilityCleanup();
     visibilityCleanup = null;
   }
+  if (clickCleanup) {
+    clickCleanup();
+    clickCleanup = null;
+  }
 
   // Remove old modals & background mounted on document.body on re-init
   document.getElementById('setup-modal-mount')?.remove();
@@ -113,6 +138,11 @@ export function initApp(): void {
   globalStore.loadSettingsFromStorage();
 
   app.innerHTML = `
+    <!-- Fixed Sound Mute Toggle in top-right corner of viewport (left of Theme Toggle) -->
+    <button class="sound-toggle-btn" id="sound-btn" aria-label="Звук: включен" title="Звук: включен">
+      ${SOUND_ON_ICON}
+    </button>
+
     <!-- Fixed Theme Toggle in top-right corner of viewport -->
     <button class="theme-toggle-btn" id="theme-btn" aria-label="${t('common.themeToggleDark')}" title="${t('common.themeToggleDark')}">
       ${MOON_ICON}
@@ -357,6 +387,12 @@ export function initApp(): void {
     reviewSolarScene?.classList.toggle('solar-anim-paused', paused);
     solarBgEl?.classList.toggle('space-scene-paused', paused);
     solarBgEl?.classList.toggle('solar-anim-paused', paused);
+
+    if (paused) {
+      stopMenuAmbient(300);
+    } else if (currentRouter?.getRoute() === 'home') {
+      startMenuAmbient();
+    }
   };
   updateVisibilityPause();
   document.addEventListener('visibilitychange', updateVisibilityPause);
@@ -389,6 +425,12 @@ export function initApp(): void {
     const isGame = route === 'game';
     document.body.classList.toggle('home-active', isHome);
     document.body.classList.toggle('game-active', isGame);
+
+    if (isHome) {
+      startMenuAmbient();
+    } else {
+      stopMenuAmbient(1000);
+    }
 
     if (homeScreen) {
       homeScreen.style.display = isHome ? 'flex' : 'none';
@@ -934,6 +976,52 @@ export function initApp(): void {
   };
 
   document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);
+
+  // Sound Mute Toggle UI & interactions
+  const updateSoundUI = (): void => {
+    const soundBtn = document.getElementById('sound-btn');
+    if (!soundBtn) return;
+    const isMuted = solarAudio.isMuted();
+    soundBtn.classList.toggle('muted', isMuted);
+    if (isMuted) {
+      soundBtn.innerHTML = SOUND_OFF_ICON;
+      soundBtn.setAttribute('title', 'Звук: выключен');
+      soundBtn.setAttribute('aria-label', 'Включить звук');
+    } else {
+      soundBtn.innerHTML = SOUND_ON_ICON;
+      soundBtn.setAttribute('title', 'Звук: включен');
+      soundBtn.setAttribute('aria-label', 'Выключить звук');
+    }
+  };
+  updateSoundUI();
+
+  document.getElementById('sound-btn')?.addEventListener('click', () => {
+    const wasMuted = solarAudio.isMuted();
+    solarAudio.toggleMute();
+    updateSoundUI();
+    if (wasMuted) {
+      playButtonClick();
+      if (currentRouter?.getRoute() === 'home') {
+        startMenuAmbient();
+      }
+    }
+  });
+
+  // Tactile button click sound feedback
+  const handleButtonClickSound = (e: MouseEvent): void => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    const btn = target.closest(
+      'button:not(.promo-btn):not(#sound-btn), .btn-menu, .btn-action, .review-tab-btn, .setup-time-card, .setup-level-card, .setup-color-card, .key-moment-item'
+    );
+    if (btn) {
+      playButtonClick();
+    }
+  };
+  document.addEventListener('click', handleButtonClickSound);
+  clickCleanup = () => {
+    document.removeEventListener('click', handleButtonClickSound);
+  };
 }
 
 window.addEventListener('DOMContentLoaded', initApp);

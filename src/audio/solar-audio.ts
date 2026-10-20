@@ -11,10 +11,22 @@ function getAudioContextClass(): typeof AudioContext | null {
 
 export class SolarAudio {
   private ctx: AudioContext | null = null;
-  private isMuted = false;
+  private isMutedState = false;
   private unlockListenersAttached = false;
+  private shouldPlayAmbient = false;
+  private ambientNodes: {
+    masterGain: GainNode;
+    sources: (OscillatorNode | AudioBufferSourceNode)[];
+  } | null = null;
 
   constructor() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        this.isMutedState = localStorage.getItem('solar_chess_sound_muted') === 'true';
+      }
+    } catch {
+      this.isMutedState = false;
+    }
     this.initUnlockListeners();
   }
 
@@ -26,6 +38,9 @@ export class SolarAudio {
       this.ensureContext();
       if (this.ctx && this.ctx.state === 'suspended') {
         void this.ctx.resume();
+      }
+      if (this.shouldPlayAmbient && !this.ambientNodes && !this.isMutedState) {
+        this.startMenuAmbient();
       }
       window.removeEventListener('click', unlock, true);
       window.removeEventListener('touchstart', unlock, true);
@@ -62,23 +77,209 @@ export class SolarAudio {
   }
 
   public setMuted(muted: boolean): void {
-    this.isMuted = muted;
+    this.isMutedState = muted;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('solar_chess_sound_muted', muted ? 'true' : 'false');
+      }
+    } catch {
+      // Storage unavailable
+    }
+    if (muted) {
+      this.stopMenuAmbient(100);
+    }
+  }
+
+  public isMuted(): boolean {
+    return this.isMutedState;
   }
 
   public isAudioMuted(): boolean {
-    return this.isMuted;
+    return this.isMutedState;
   }
 
   public toggleMute(): boolean {
-    this.isMuted = !this.isMuted;
-    return this.isMuted;
+    this.setMuted(!this.isMutedState);
+    return this.isMutedState;
+  }
+
+  /**
+   * Short, soft tactile button click (~30ms):
+   * Triangle wave frequency drop 600Hz -> 180Hz in 0.035s with delicate gain 0.09 -> 0.001.
+   */
+  public playButtonClick(): void {
+    if (this.isMutedState) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const duration = 0.035;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + duration);
+
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    } catch {
+      // Safe fallback on Web Audio API errors
+    }
+  }
+
+  /**
+   * Procedural cosmic black hole background ambient (Cosmic Drone):
+   * 1. Sub-bass oscillators: 48Hz sine + 51.5Hz triangle (~3.5Hz beat interference).
+   * 2. Cosmic relic radiation noise: looped noise buffer passed through 160Hz bandpass filter (Q: 3.0),
+   *    modulated by slow 0.08Hz LFO.
+   * 3. Ambient master gain: delicate volume ~0.05 with smooth 2.5s fade-in.
+   */
+  public startMenuAmbient(): void {
+    if (this.isMutedState) return;
+    this.shouldPlayAmbient = true;
+    if (this.ambientNodes) return;
+
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+
+      const ambientMasterGain = ctx.createGain();
+      ambientMasterGain.gain.setValueAtTime(0.0001, now);
+      ambientMasterGain.gain.linearRampToValueAtTime(0.05, now + 2.5);
+      ambientMasterGain.connect(ctx.destination);
+
+      const sources: (OscillatorNode | AudioBufferSourceNode)[] = [];
+
+      // Sub-bass layer: 48Hz sine + 51.5Hz triangle
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.05, now);
+      subGain.connect(ambientMasterGain);
+
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(48, now);
+      osc1.connect(subGain);
+      osc1.start(now);
+      sources.push(osc1);
+
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(51.5, now);
+      osc2.connect(subGain);
+      osc2.start(now);
+      sources.push(osc2);
+
+      // Relic radiation noise layer with bandpass filter and slow LFO
+      if (typeof ctx.createBuffer === 'function' && typeof ctx.createBufferSource === 'function') {
+        const sampleRate = ctx.sampleRate || 44100;
+        const bufferLength = Math.floor(sampleRate * 3);
+        const noiseBuffer = ctx.createBuffer(1, bufferLength, sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferLength; i++) {
+          output[i] = (Math.random() * 2 - 1) * 0.4;
+        }
+
+        const noiseSource = ctx.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+        noiseSource.loop = true;
+
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.setValueAtTime(160, now);
+        noiseFilter.Q.setValueAtTime(3.0, now);
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.04, now);
+
+        noiseSource.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(ambientMasterGain);
+
+        // Slow LFO for 0.08Hz cosmic breathing
+        const lfo = ctx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(0.08, now);
+
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.setValueAtTime(40, now);
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(noiseFilter.frequency);
+
+        noiseSource.start(now);
+        lfo.start(now);
+        sources.push(noiseSource, lfo);
+      }
+
+      this.ambientNodes = {
+        masterGain: ambientMasterGain,
+        sources,
+      };
+    } catch {
+      // Safe fallback on Web Audio API errors
+    }
+  }
+
+  /**
+   * Smooth fade-out of menu ambient drone over fadeMs (default 1000ms).
+   */
+  public stopMenuAmbient(fadeMs = 1000): void {
+    this.shouldPlayAmbient = false;
+    if (!this.ambientNodes) return;
+
+    const nodes = this.ambientNodes;
+    this.ambientNodes = null;
+
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const fadeSec = Math.max(0.01, fadeMs / 1000);
+
+    try {
+      if (typeof nodes.masterGain.gain.cancelScheduledValues === 'function') {
+        nodes.masterGain.gain.cancelScheduledValues(now);
+      }
+      const currentVal = nodes.masterGain.gain.value ?? 0.05;
+      nodes.masterGain.gain.setValueAtTime(currentVal, now);
+      nodes.masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeSec);
+
+      setTimeout(() => {
+        try {
+          for (const src of nodes.sources) {
+            src.stop();
+            if (typeof src.disconnect === 'function') {
+              src.disconnect();
+            }
+          }
+          if (typeof nodes.masterGain.disconnect === 'function') {
+            nodes.masterGain.disconnect();
+          }
+        } catch {
+          // Safe cleanup
+        }
+      }, fadeMs + 50);
+    } catch {
+      // Safe fallback on Web Audio API errors
+    }
   }
 
   /**
    * Soft move click: fast frequency drop 240Hz -> 90Hz in 0.05s via GainNode and OscillatorNode.
    */
   public playMove(): void {
-    if (this.isMuted) return;
+    if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
 
@@ -111,7 +312,7 @@ export class SolarAudio {
    * with a tight, dense gain decay to 0.001 over 0.09s.
    */
   public playCapture(): void {
-    if (this.isMuted) return;
+    if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
 
@@ -152,7 +353,7 @@ export class SolarAudio {
    * smooth warm decay over 0.38s shaped by an 1100Hz lowpass filter.
    */
   public playCheck(): void {
-    if (this.isMuted) return;
+    if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
 
@@ -194,7 +395,7 @@ export class SolarAudio {
    * soft 0.05s attack with prolonged resonating decay over 1.3s.
    */
   public playCheckmate(): void {
-    if (this.isMuted) return;
+    if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
 
@@ -239,7 +440,7 @@ export class SolarAudio {
    * Master gain: 0.55 connected to destination.
    */
   public playStellar(): void {
-    if (this.isMuted) return;
+    if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
 
@@ -356,5 +557,29 @@ export function playCheckmate(): void {
 
 export function playStellar(): void {
   solarAudio.playStellar();
+}
+
+export function playButtonClick(): void {
+  solarAudio.playButtonClick();
+}
+
+export function startMenuAmbient(): void {
+  solarAudio.startMenuAmbient();
+}
+
+export function stopMenuAmbient(fadeMs?: number): void {
+  solarAudio.stopMenuAmbient(fadeMs);
+}
+
+export function toggleMute(): boolean {
+  return solarAudio.toggleMute();
+}
+
+export function isAudioMuted(): boolean {
+  return solarAudio.isAudioMuted();
+}
+
+export function isMuted(): boolean {
+  return solarAudio.isMuted();
 }
 
