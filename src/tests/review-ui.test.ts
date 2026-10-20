@@ -1054,4 +1054,53 @@ describe('Game Review UI Integration Tests', () => {
       expect(layer.getAttribute('style')).toContain('overflow: visible');
     }
   });
+  it('оверлей разбора использует justify-content: flex-start и сбрасывает scrollTop в 0', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    // Overlay containers use justify-content: flex-start !important and no margin: auto
+    expect(css).toMatch(/#review-overlay[\s\S]*?justify-content:\s*flex-start\s*!important/);
+    expect(css).toMatch(/\.review-overlay-body\s*\{[\s\S]*?justify-content:\s*flex-start\s*!important/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?width:\s*min\(calc\(100vw - 20px\),\s*380px\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?margin-top:\s*4px;/);
+
+    // Make moves and open review overlay
+    const e2 = globalStore.coordsToSquare(4, 6);
+    const e4 = globalStore.coordsToSquare(4, 4);
+    const e7 = globalStore.coordsToSquare(4, 1);
+    const e5 = globalStore.coordsToSquare(4, 3);
+    globalStore.makeMove(e2, e4);
+    globalStore.makeMove(e7, e5);
+
+    const mockResult = createMockReviewResult();
+    globalStore.setReviewResult(mockResult);
+
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
+    modalReviewBtn.click();
+
+    const overlay = document.getElementById('review-overlay') as HTMLElement;
+    expect(overlay).toBeTruthy();
+    expect(overlay.style.display).toBe('flex');
+    expect(overlay.scrollTop).toBe(0);
+
+    // Scroll down and test reset on mobile tab click
+    overlay.scrollTop = 120;
+    expect(overlay.scrollTop).toBe(120);
+
+    const mobileTabs = document.getElementById('review-mobile-tabs');
+    expect(mobileTabs).toBeTruthy();
+    const overviewTabBtn = mobileTabs?.querySelector('[data-tab="overview"]') as HTMLButtonElement;
+    expect(overviewTabBtn).toBeTruthy();
+
+    overviewTabBtn.click();
+    expect(overlay.scrollTop).toBe(0);
+
+    // Verify DOM structure inside review-overlay-body
+    const boardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement;
+    const boardMount = document.getElementById('board-mount') as HTMLElement;
+    const nav = document.getElementById('review-board-nav') as HTMLElement;
+    expect(boardSlot).toBeTruthy();
+    expect(boardSlot.contains(boardMount)).toBe(true);
+    expect(boardSlot.contains(nav)).toBe(true);
+  });
 });

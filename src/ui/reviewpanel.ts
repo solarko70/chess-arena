@@ -273,6 +273,10 @@ export class ReviewPanelUI {
   }
 
   public async startReview(options?: { isDeep?: boolean; depth?: number; force?: boolean }): Promise<void> {
+    const overlay = document.getElementById('review-overlay');
+    if (overlay && !document.activeElement?.closest?.('.history-move')) {
+      overlay.scrollTop = 0;
+    }
     this.store.setReviewMode(true);
     if (this.store.getLiveState().history.length < 2) {
       return;

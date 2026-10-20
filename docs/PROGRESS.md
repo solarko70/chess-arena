@@ -141,4 +141,10 @@
 - [x] Board Frame & Evaluation Bar Alignment (`src/ui/styles.css`): set `aspect-ratio: auto;` on `.review-overlay .game-board-mount`, `align-items: stretch;` and `gap: 8px` on `.board-area`, `flex: 1; min-width: 0; aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden;` on `.board-container`, and `border-radius: 6px; align-self: stretch;` on `.eval-bar-wrapper`.
 - [x] Verification: 31 test files, 322 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
 
-
+## Stage 4d-2.2: Mobile Review Overlay Scroll Bug Fix & Vertical Flow (Completed)
+- [x] Fixed Review Overlay Scroll & Coordinate Bug (src/ui/styles.css): eliminated flex centering (justify-content: center) and margin: auto that pushed the board and header into negative scroll coordinates (y < 0) on mobile viewports. Replaced with justify-content: flex-start !important; on #review-overlay, .review-overlay, .review-overlay-content, and .review-overlay-body.
+- [x] Strict Top-to-Bottom Vertical Flow (src/ui/styles.css): structured layout starting from y = 0: 1) Overlay header (.review-overlay-header), 2) Board with evaluation bar (#review-overlay-board-slot / .game-board-mount), 3) 4-button move navigation (.review-board-nav), 4) Mobile tabs bar (.review-mobile-tabs), and 5) Active tab panel content (.review-overlay-side-col).
+- [x] Board Mount Clamp & Frame Alignment (src/ui/styles.css): clamped mobile board mount width to width: min(calc(100vw - 20px), 380px); max-width: 380px; margin-top: 4px; so evaluation bar and squares 1–8 are fully visible directly under header.
+- [x] Programmatic Viewport Scroll Reset (src/main.ts, src/ui/reviewpanel.ts): enforces eviewOverlay.scrollTop = 0 whenever the review overlay is opened and whenever mobile tabs are clicked (unless keyboard/move focus is within a .history-move).
+- [x] Comprehensive Vitest Integration Suite (src/tests/review-ui.test.ts): verified justify-content: flex-start !important, safe width clamping, sequential DOM ordering, and programmatic scrollTop reset on mobile tab navigation.
+- [x] Verification: 31 test files, 323 tests passing via pm test (scripts/safe-test.mjs), 0 lint warnings/errors in pm run lint, and clean production build via pm run build.

@@ -497,6 +497,10 @@ export function initApp(): void {
     mobileTabs.querySelectorAll('.review-tab-btn').forEach((b) => {
       b.classList.toggle('active', b === btn);
     });
+    // Ensure viewport stays at the top after tab switch unless focused on a move
+    if (reviewOverlay && !document.activeElement?.closest?.('.history-move')) {
+      reviewOverlay.scrollTop = 0;
+    }
   });
 
   const openReviewOverlay = (options?: { isDeep?: boolean; depth?: number }): void => {
@@ -531,6 +535,9 @@ export function initApp(): void {
     }
     reviewHistorySlot.appendChild(historyMount);
     reviewOverlay.style.display = 'flex';
+    if (!document.activeElement?.closest?.('.history-move')) {
+      reviewOverlay.scrollTop = 0;
+    }
     void reviewPanel.startReview(options);
   };
 
