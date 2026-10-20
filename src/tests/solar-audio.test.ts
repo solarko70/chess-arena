@@ -120,6 +120,16 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
         createdFilters.push(filter);
         return filter;
       }),
+      createBuffer: vi.fn().mockImplementation(() => ({
+        getChannelData: vi.fn().mockReturnValue(new Float32Array(100)),
+      })),
+      createBufferSource: vi.fn().mockImplementation(() => ({
+        buffer: null,
+        loop: false,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+      })),
       destination: {},
     };
 
@@ -145,9 +155,10 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(createdFilters[0].type).toBe('lowpass');
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(550, 10);
 
-    // Test playCheck synthesis (C5 523.25Hz + E5 659.25Hz + 1200Hz lowpass)
+    // Test playCheck synthesis (C5 523.25Hz + E5 659.25Hz + 1200Hz lowpass + reduced peak gain 0.14)
     createdOscillators.length = 0;
     createdFilters.length = 0;
+    createdGains.length = 0;
     solarAudio.playCheck();
     expect(createdOscillators.length).toBe(2);
     expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(523.25, 10);
@@ -155,6 +166,7 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(createdFilters.length).toBe(1);
     expect(createdFilters[0].type).toBe('lowpass');
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(1200, 10);
+    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.14, 10.015);
 
     // Test playCheckmate synthesis (low chord: C3 + G3 + E4 + 800Hz lowpass)
     createdOscillators.length = 0;
@@ -165,17 +177,25 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(createdFilters[0].type).toBe('lowpass');
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10);
 
-    // Test playStellar synthesis (vocal choir: 4 triangle oscs F4/A4/C5/F5 + 800Hz bandpass filter Q=2.2)
+    // Test playStellar synthesis (vocal choir: 4 chord oscs D4/A4/D5/F#5 + LFO vibrato + 3-formant bank F1/F2/F3 + breath)
     createdOscillators.length = 0;
     createdFilters.length = 0;
     solarAudio.playStellar();
-    expect(createdOscillators.length).toBe(4);
-    expect(createdOscillators[0].type).toBe('triangle');
-    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(349.23, 10);
-    expect(createdFilters.length).toBe(1);
-    expect(createdFilters[0].type).toBe('bandpass');
-    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10);
-    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(2.2, 10);
+    expect(createdOscillators.length).toBe(5);
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(5.2, 10); // LFO
+    expect(createdOscillators[1].type).toBe('triangle');
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(293.7, 10);
+    expect(createdFilters.length).toBe(4);
+    // 3 parallel formants
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(700, 10);
+    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(4.5, 10);
+    expect(createdFilters[1].frequency.setValueAtTime).toHaveBeenCalledWith(1150, 10);
+    expect(createdFilters[1].Q.setValueAtTime).toHaveBeenCalledWith(5.5, 10);
+    expect(createdFilters[2].frequency.setValueAtTime).toHaveBeenCalledWith(2600, 10);
+    expect(createdFilters[2].Q.setValueAtTime).toHaveBeenCalledWith(6.0, 10);
+    // Noise breath filter
+    expect(createdFilters[3].frequency.setValueAtTime).toHaveBeenCalledWith(1600, 10);
+    expect(createdFilters[3].Q.setValueAtTime).toHaveBeenCalledWith(2.0, 10);
   });
 
   it('navigating to a stellar half-move in game review calls playStellar', () => {

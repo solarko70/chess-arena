@@ -148,6 +148,7 @@ export class SolarAudio {
    * Soft warning chime (middle-register vibraphone / crystal bell):
    * Pure harmonious sines at 523.25Hz (C5) and 659.25Hz (E5),
    * gentle 0.015s attack to eliminate click wavefront,
+   * reduced peak gain (0.14, -40% for soft, non-piercing chime),
    * smooth warm decay over 0.38s shaped by a 1200Hz lowpass filter.
    */
   public playCheck(): void {
@@ -165,7 +166,7 @@ export class SolarAudio {
 
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(0.0001, now);
-      masterGain.gain.linearRampToValueAtTime(0.32, now + 0.015);
+      masterGain.gain.linearRampToValueAtTime(0.14, now + 0.015);
       masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
       filter.connect(masterGain);
@@ -230,10 +231,15 @@ export class SolarAudio {
 
   /**
    * Luminous vocal choir swell ("Ah-h-h"):
-   * 4th-5th octave major vocal chord: F4 (349.23Hz), A4 (440.0Hz), C5 (523.25Hz), F5 (698.46Hz),
-   * warm triangle oscillators with chorus micro-detuning (±4-7 cents),
-   * human vowel /ɑ/ formant bandpass filter (800Hz, Q: 2.2),
-   * gentle swell attack (0.35s), 1.0s plateau, and long ethereal tail release (~1.55s, total ~2.9s).
+   * Formant synthesis of human vocal choir based on reference:
+   * - Harmonic chord: D4 (293.7Hz), A4 (440.0Hz), D5 (587.3Hz), F#5 (740.0Hz) with ±4-7 cents detuning
+   * - Natural vocal vibrato: 5.2Hz sine LFO with 6 cents depth
+   * - 3-formant parallel vocal tract filter bank for vowel /ɑ/ (Ah):
+   *     F1: 700Hz, Q: 4.5, gain: 1.0 (oral cavity)
+   *     F2: 1150Hz, Q: 5.5, gain: 0.65 (pharyngeal cavity)
+   *     F3: 2600Hz, Q: 6.0, gain: 0.25 (singing formant / ring)
+   * - Breath air stream: bandpass filtered white noise at 1600Hz, Q: 2.0, gain: 0.035
+   * - Choral swell envelope: 0.45s attack, 0.9s hold, 2.0s release (total ~3.35s).
    */
   public playStellar(): void {
     if (this.isMuted) return;
@@ -242,29 +248,36 @@ export class SolarAudio {
 
     try {
       const now = ctx.currentTime;
-      const attack = 0.35;
-      const hold = 1.0;
-      const duration = 2.9;
+      const attack = 0.45;
+      const sustain = 0.9;
+      const duration = 3.35;
 
+      // Master swell gain envelope
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(0.0001, now);
-      masterGain.gain.linearRampToValueAtTime(0.28, now + attack);
-      masterGain.gain.setValueAtTime(0.28, now + attack + hold);
+      masterGain.gain.linearRampToValueAtTime(0.35, now + attack);
+      masterGain.gain.setValueAtTime(0.35, now + attack + sustain);
       masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
       masterGain.connect(ctx.destination);
 
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(800, now);
-      filter.Q.setValueAtTime(2.2, now);
-      filter.connect(masterGain);
+      // Vocal vibrato LFO (5.2Hz, 6 cents depth)
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(5.2, now);
+      lfoGain.gain.setValueAtTime(6, now);
+      lfo.connect(lfoGain);
 
-      // Vocal choir chord: F4, A4, C5, F5 with micro-detuning for rich human choral ensemble
+      // Voice summation bus
+      const voiceBus = ctx.createGain();
+      voiceBus.gain.setValueAtTime(1.0, now);
+
+      // Harmonic choir chord: D4, A4, D5, F#5 with choral micro-detuning
       const voices = [
-        { freq: 349.23, detune: -5 },
+        { freq: 293.7, detune: -5 },
         { freq: 440.0, detune: 4 },
-        { freq: 523.25, detune: -6 },
-        { freq: 698.46, detune: 6 },
+        { freq: 587.3, detune: -6 },
+        { freq: 740.0, detune: 6 },
       ];
 
       for (const voice of voices) {
@@ -272,9 +285,85 @@ export class SolarAudio {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(voice.freq, now);
         osc.detune.setValueAtTime(voice.detune, now);
-        osc.connect(filter);
+        try {
+          lfoGain.connect(osc.detune);
+        } catch {
+          // Safe fallback if audio param connection is unsupported
+        }
+        osc.connect(voiceBus);
         osc.start(now);
         osc.stop(now + duration);
+      }
+
+      lfo.start(now);
+      lfo.stop(now + duration);
+
+      // Parallel Formant Bank for vowel "Ah" (/ɑ/):
+      // F1: 700Hz (Q: 4.5, gain: 1.0)
+      const filter1 = ctx.createBiquadFilter();
+      filter1.type = 'bandpass';
+      filter1.frequency.setValueAtTime(700, now);
+      filter1.Q.setValueAtTime(4.5, now);
+      const gain1 = ctx.createGain();
+      gain1.gain.setValueAtTime(1.0, now);
+      voiceBus.connect(filter1);
+      filter1.connect(gain1);
+      gain1.connect(masterGain);
+
+      // F2: 1150Hz (Q: 5.5, gain: 0.65)
+      const filter2 = ctx.createBiquadFilter();
+      filter2.type = 'bandpass';
+      filter2.frequency.setValueAtTime(1150, now);
+      filter2.Q.setValueAtTime(5.5, now);
+      const gain2 = ctx.createGain();
+      gain2.gain.setValueAtTime(0.65, now);
+      voiceBus.connect(filter2);
+      filter2.connect(gain2);
+      gain2.connect(masterGain);
+
+      // F3: 2600Hz (Q: 6.0, gain: 0.25)
+      const filter3 = ctx.createBiquadFilter();
+      filter3.type = 'bandpass';
+      filter3.frequency.setValueAtTime(2600, now);
+      filter3.Q.setValueAtTime(6.0, now);
+      const gain3 = ctx.createGain();
+      gain3.gain.setValueAtTime(0.25, now);
+      voiceBus.connect(filter3);
+      filter3.connect(gain3);
+      gain3.connect(masterGain);
+
+      // Breath / air stream (whisper component)
+      if (typeof ctx.createBuffer === 'function' && typeof ctx.createBufferSource === 'function') {
+        try {
+          const sampleRate = ctx.sampleRate || 44100;
+          const bufferSize = Math.floor(sampleRate * 2.0);
+          const noiseBuffer = ctx.createBuffer(1, bufferSize, sampleRate);
+          const data = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+
+          const noiseSource = ctx.createBufferSource();
+          noiseSource.buffer = noiseBuffer;
+          noiseSource.loop = true;
+
+          const noiseFilter = ctx.createBiquadFilter();
+          noiseFilter.type = 'bandpass';
+          noiseFilter.frequency.setValueAtTime(1600, now);
+          noiseFilter.Q.setValueAtTime(2.0, now);
+
+          const noiseGain = ctx.createGain();
+          noiseGain.gain.setValueAtTime(0.035, now);
+
+          noiseSource.connect(noiseFilter);
+          noiseFilter.connect(noiseGain);
+          noiseGain.connect(masterGain);
+
+          noiseSource.start(now);
+          noiseSource.stop(now + duration);
+        } catch {
+          // Safe fallback if buffer generation fails
+        }
       }
     } catch {
       // Safe fallback on Web Audio API errors
