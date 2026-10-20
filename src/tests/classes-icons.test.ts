@@ -52,6 +52,10 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
       expect(svgEl).not.toBeNull();
       expect(svgEl?.getAttribute('viewBox')).toBe('0 0 24 24');
       expect(svgEl?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+
+      // Verify SVG contains valid vector geometry elements (path, circle, polygon, ellipse)
+      const vectorElements = doc.querySelectorAll('path, circle, polygon, ellipse, line');
+      expect(vectorElements.length).toBeGreaterThan(0);
     }
   });
 
@@ -87,24 +91,29 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
     for (const id of ['mistake', 'inaccuracy', 'blunder'] as const) {
       const meta = getMoveClassMeta(id);
       const doc = parser.parseFromString(meta.svg, 'image/svg+xml');
-      const paths = doc.querySelectorAll('path');
+      const textEl = doc.querySelector('text');
 
-      expect(paths.length).toBeGreaterThan(0);
-      paths.forEach((p) => {
-        expect(p.getAttribute('fill')).toBe('white');
-      });
+      expect(textEl).not.toBeNull();
+      expect(textEl?.getAttribute('text-anchor')).toBe('middle');
+      expect(textEl?.getAttribute('font-weight')).toBe('900');
+      expect(textEl?.getAttribute('x')).toBe('12');
 
-      // Pure vector icons with no legacy text elements
-      expect(doc.querySelector('text')).toBeNull();
+      const fontSize = parseFloat(textEl?.getAttribute('font-size') || '0');
+      expect(fontSize).toBeGreaterThanOrEqual(11);
+      expect(fontSize).toBeLessThanOrEqual(15);
 
+      const content = textEl?.textContent?.trim();
       if (id === 'mistake') {
-        expect(meta.svg).toContain('12 15'); // Star dot center
+        expect(content).toBe('?');
+        expect(doc.querySelector('path')).not.toBeNull();
       }
       if (id === 'inaccuracy') {
-        expect(meta.svg).toContain('1-1.8'); // Diamond sparkle dots
+        expect(content).toBe('?!');
+        expect(doc.querySelector('circle')).not.toBeNull();
       }
       if (id === 'blunder') {
-        expect(doc.querySelectorAll('circle').length).toBe(2); // Singularity dots
+        expect(content).toBe('??');
+        expect(doc.querySelector('path')).not.toBeNull();
       }
     }
   });
@@ -114,12 +123,12 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
     const stellarSvg = getMoveClassSvg('stellar');
     expect(stellarSvg).toContain('viewBox="0 0 24 24"');
     expect(stellarSvg).toContain('fill="white"');
-    expect(stellarSvg).toContain('12 2'); // Top tip
+    expect(stellarSvg).toContain('12 2.5');
 
     const superbSvg = getMoveClassSvg('superb');
     expect(superbSvg).toContain('viewBox="0 0 24 24"');
     expect(superbSvg).toContain('fill="white"');
-    expect(superbSvg).toContain('4 4'); // Diagonal ray
+    expect(superbSvg).toContain('4 4');
 
     const missedSvg = getMoveClassSvg('missed');
     expect(missedSvg).toContain('viewBox="0 0 24 24"');
@@ -128,37 +137,36 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
 
     const bestSvg = getMoveClassSvg('best');
     expect(bestSvg).toContain('viewBox="0 0 24 24"');
-    expect(bestSvg).toContain('fill="white"');
-    expect(bestSvg).toContain('12 2'); // Solar star apex
+    expect(bestSvg).toContain('<polygon');
+    expect(bestSvg).toContain('<path');
 
     const goodSvg = getMoveClassSvg('good');
     expect(goodSvg).toContain('viewBox="0 0 24 24"');
-    expect(goodSvg).toContain('<circle');
-    expect(goodSvg).toContain('cx="20" cy="5"'); // Planetary node
+    expect(goodSvg).toContain('<path');
+    expect(goodSvg).toContain('<ellipse');
+
+    const openingSvg = getMoveClassSvg('opening');
+    expect(openingSvg).toContain('viewBox="0 0 24 24"');
+    expect(openingSvg).toContain('<ellipse');
   });
 
   it('inaccuracy and blunder use separate tspans with clear spacing', () => {
     const parser = new DOMParser();
 
-    // Inaccuracy has distinct vector paths for ? and ! with clear spacing
+    // Inaccuracy has dashed circle corona and centered text
     const inaccSvg = getMoveClassSvg('inaccuracy');
     const inaccDoc = parser.parseFromString(inaccSvg, 'image/svg+xml');
-    const inaccPaths = inaccDoc.querySelectorAll('path');
-    expect(inaccPaths.length).toBe(4);
-    // Question curve starts at x=5.5, exclamation beam starts at x=14.5
-    expect(inaccPaths[0].getAttribute('d')).toContain('M5.5');
-    expect(inaccPaths[2].getAttribute('d')).toContain('M14.5');
+    const inaccCircle = inaccDoc.querySelector('circle');
+    expect(inaccCircle).not.toBeNull();
+    expect(inaccCircle?.getAttribute('stroke-dasharray')).toBe('3 2');
+    expect(inaccDoc.querySelector('text')?.textContent).toBe('?!');
 
-    // Blunder has two symmetric paths and circular singularity dots
+    // Blunder has spiral collapse path and centered text
     const blunderSvg = getMoveClassSvg('blunder');
     const blunderDoc = parser.parseFromString(blunderSvg, 'image/svg+xml');
-    const blunderCircles = blunderDoc.querySelectorAll('circle');
-    expect(blunderCircles.length).toBe(2);
-    const cx1 = parseFloat(blunderCircles[0].getAttribute('cx') || '0');
-    const cx2 = parseFloat(blunderCircles[1].getAttribute('cx') || '0');
-    // Symmetrical around 12 (7.5 and 16.5)
-    expect((cx1 + cx2) / 2).toBe(12);
-    expect(cx2 - cx1).toBe(9);
+    const blunderPath = blunderDoc.querySelector('path');
+    expect(blunderPath).not.toBeNull();
+    expect(blunderDoc.querySelector('text')?.textContent).toBe('??');
   });
 
   it('board move badge styles use 100% width and overflow visible', () => {

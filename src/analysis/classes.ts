@@ -29,7 +29,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 0,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5h6a4 4 0 0 1 4 3.5v11.5a3 3 0 0 0-3-2.5H2z" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 4.5h-6a4 4 0 0 0-4 3.5v11.5a3 3 0 0 1 3-2.5h7z" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linejoin="round" aria-hidden="true"><path d="M4 19 C7 17.5 10 17.5 12 19 C14 17.5 17 17.5 20 19 L20 6 C17 4.5 14 4.5 12 6 C10 4.5 7 4.5 4 6 Z" fill="none" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><line x1="12" y1="6" x2="12" y2="19" stroke="white" stroke-width="1.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.5" transform="rotate(-20 12 12)" fill="none" stroke="white" stroke-width="1.2" opacity="0.85"/></svg>',
   },
   {
     id: 'stellar',
@@ -65,7 +65,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 3,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2L13.2 8.4L15.6 7L15.1 9.8L21.5 8.9L15.8 12L17.9 13.9L15.1 14.2L17.9 20.1L13.2 15.6L12 18.2L10.8 15.6L6.1 20.1L8.9 14.2L6.1 13.9L8.2 12L2.5 8.9L8.9 9.8L8.4 7L10.8 8.4Z" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="white"/><path d="M12,0 L12.8,3 M21,5 L18.5,7 M24,14 L20.5,13.5 M19,22 L16.5,19 M12,24 L12,20.5 M5,22 L7.5,19 M0,14 L3.5,13.5 M3,5 L5.5,7" stroke="white" stroke-width="1.3" stroke-linecap="round"/></svg>',
   },
   {
     id: 'excellent',
@@ -77,7 +77,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 4,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11l7-6 7 6" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18l7-6 7 6" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10.5 L12 4.5 L19 10.5" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17.5 L12 11.5 L19 17.5" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   },
   {
     id: 'good',
@@ -89,7 +89,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 5,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13c1.5 1.5 3.5 3.8 5.5 5.5C13 14 17 8 20 5" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="5" r="1.5" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 12.5 L10.8 15.8 L17.5 8.5" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="12" cy="12.5" rx="9" ry="3.8" transform="rotate(-28 12 12.5)" fill="none" stroke="white" stroke-width="1.8" stroke-dasharray="26 6 12 4"/></svg>',
   },
   {
     id: 'inaccuracy',
@@ -101,7 +101,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 6,
     showInSummary: true,
     nag: '?!',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M5.5 7.5c0-2.2 1.8-3.8 4-3.8s4 1.5 4 3.5c0 1.6-1.1 2.6-2.3 3.4-.8.6-1.2 1.1-1.2 2.2h-2c0-1.7.8-2.6 2-3.4.9-.6 1.5-1.2 1.5-2.2 0-1-.8-1.7-2-1.7s-2 .8-2 2h-2z" fill="white"/><path d="M8.5 15.5l1-1.8 1 1.8-1 1.8z" fill="white"/><path d="M14.5 4h2l-.5 9h-1z" fill="white"/><path d="M15.5 15.5l1-1.8 1 1.8-1 1.8z" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><circle cx="12" cy="12" r="7.8" fill="none" stroke="white" stroke-width="1.4" stroke-dasharray="3 2"/><text x="12" y="15.8" text-anchor="middle" font-size="11" font-weight="900" font-family="system-ui, sans-serif" fill="white">?!</text></svg>',
   },
   {
     id: 'mistake',
@@ -113,7 +113,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 7,
     showInSummary: true,
     nag: '?',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M7 8c0-3 2.2-5 5-5s5 2 5 4.8c0 2.2-1.4 3.5-2.8 4.6-1.1.9-1.7 1.6-1.7 3.1h-2.5c0-2.3 1.1-3.6 2.6-4.7 1.2-.9 2-1.7 2-3 0-1.4-1.1-2.4-2.6-2.4s-2.6 1-2.6 2.6H7z" fill="white"/><path d="M10.2 17.5L12 15L13.8 17.5L12 20Z" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 1.5 L13 4 M20 5 L17.5 6.5 M22.5 12 L19.5 12 M20 19 L17.5 17.5 M12 22.5 L12 19.5 M4 19 L6.5 17.5 M1.5 12 L4.5 12 M4 5 L6.5 6.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/><text x="12" y="16.5" text-anchor="middle" font-size="13" font-weight="900" font-family="system-ui, sans-serif" fill="white">?</text></svg>',
   },
   {
     id: 'blunder',
@@ -125,7 +125,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 8,
     showInSummary: true,
     nag: '??',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M4.2 7c0-2 1.4-3.5 3.3-3.5 1.8 0 3.3 1.4 3.3 3.3 0 1.5-.9 2.4-1.9 3.2-.7.6-1.2 1.1-1.2 2.2H5.9c0-1.6.8-2.5 1.8-3.3.8-.6 1.4-1.2 1.4-2.1 0-1-.7-1.7-1.6-1.7s-1.6.7-1.6 1.9H4.2z" fill="white"/><circle cx="7.5" cy="16.5" r="1.3" fill="white"/><path d="M13.2 7c0-2 1.4-3.5 3.3-3.5 1.8 0 3.3 1.4 3.3 3.3 0 1.5-.9 2.4-1.9 3.2-.7.6-1.2 1.1-1.2 2.2h-1.8c0-1.6.8-2.5 1.8-3.3.8-.6 1.4-1.2 1.4-2.1 0-1-.7-1.7-1.6-1.7s-1.6.7-1.6 1.9h-1.7z" fill="white"/><circle cx="16.5" cy="16.5" r="1.3" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2.5 C17 2.5 21 6.5 21 11.5 C21 16.5 16.5 20.5 12 20.5 C7.5 20.5 3.5 17 3.5 12.5 C3.5 8.5 6.8 5.5 10.5 5.5" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="900" font-family="system-ui, sans-serif" fill="white">??</text></svg>',
   },
   {
     id: 'missed',
@@ -137,7 +137,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 9,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2"/><path d="M8 8l8 8m0-8l-8 8" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.2" fill="none" stroke="white" stroke-width="1.6"/><path d="M7.5 8.5 L11.5 12.5 M11.5 8.5 L7.5 12.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/><path d="M15 7.5 L15 12.5 M15 15 L15 16.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>',
   },
 ]
 

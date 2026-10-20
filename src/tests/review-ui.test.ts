@@ -1146,13 +1146,13 @@ describe('Game Review UI Integration Tests', () => {
     expect(fillRule).toContain('linear-gradient(180deg, #fffbeb 0%, #fde68a 35%, #f59e0b 100%)')
     expect(fillRule).toMatch(/box-shadow:\s*inset\s+0\s+0\s+4px\s+rgba\(255,\s*255,\s*255,\s*0\.6\);/)
 
-    // Deep space starry void gradient on track (cosmic purple nebula with bright stardust)
+    // Deep space starry void gradient on track (dense cosmic purple nebula)
     const trackMatch = css.match(/\.eval-bar-track\s*\{([^}]*)\}/)
     expect(trackMatch).not.toBeNull()
     const trackRule = trackMatch![1]
-    expect(trackRule).toContain('background-color: #1a0a33;')
+    expect(trackRule).toContain('background-color: #05020a;')
     expect(trackRule).toContain('radial-gradient(')
-    expect(trackRule).toContain('linear-gradient(180deg, #2a114f 0%, #1a0a33 50%, #0f0521 100%)')
+    expect(trackRule).toContain('linear-gradient(180deg, #05020a 0%, #17042b 45%, #2c0852 100%)')
 
     // Neon accent dividing line
     const markerMatch = css.match(/\.eval-bar-marker\s*\{([^}]*)\}/)

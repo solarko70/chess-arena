@@ -211,3 +211,23 @@
   - Updated `src/tests/review-ui.test.ts` to assert the `#1a0a33` / `#2a114f` cosmic purple track gradient and added unit test for `«Упущенный шанс: 0»` spacing.
   - Synchronized `src/tests/game-screen-a2c5.test.ts` line 165 for the new vector badge markup.
 - [x] Verification: 32 test files, 332 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
+
+## Stage 4d-4.2: Concept-Art Move Class SVGs & Solid Deep Violet Eval Bar (Completed)
+- [x] Solid Deep-Space & Purple Nebula Eval Bar (`src/ui/styles.css`, `src/tests/review-ui.test.ts`):
+  - Black side (`.eval-bar-track`, `.eval-bar-wrapper`): removed semi-transparent greyish tone, replaced with dense opaque deep-space gradient `linear-gradient(180deg, #05020a 0%, #17042b 45%, #2c0852 100%)` and `background-color: #05020a`.
+  - Multi-stardust radial layers: 5 bright star speckles (1.4px to 2.2px) at `#ffffff` (80-90%), `#f472b6` (75%), and `#67e8f9` (80%).
+  - Added `ellipse[fill='none']` to SVG fill resets in `.board-move-badge`, `.review-move-badge`, `.class-row`, `.card-class-row`.
+- [x] Solar Chess Concept-Art Vector SVGs (`src/analysis/classes.ts`, `src/tests/classes-icons.test.ts`):
+  - `best`: large golden 5-pointed solar star (`<polygon>`) with surrounding corona ray flares (`<path>`).
+  - `excellent`: dual ascending aurora chevrons (`stroke-width="2.6"`).
+  - `good`: clean checkmark with dynamic planetary orbital ring (`<ellipse transform="rotate(-28 12 12.5)" stroke-dasharray="26 6 12 4"/>`).
+  - `opening`: open star atlas (`<path>`, `<line>`) with crossed planetary orbit (`<ellipse transform="rotate(-20 12 12)"/>`).
+  - `inaccuracy`: solar perturbation symbol `?!` (`font-weight="900"`, `font-size="11"`) with circular dashed flare ring (`<circle stroke-dasharray="3 2"/>`).
+  - `mistake`: red supergiant flash `?` (`font-weight="900"`, `font-size="13"`) with surrounding plasma spikes (`<path>`).
+  - `blunder`: gravitational vortex singularity (`<path>` spiral) with centered `??` (`font-weight="900"`, `font-size="11"`).
+  - `missed`: solar eclipse corona ring (`<circle>`) with cross `✖` and exclamation `!` (`<path>`).
+  - `stellar` and `superb`: preserved without changes matching the design.
+- [x] Test Suite Verification:
+  - All 10 classes verified for valid XML/SVG syntax, viewBox, and vector element containment (`path, circle, polygon, ellipse, line`).
+  - Eval bar styles verified for `#05020a` and depth gradient.
+- [x] Verification: 32 test files, 332 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
