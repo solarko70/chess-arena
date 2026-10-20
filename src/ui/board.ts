@@ -408,7 +408,7 @@ export class ChessBoardUI {
     }
 
     wingsMount.addEventListener('animationend', cleanup, { once: true })
-    this.wingsTimer = setTimeout(cleanup, 1900)
+    this.wingsTimer = setTimeout(cleanup, 2500)
   }
 
   private renderMoveBadge(flipped: boolean): void {

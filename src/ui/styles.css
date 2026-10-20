@@ -638,13 +638,13 @@ body.review-active #app {
 
 .stellar-wing-left {
   transform-origin: 45px 35px;
-  animation: stellarWingLeftFlutter 1.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: stellarWingLeftFlutter 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   will-change: transform, opacity;
 }
 
 .stellar-wing-right {
   transform-origin: 55px 35px;
-  animation: stellarWingRightFlutter 1.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: stellarWingRightFlutter 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   will-change: transform, opacity;
 }
 
@@ -654,62 +654,56 @@ body.review-active #app {
 
 @keyframes stellarWingLeftFlutter {
   0% {
-    transform: rotate(35deg) scale(0.4) translateY(0);
+    transform: rotate(10deg) scale(0.7) translateY(0);
     opacity: 0;
   }
-  8% {
+  14% {
+    transform: rotate(0deg) scale(1.0) translateY(0);
     opacity: 1;
   }
-  22% {
-    transform: rotate(-28deg) scale(1.08) translateY(0);
-    opacity: 1;
+  32% {
+    transform: rotate(-16deg) scale(1.03) translateY(0);
   }
-  38% {
-    transform: rotate(8deg) scale(1.0) translateY(0);
+  52% {
+    transform: rotate(4deg) scale(1.0) translateY(0);
   }
-  54% {
-    transform: rotate(-24deg) scale(1.05) translateY(0);
+  72% {
+    transform: rotate(-12deg) scale(1.01) translateY(-4px);
   }
-  70% {
-    transform: rotate(6deg) scale(1.0) translateY(0);
-  }
-  82% {
-    transform: rotate(-12deg) scale(1.02) translateY(-4px);
-    opacity: 0.9;
+  86% {
+    transform: rotate(-6deg) scale(1.01) translateY(-7px);
+    opacity: 0.7;
   }
   100% {
-    transform: rotate(-12deg) scale(1.04) translateY(-12px);
+    transform: rotate(-2deg) scale(1.02) translateY(-12px);
     opacity: 0;
   }
 }
 
 @keyframes stellarWingRightFlutter {
   0% {
-    transform: rotate(-35deg) scale(0.4) translateY(0);
+    transform: rotate(-10deg) scale(0.7) translateY(0);
     opacity: 0;
   }
-  8% {
+  14% {
+    transform: rotate(0deg) scale(1.0) translateY(0);
     opacity: 1;
   }
-  22% {
-    transform: rotate(28deg) scale(1.08) translateY(0);
-    opacity: 1;
+  32% {
+    transform: rotate(16deg) scale(1.03) translateY(0);
   }
-  38% {
-    transform: rotate(-8deg) scale(1.0) translateY(0);
+  52% {
+    transform: rotate(-4deg) scale(1.0) translateY(0);
   }
-  54% {
-    transform: rotate(24deg) scale(1.05) translateY(0);
+  72% {
+    transform: rotate(12deg) scale(1.01) translateY(-4px);
   }
-  70% {
-    transform: rotate(-6deg) scale(1.0) translateY(0);
-  }
-  82% {
-    transform: rotate(12deg) scale(1.02) translateY(-4px);
-    opacity: 0.9;
+  86% {
+    transform: rotate(6deg) scale(1.01) translateY(-7px);
+    opacity: 0.7;
   }
   100% {
-    transform: rotate(12deg) scale(1.04) translateY(-12px);
+    transform: rotate(2deg) scale(1.02) translateY(-12px);
     opacity: 0;
   }
 }

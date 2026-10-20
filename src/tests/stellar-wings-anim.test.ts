@@ -205,11 +205,11 @@ describe('Solar Wings and Piece Kinematics (Stage 5a-2)', () => {
 
     expect(boardContainer.querySelector('.stellar-wings-mount')).not.toBeNull();
 
-    // At 1800ms wings are still mounted
-    vi.advanceTimersByTime(1800);
+    // At 2400ms wings are still mounted before 2500ms timeout
+    vi.advanceTimersByTime(2400);
     expect(boardContainer.querySelector('.stellar-wings-mount')).not.toBeNull();
 
-    // Advance past 1900ms (+200ms -> 2000ms total): wings are automatically removed
+    // Advance past 2500ms (+200ms -> 2600ms total): wings are automatically removed
     vi.advanceTimersByTime(200);
 
     expect(boardContainer.querySelector('.stellar-wings-mount')).toBeNull();

@@ -369,3 +369,25 @@
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 347 tests passed, watchdog clean).
+
+## Stage 5a-2.3: Majestic Hovering Dynamics & 2 Soft Partial Flaps for Solar Wings (Completed)
+- [x] Majestic Slow-Paced Hovering Kinematics (`src/ui/styles.css`):
+  - Preserved approved vector geometry, sharp feathers, and `#solar-wing-gradient` in `src/ui/board.ts` unchanged.
+  - Extended overall animation duration to smooth, majestic ~2.4s (via `cubic-bezier(0.25, 1, 0.5, 1)`).
+  - Softened keyframe trajectory to eliminate sharp angles and deep flaps:
+    - `0%`: gentle emergence from behind the piece (`opacity: 0, scale: 0.7`).
+    - `14%`: full blossoming into neutral hovering posture (`opacity: 1`).
+    - `32%`: Soft Flap 1 — gentle upward lift of tips without excessive spread (left: `rotate(-16deg) scale(1.03)`, right: `rotate(16deg) scale(1.03)`).
+    - `52%`: slow, gentle return to hovering equilibrium (left: `rotate(4deg)`, right: `rotate(-4deg)`).
+    - `72%`: Soft Flap 2 — second delicate hovering wave with subtle upward glide (left: `rotate(-12deg)`, right: `rotate(12deg), translateY(-4px)`).
+    - `86%`: hovering suspension, beginning to softly melt into the cosmos (`opacity: 0.7, translateY(-7px)`).
+    - `100%`: seamless celestial dissolution into space (`opacity: 0, translateY(-12px), scale(1.02)`).
+- [x] DOM Cleanup Timer Synchronization (`src/ui/board.ts`):
+  - Re-synchronized `.stellar-wings-mount` auto-removal timeout from 1900ms to 2500ms to match the 2.4s animation cycle.
+  - Retained immediate DOM dismantling upon switching `viewIndex`.
+- [x] Test Suite & Verification (`src/tests/stellar-wings-anim.test.ts`):
+  - Synchronized auto-cleanup test: verified wings remain mounted at 2400ms and are cleanly unmounted at 2600ms (past 2500ms threshold).
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 347 tests passed, watchdog clean).
