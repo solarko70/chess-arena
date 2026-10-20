@@ -35,7 +35,7 @@ import {
   type UCIWorkerLike,
 } from '@/analysis';
 
-const VALID_CLASSES: MoveClass[] = ['opening', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder'];
+const VALID_CLASSES: MoveClass[] = ['opening', 'stellar', 'superb', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder', 'missed'];
 
 const MORPHY_SAN_MOVES = [
   'e4', 'e5',

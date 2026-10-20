@@ -148,3 +148,13 @@
 - [x] Programmatic Viewport Scroll Reset (src/main.ts, src/ui/reviewpanel.ts): enforces eviewOverlay.scrollTop = 0 whenever the review overlay is opened and whenever mobile tabs are clicked (unless keyboard/move focus is within a .history-move).
 - [x] Comprehensive Vitest Integration Suite (src/tests/review-ui.test.ts): verified justify-content: flex-start !important, safe width clamping, sequential DOM ordering, and programmatic scrollTop reset on mobile tab navigation.
 - [x] Verification: 31 test files, 323 tests passing via pm test (scripts/safe-test.mjs), 0 lint warnings/errors in pm run lint, and clean production build via pm run build.
+
+## Stage 4d-3.1: Solar Move Classes Registration (Stellar, Superb, Missed) (Completed)
+- [x] Move Class Registry Expansion (`src/analysis/classes.ts`): expanded registry to 10 move classes with strict ordering: opening (0), stellar (1), superb (2), best (3), excellent (4), good (5), inaccuracy (6), mistake (7), blunder (8), missed (9).
+- [x] Stellar Move Class (`src/analysis/classes.ts`, `src/ui/styles.css`): id `stellar`, symbol `!!`, `--class-stellar: #c026d3`, `--class-stellar-gradient: linear-gradient(135deg, #4c1d95 0%, #db2777 100%)`, box-shadow glow, and 8-pointed supernova sharp vector icon with D4 symmetry in `viewBox="0 0 24 24"`.
+- [x] Superb Move Class (`src/analysis/classes.ts`, `src/ui/styles.css`): id `superb`, symbol `!`, `--class-superb: #ec4899`, `--class-superb-gradient: linear-gradient(135deg, #f43f5e 0%, #db2777 100%)`, box-shadow glow, and 4-pointed pulsar star with sharp diagonal rays in `viewBox="0 0 24 24"`.
+- [x] Missed Chance Class (`src/analysis/classes.ts`, `src/ui/styles.css`): id `missed`, symbol `✖!`, `--class-missed: #e11d48`, `--class-missed-bg: #27272a`, 1.5px border, and eclipsed solar corona disk with cross vector icon in `viewBox="0 0 24 24"`.
+- [x] Types & Severity Order (`src/analysis/classify.ts`, `src/analysis/review.ts`): added `stellar`, `superb`, `missed` to `MoveClass` union, `MOVE_CLASS_LABELS`, `SEVERITY_ORDER`, and `MoveClassCounts`.
+- [x] Unified Badge Styling (`src/ui/styles.css`): added styling across `.board-move-badge`, `.review-move-badge`, and `.class-row-badge` for all new classes with non-distorted SVG scaling.
+- [x] Test Suite Updates (`src/tests/classes-icons.test.ts`, `src/tests/game-over-a2c2.test.ts`, `src/tests/game-screen-a2c5.test.ts`, `src/tests/review.test.ts`): updated class count expectations from 7 to 10, added SVG vector geometry tests, and included new classes in `VALID_CLASSES`.
+- [x] Verification: 31 test files, 324 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.

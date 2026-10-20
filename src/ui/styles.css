@@ -138,6 +138,12 @@
   /* Move class color palette */
   --class-opening: #94723c;
   --class-opening-bg: rgba(148, 114, 60, 0.15);
+  --class-stellar: #c026d3;
+  --class-stellar-bg: rgba(192, 38, 211, 0.15);
+  --class-stellar-gradient: linear-gradient(135deg, #4c1d95 0%, #db2777 100%);
+  --class-superb: #ec4899;
+  --class-superb-bg: rgba(236, 72, 153, 0.15);
+  --class-superb-gradient: linear-gradient(135deg, #f43f5e 0%, #db2777 100%);
   --class-best: #22c55e;
   --class-best-bg: rgba(34, 197, 94, 0.15);
   --class-excellent: #84cc16;
@@ -150,6 +156,8 @@
   --class-mistake-bg: rgba(249, 115, 22, 0.15);
   --class-blunder: #ef4444;
   --class-blunder-bg: rgba(239, 68, 68, 0.15);
+  --class-missed: #e11d48;
+  --class-missed-bg: #27272a;
 }
 
 [data-theme='light'] {
@@ -271,6 +279,14 @@
   /* Move class color palette (light theme) */
   --class-opening: #825f2a;
   --class-opening-bg: rgba(130, 95, 42, 0.15);
+  --class-stellar: #a21caf;
+  --class-stellar-bg: rgba(162, 28, 175, 0.15);
+  --class-stellar-gradient: linear-gradient(135deg, #581c87 0%, #be185d 100%);
+  --class-superb: #db2777;
+  --class-superb-bg: rgba(219, 39, 119, 0.15);
+  --class-superb-gradient: linear-gradient(135deg, #e11d48 0%, #be185d 100%);
+  --class-missed: #e11d48;
+  --class-missed-bg: #f4f4f5;
 }
 
 * {
@@ -613,6 +629,16 @@ body.review-active #app {
   background: var(--class-opening);
 }
 
+.board-move-badge.badge-stellar {
+  background: var(--class-stellar-gradient);
+  box-shadow: 0 0 8px rgba(219, 39, 119, 0.45);
+}
+
+.board-move-badge.badge-superb {
+  background: var(--class-superb-gradient);
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.45);
+}
+
 .board-move-badge.badge-best {
   background: var(--class-best);
 }
@@ -635,6 +661,11 @@ body.review-active #app {
 
 .board-move-badge.badge-blunder {
   background: var(--class-blunder);
+}
+
+.board-move-badge.badge-missed {
+  background: var(--class-missed-bg);
+  border: 1.5px solid var(--class-missed);
 }
 
 .board-move-badge svg,
@@ -1027,6 +1058,18 @@ body.review-active #app {
   border: 1px solid var(--class-opening);
 }
 
+.badge-stellar {
+  background: var(--class-stellar-gradient);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(219, 39, 119, 0.45);
+}
+
+.badge-superb {
+  background: var(--class-superb-gradient);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.45);
+}
+
 .badge-best {
   background: var(--class-best-bg);
   color: var(--class-best);
@@ -1063,6 +1106,12 @@ body.review-active #app {
   border: 1px solid var(--class-blunder);
 }
 
+.badge-missed {
+  background: var(--class-missed-bg);
+  color: var(--class-missed);
+  border: 1.5px solid var(--class-missed);
+}
+
 .review-move-badge {
   display: inline-flex;
   align-items: center;
@@ -1079,12 +1128,15 @@ body.review-active #app {
 }
 
 .review-move-badge.badge-opening { background: var(--class-opening); color: #ffffff; }
+.review-move-badge.badge-stellar { background: var(--class-stellar-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(219, 39, 119, 0.45); }
+.review-move-badge.badge-superb { background: var(--class-superb-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(236, 72, 153, 0.45); }
 .review-move-badge.badge-best { background: var(--class-best); color: #ffffff; }
 .review-move-badge.badge-excellent { background: var(--class-excellent); color: #ffffff; }
 .review-move-badge.badge-good { background: var(--class-good); color: #ffffff; }
 .review-move-badge.badge-inaccuracy { background: var(--class-inaccuracy); color: #ffffff; }
 .review-move-badge.badge-mistake { background: var(--class-mistake); color: #ffffff; }
 .review-move-badge.badge-blunder { background: var(--class-blunder); color: #ffffff; }
+.review-move-badge.badge-missed { background: var(--class-missed-bg); color: #ffffff; border: 1.5px solid var(--class-missed); }
 
 /* Unified round class row badges in summary modal and review panel */
 .class-row-badge,
@@ -1119,6 +1171,10 @@ body.review-active #app {
 
 .class-row-badge.badge-opening,
 .move-class-badge.class-row-badge.badge-opening { background: var(--class-opening); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.class-row-badge.badge-stellar,
+.move-class-badge.class-row-badge.badge-stellar { background: var(--class-stellar-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(219, 39, 119, 0.45); border-color: rgba(255, 255, 255, 0.4); }
+.class-row-badge.badge-superb,
+.move-class-badge.class-row-badge.badge-superb { background: var(--class-superb-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(236, 72, 153, 0.45); border-color: rgba(255, 255, 255, 0.4); }
 .class-row-badge.badge-best,
 .move-class-badge.class-row-badge.badge-best { background: var(--class-best); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
 .class-row-badge.badge-excellent,
@@ -1131,6 +1187,8 @@ body.review-active #app {
 .move-class-badge.class-row-badge.badge-mistake { background: var(--class-mistake); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
 .class-row-badge.badge-blunder,
 .move-class-badge.class-row-badge.badge-blunder { background: var(--class-blunder); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.class-row-badge.badge-missed,
+.move-class-badge.class-row-badge.badge-missed { background: var(--class-missed-bg); color: #ffffff; border: 1.5px solid var(--class-missed); }
 
 .move-feedback-card {
   display: flex;

@@ -33,7 +33,7 @@ const MORPHY_SAN_MOVES = [
   'Rd8#',
 ];
 
-const VALID_CLASSES: MoveClass[] = ['best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder'];
+const VALID_CLASSES: MoveClass[] = ['opening', 'stellar', 'superb', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder', 'missed'];
 
 function buildGameFromSan(sans: readonly string[]): GameState {
   let state = classicalRuleSet.getInitialState();

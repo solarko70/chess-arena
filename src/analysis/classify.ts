@@ -15,16 +15,19 @@ import type { Color, Move } from '@/core';
 import type { AnalysisLine, Score } from '@/ai';
 import { povWinChance } from './winchance';
 
-export type MoveClass = 'opening' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
+export type MoveClass = 'opening' | 'stellar' | 'superb' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed';
 
 export const MOVE_CLASS_LABELS: Record<MoveClass, string> = {
   opening: 'дебютный ход',
+  stellar: 'звёздный ход',
+  superb: 'превосходный ход',
   best: 'лучший',
   excellent: 'отличный',
   good: 'хороший',
   inaccuracy: 'неточность',
   mistake: 'ошибка',
   blunder: 'зевок',
+  missed: 'упущенный шанс',
 };
 
 /**
@@ -83,11 +86,14 @@ export interface ClassifyMoveResult {
 const SEVERITY_ORDER: Record<MoveClass, number> = {
   opening: 0,
   best: 1,
-  excellent: 2,
-  good: 3,
-  inaccuracy: 4,
-  mistake: 5,
-  blunder: 6,
+  stellar: 2,
+  superb: 3,
+  excellent: 4,
+  good: 5,
+  inaccuracy: 6,
+  mistake: 7,
+  blunder: 8,
+  missed: 9,
 };
 
 /** Check whether two Move objects represent the same chess move (origin, target, promotion). */

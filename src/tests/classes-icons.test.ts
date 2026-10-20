@@ -10,7 +10,7 @@ import type { Move } from '@/core';
 
 describe('Stage A3.2: Move class SVG icons geometry and board integration', () => {
   it('all classes from registry return valid svg markup with viewbox', () => {
-    expect(MOVE_CLASS_REGISTRY.length).toBe(7);
+    expect(MOVE_CLASS_REGISTRY.length).toBe(10);
 
     for (const meta of MOVE_CLASS_REGISTRY) {
       const svg = meta.svg;
@@ -83,6 +83,24 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
       if (id === 'inaccuracy') expect(content).toBe('?!');
       if (id === 'blunder') expect(content).toBe('??');
     }
+  });
+
+
+  it('stellar, superb and missed icons have valid vector geometry', () => {
+    const stellarSvg = getMoveClassSvg('stellar');
+    expect(stellarSvg).toContain('viewBox="0 0 24 24"');
+    expect(stellarSvg).toContain('fill="white"');
+    expect(stellarSvg).toContain('12 2'); // Top tip
+
+    const superbSvg = getMoveClassSvg('superb');
+    expect(superbSvg).toContain('viewBox="0 0 24 24"');
+    expect(superbSvg).toContain('fill="white"');
+    expect(superbSvg).toContain('4 4'); // Diagonal ray
+
+    const missedSvg = getMoveClassSvg('missed');
+    expect(missedSvg).toContain('viewBox="0 0 24 24"');
+    expect(missedSvg).toContain('<circle');
+    expect(missedSvg).toContain('<path');
   });
 
   it('inaccuracy and blunder use separate tspans with clear spacing', () => {

@@ -202,11 +202,11 @@ describe('Stage A2c-2: Summary Modal, Move Class Registry, Background Analysis &
   });
 
   it('move class registry has 6 ordered classes with unique ids and CSS variables in styles.css', () => {
-    expect(MOVE_CLASS_REGISTRY.length).toBe(7);
+    expect(MOVE_CLASS_REGISTRY.length).toBe(10);
 
     const ids = MOVE_CLASS_REGISTRY.map((c) => c.id);
-    expect(new Set(ids).size).toBe(7);
-    expect(ids).toEqual(['opening', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder']);
+    expect(new Set(ids).size).toBe(10);
+    expect(ids).toEqual(['opening', 'stellar', 'superb', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'blunder', 'missed']);
 
     for (let i = 1; i < MOVE_CLASS_REGISTRY.length; i++) {
       expect(MOVE_CLASS_REGISTRY[i].order).toBeGreaterThan(MOVE_CLASS_REGISTRY[i - 1].order);
@@ -249,21 +249,24 @@ describe('Stage A2c-2: Summary Modal, Move Class Registry, Background Analysis &
     // 7 class rows in each card in registry order
     const whiteRows = Array.from(whiteCard.querySelectorAll('.card-class-row'));
     const blackRows = Array.from(blackCard.querySelectorAll('.card-class-row'));
-    expect(whiteRows.length).toBe(7);
-    expect(blackRows.length).toBe(7);
+    expect(whiteRows.length).toBe(10);
+    expect(blackRows.length).toBe(10);
 
     const expectedLabels = MOVE_CLASS_REGISTRY.map((m) => `${m.nameRu}:`);
     expect(whiteRows.map((r) => r.querySelector('.card-class-label')?.textContent)).toEqual(expectedLabels);
 
     // Zero-count rows have .zero-count class, non-zero do not
-    // White counts: opening=0, best=1, excellent=0, good=0, inaccuracy=1, mistake=0, blunder=1
+    // White counts: opening=0, stellar=0, superb=0, best=1, excellent=0, good=0, inaccuracy=1, mistake=0, blunder=1, missed=0
     expect(whiteRows[0].classList.contains('zero-count')).toBe(true); // opening: 0
-    expect(whiteRows[1].classList.contains('zero-count')).toBe(false); // best: 1
-    expect(whiteRows[2].classList.contains('zero-count')).toBe(true); // excellent: 0
-    expect(whiteRows[3].classList.contains('zero-count')).toBe(true); // good: 0
-    expect(whiteRows[4].classList.contains('zero-count')).toBe(false); // inaccuracy: 1
-    expect(whiteRows[5].classList.contains('zero-count')).toBe(true); // mistake: 0
-    expect(whiteRows[6].classList.contains('zero-count')).toBe(false); // blunder: 1
+    expect(whiteRows[1].classList.contains('zero-count')).toBe(true); // stellar: 0
+    expect(whiteRows[2].classList.contains('zero-count')).toBe(true); // superb: 0
+    expect(whiteRows[3].classList.contains('zero-count')).toBe(false); // best: 1
+    expect(whiteRows[4].classList.contains('zero-count')).toBe(true); // excellent: 0
+    expect(whiteRows[5].classList.contains('zero-count')).toBe(true); // good: 0
+    expect(whiteRows[6].classList.contains('zero-count')).toBe(false); // inaccuracy: 1
+    expect(whiteRows[7].classList.contains('zero-count')).toBe(true); // mistake: 0
+    expect(whiteRows[8].classList.contains('zero-count')).toBe(false); // blunder: 1
+    expect(whiteRows[9].classList.contains('zero-count')).toBe(true); // missed: 0
 
     modal.destroy();
   });

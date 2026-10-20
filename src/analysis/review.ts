@@ -65,12 +65,15 @@ export interface ReviewedMove {
 
 export type MoveClassCounts = {
   opening?: number;
+  stellar?: number;
+  superb?: number;
   best: number;
   excellent: number;
   good: number;
   inaccuracy: number;
   mistake: number;
   blunder: number;
+  missed?: number;
 };
 
 export interface EvalPoint {
@@ -142,12 +145,15 @@ export type GameInput = GameState | readonly GameState[];
 function emptyClassCounts(): MoveClassCounts {
   return {
     opening: 0,
+    stellar: 0,
+    superb: 0,
     best: 0,
     excellent: 0,
     good: 0,
     inaccuracy: 0,
     mistake: 0,
     blunder: 0,
+    missed: 0,
   };
 }
 
