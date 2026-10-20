@@ -105,7 +105,21 @@ export class HistoryUI {
   }
 
   private isMistake(moveClass: string): boolean {
-    return ['inaccuracy', 'mistake', 'blunder'].includes(moveClass);
+    return ['inaccuracy', 'mistake', 'blunder', 'missed'].includes(moveClass);
+  }
+
+  private getFeedbackVerdictTitle(moveClass: string, defaultName: string): string {
+    if (moveClass === 'stellar') return 'Звёздный !!';
+    if (moveClass === 'superb') return 'Превосходный !';
+    if (moveClass === 'missed') return 'Упущенный шанс ✖!';
+    return defaultName;
+  }
+
+  private getFeedbackDescription(moveClass: string): string {
+    if (moveClass === 'stellar') return 'Блестящая жертва материала, ведущая к победе';
+    if (moveClass === 'superb') return 'Единственный ход, сохраняющий решающий перевес';
+    if (moveClass === 'missed') return 'Упущена возможность победить';
+    return '';
   }
 
   private goToPrevMistake(): void {
@@ -183,6 +197,11 @@ export class HistoryUI {
       const meta = getMoveClassMeta(m.class);
       const bestSan = m.bestSan || '—';
       const lossText = m.loss > 0 ? `-${m.loss.toFixed(1)}%` : '0%';
+      const verdictTitle = this.getFeedbackVerdictTitle(m.class, meta.nameRu);
+      const verdictDesc = this.getFeedbackDescription(m.class);
+      const descHtml = verdictDesc
+        ? `<span class="feedback-card-desc">${verdictDesc}</span>`
+        : '';
 
       this.detailEl.innerHTML = `
         <div class="feedback-card-header">
@@ -190,7 +209,8 @@ export class HistoryUI {
             ${meta.svg}
           </span>
           <div class="feedback-card-verdict-wrap">
-            <span class="feedback-card-verdict">${meta.nameRu}</span>
+            <span class="feedback-card-verdict">${verdictTitle}</span>
+            ${descHtml}
             <span class="detail-badge badge-${m.class}" data-class="${m.class}" style="display: none;">${meta.nameRu.toLowerCase()}</span>
           </div>
         </div>

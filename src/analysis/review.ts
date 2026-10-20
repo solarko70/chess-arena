@@ -17,6 +17,7 @@ import { povWinChance, scoreToCp, winChance } from './winchance';
 import { gameAccuracy, moveAccuracy } from './accuracy';
 import {
   classifyMove,
+  computeMoveMaterialSacrifice,
   isForcedMateAgainstMover,
   isSameMove,
   THRESHOLDS,
@@ -141,6 +142,10 @@ export interface GameReviewResult {
 }
 
 export type GameInput = GameState | readonly GameState[];
+
+function classificationLossCheck(winBefore: number, winAfter: number): boolean {
+  return Math.max(0, winBefore - winAfter) <= 5;
+}
 
 function emptyClassCounts(): MoveClassCounts {
   return {
@@ -413,6 +418,10 @@ export async function reviewGame(
       const ply = i + 1;
       const isBookMove = Boolean(identifiedOpening && ply <= identifiedOpening.plies);
 
+      // Check for 'stellar' material sacrifice (>= 150 cp drop / piece sacrifice holding advantage)
+      const sacCp = computeMoveMaterialSacrifice(stateBefore, stateAfter, playedMove, isCheckmateMove);
+      const isSacrifice = sacCp >= 150 && winAfter >= 48 && classificationLossCheck(winBefore, winAfter);
+
       const classification = classifyMove({
         winBefore,
         winAfter,
@@ -423,12 +432,17 @@ export async function reviewGame(
         linesBefore: resBefore.lines,
         moverColor,
         isBookMove,
+        stateBefore,
+        stateAfter,
+        move: playedMove,
+        isSacrifice,
+        netMaterialLoss: sacCp,
       });
 
       // Enforce invariant: no reviewed move with class 'mistake' or 'blunder'
       // can have its bestMove matching playedMove.
       if (
-        (classification.moveClass === 'mistake' || classification.moveClass === 'blunder') &&
+        (classification.moveClass === 'mistake' || classification.moveClass === 'blunder' || classification.moveClass === 'missed') &&
         (isSameMove(playedMove, bestMove) || (bestSan !== null && san === bestSan))
       ) {
         let alternativeMove: Move | null = null;
@@ -489,9 +503,12 @@ export async function reviewGame(
       }
 
       if (
+        classification.moveClass === 'stellar' ||
+        classification.moveClass === 'superb' ||
         classification.moveClass === 'inaccuracy' ||
         classification.moveClass === 'mistake' ||
         classification.moveClass === 'blunder' ||
+        classification.moveClass === 'missed' ||
         classification.onlyMove
       ) {
         keyMoments.push(reviewedMove);

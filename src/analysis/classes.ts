@@ -21,7 +21,7 @@ export interface MoveClassMeta {
 export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
   {
     id: 'opening',
-    nameRu: 'Дебютный ход',
+    nameRu: 'Дебют',
     shortRu: 'Дебют',
     cssVar: '--class-opening',
     color: '#94723c',
@@ -33,7 +33,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
   },
   {
     id: 'stellar',
-    nameRu: 'Звёздный ход',
+    nameRu: 'Звёздный',
     shortRu: 'Звёздный',
     cssVar: '--class-stellar',
     color: '#c026d3',
@@ -41,11 +41,11 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 1,
     showInSummary: true,
     nag: '!!',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2L12.8 9.8L17.5 6.5L14.2 11.2L22 12L14.2 12.8L17.5 17.5L12.8 14.2L12 22L11.2 14.2L6.5 17.5L9.8 12.8L2 12L9.8 11.2L6.5 6.5L11.2 9.8Z" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2.5L13.6 8.1L18.2 5.8L15.9 10.4L21.5 12L15.9 13.6L18.2 18.2L13.6 15.9L12 21.5L10.4 15.9L5.8 18.2L8.1 13.6L2.5 12L8.1 10.4L5.8 5.8L10.4 8.1Z" fill="white"/></svg>',
   },
   {
     id: 'superb',
-    nameRu: 'Превосходный ход',
+    nameRu: 'Превосходный',
     shortRu: 'Превосходный',
     cssVar: '--class-superb',
     color: '#ec4899',

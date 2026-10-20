@@ -12,10 +12,14 @@ export { moveAccuracy, gameAccuracy } from './accuracy';
 export {
   THRESHOLDS,
   MOVE_CLASS_LABELS,
+  SACRIFICE_PIECE_VALUES,
   classifyMove,
+  computeMoveMaterialSacrifice,
+  isOnlyDefensiveMoveOnBoard,
   isOnlyMove,
   isSameMove,
   isForcedMateAgainstMover,
+  isForcedMateForMover,
 } from './classify';
 export type { MoveClass, ClassifyMoveInput, ClassifyMoveResult } from './classify';
 

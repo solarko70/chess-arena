@@ -1,19 +1,23 @@
 /**
- * Move classification based on win-probability loss from the mover's perspective.
+ * Move classification based on win-probability loss from the mover's perspective,
+ * material sacrifices ('stellar'), forced/only moves ('superb'), and missed wins ('missed').
  *
  * Classes:
- * - 'best'       («лучший»):     winLoss <= 0.5 (whether or not it matched the engine's best move)
+ * - 'opening'    («дебютный ход»): book move from ECO database
+ * - 'stellar'    («звёздный ход»): best move with material sacrifice (>= 150 cp) holding advantage
+ * - 'superb'     («превосходный ход»): only move (gap >= 20% win or >= 120 cp) holding position
+ * - 'best'       («лучший»):     winLoss <= 0.5
  * - 'excellent'  («отличный»):   winLoss < 2
  * - 'good'       («хороший»):    winLoss < 5
  * - 'inaccuracy' («неточность»): winLoss < 10
  * - 'mistake'    («ошибка»):     winLoss < 20
  * - 'blunder'    («зевок»):      winLoss >= 20
- *
- * Note: Opening book moves and brilliant moves are intentionally omitted in step 4c-1.
+ * - 'missed'     («упущенный шанс»): winning position (winBefore >= 75%) dropped to <= 55%
  */
-import type { Color, Move } from '@/core';
+import type { Color, GameState, Move, PieceType } from '@/core';
+import { applyMove, generateLegal, isCheckmate } from '@/core';
 import type { AnalysisLine, Score } from '@/ai';
-import { povWinChance } from './winchance';
+import { povWinChance, scoreToCp } from './winchance';
 
 export type MoveClass = 'opening' | 'stellar' | 'superb' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed';
 
@@ -28,6 +32,16 @@ export const MOVE_CLASS_LABELS: Record<MoveClass, string> = {
   mistake: 'ошибка',
   blunder: 'зевок',
   missed: 'упущенный шанс',
+};
+
+/** Piece values in centipawns used for sacrifice detection. */
+export const SACRIFICE_PIECE_VALUES: Record<PieceType, number> = {
+  pawn: 100,
+  knight: 300,
+  bishop: 315,
+  rook: 500,
+  queen: 900,
+  king: 0,
 };
 
 /**
@@ -51,12 +65,24 @@ export const THRESHOLDS = {
   decidedLowWin: 3,
   /** Win probability (>) above which the position is considered already won (decided) */
   decidedHighWin: 97,
+  /** Minimum net material sacrifice (cp) for 'stellar' move */
+  stellarMinSacrificeCp: 150,
+  /** Minimum win-probability gap (pp) between 1st and 2nd candidate for 'superb' move */
+  superbMinWinGap: 20,
+  /** Minimum centipawn gap between 1st and 2nd candidate for 'superb' move */
+  superbMinCpGap: 120,
+  /** Minimum winBefore (pp) required to trigger 'missed' chance */
+  missedMinWinBefore: 75,
+  /** Maximum winAfter (pp) required to trigger 'missed' chance */
+  missedMaxWinAfter: 55,
+  /** Minimum win-probability loss (pp) required to trigger 'missed' chance */
+  missedMinLoss: 20,
 } as const;
 
 export interface ClassifyMoveInput {
-  /** Win probability [0, 100] from the mover's perspective BEFORE the move */
+  /** Win probability [0, 100] (or [0, 1] unit scale) from the mover's perspective BEFORE the move */
   winBefore: number;
-  /** Win probability [0, 100] from the mover's perspective AFTER the move */
+  /** Win probability [0, 100] (or [0, 1] unit scale) from the mover's perspective AFTER the move */
   winAfter: number;
   /** Whether the played move matches the engine's top choice */
   matchedBestMove?: boolean;
@@ -72,8 +98,22 @@ export interface ClassifyMoveInput {
   moverColor?: Color;
   /** Explicit win-probability gap between best and second-best move (optional override) */
   secondBestGap?: number;
+  /** Explicit centipawn gap between best and second-best move (optional override) */
+  cpGap?: number;
   /** Whether the move played is an identified opening book move */
   isBookMove?: boolean;
+  /** Board state before the move (optional, used for tactical sacrifice / only-defence detection) */
+  stateBefore?: GameState;
+  /** Board state after the move (optional, used for tactical sacrifice / only-defence detection) */
+  stateAfter?: GameState;
+  /** Played move object (optional, used for tactical sacrifice / only-defence detection) */
+  move?: Move;
+  /** Explicit override indicating a material sacrifice of >= 150 cp */
+  isSacrifice?: boolean;
+  /** Explicit net material sacrificed in centipawns */
+  netMaterialLoss?: number;
+  /** Explicit override indicating the only defensive move against mate or decisive loss */
+  isOnlyDefensiveMove?: boolean;
 }
 
 export interface ClassifyMoveResult {
@@ -108,6 +148,13 @@ export function isForcedMateAgainstMover(score: Score | undefined, moverColor: C
   return moverColor === 'white' ? score.value < 0 : score.value > 0;
 }
 
+/** Check whether `score` (White's perspective) is a forced mate in favor of `moverColor`. */
+export function isForcedMateForMover(score: Score | undefined, moverColor: Color | undefined): boolean {
+  if (!score || !moverColor || score.type !== 'mate') return false;
+  if (score.value === 0) return true;
+  return moverColor === 'white' ? score.value > 0 : score.value < 0;
+}
+
 /**
  * Determine whether the best move in `lines` is an "only move" (the gap in
  * mover win probability between the 1st and 2nd multiPV candidate exceeds
@@ -121,23 +168,199 @@ export function isOnlyMove(lines: readonly AnalysisLine[], moverColor: Color): b
 }
 
 /**
- * Classify a move based on win-probability before and after the move (from the mover's perspective).
- *
- * - A checkmate move is always 'best' with 0 loss.
- * - 'best' is assigned ONLY when `loss <= THRESHOLDS.bestMaxLoss` (even if `matchedBestMove` is true,
- *   a move with loss > `bestMaxLoss` is classified by its loss).
- * - If the move walks into a forced mate against the mover when a non-mating alternative existed
- *   before the move, it can never be 'best' (and is classified by its loss, or at least 'mistake'/'blunder').
+ * Compute the net material sacrifice (in centipawns) of `move` played from `stateBefore`
+ * leading to `stateAfter`.
+ * Returns the maximum net material gain the opponent can legally achieve by capturing
+ * the moved piece on `move.to` (or capturing an exposed friendly piece if the move forces mate).
+ */
+export function computeMoveMaterialSacrifice(
+  stateBefore: GameState,
+  stateAfter: GameState,
+  move: Move,
+  deliversForcedMate = false,
+): number {
+  const movedPiece = stateAfter.board.pieces[move.to] ?? stateBefore.board.pieces[move.from];
+  if (!movedPiece || movedPiece.type === 'king') return 0;
+
+  const movedVal = SACRIFICE_PIECE_VALUES[movedPiece.type];
+  let capturedVal = 0;
+  if (move.isEnPassant) {
+    capturedVal = SACRIFICE_PIECE_VALUES.pawn;
+  } else {
+    const capPiece = stateBefore.board.pieces[move.to];
+    if (capPiece) {
+      capturedVal = SACRIFICE_PIECE_VALUES[capPiece.type];
+    }
+  }
+
+  const oppReplies = generateLegal(stateAfter);
+  const capturesOnDest = oppReplies.filter((r) => r.to === move.to);
+
+  let maxNetGainForOpponent = 0;
+
+  for (const capMove of capturesOnDest) {
+    const attackerPiece = stateAfter.board.pieces[capMove.from];
+    const attackerVal = attackerPiece ? SACRIFICE_PIECE_VALUES[attackerPiece.type] : 0;
+    const afterOppCap = applyMove(stateAfter, capMove);
+    const moverRecaptures = generateLegal(afterOppCap).filter((r) => r.to === move.to);
+    const isDefended = moverRecaptures.length > 0;
+
+    // If undefended, opponent wins movedVal (minus what mover already captured).
+    // If defended, opponent trades attackerVal for movedVal (plus what mover already captured).
+    const netSac = isDefended
+      ? movedVal - capturedVal - attackerVal
+      : movedVal - capturedVal;
+
+    if (netSac > maxNetGainForOpponent) {
+      maxNetGainForOpponent = netSac;
+    }
+  }
+
+  // Also check if mover left another high-value piece hanging en prise while delivering forced mate
+  if (deliversForcedMate && maxNetGainForOpponent < THRESHOLDS.stellarMinSacrificeCp) {
+    for (const oppMove of oppReplies) {
+      if (oppMove.to === move.to) continue;
+      const targetPiece = stateAfter.board.pieces[oppMove.to];
+      if (!targetPiece || targetPiece.color !== movedPiece.color || targetPiece.type === 'king') {
+        continue;
+      }
+      const targetVal = SACRIFICE_PIECE_VALUES[targetPiece.type];
+      if (targetVal - capturedVal < THRESHOLDS.stellarMinSacrificeCp) continue;
+
+      const attackerPiece = stateAfter.board.pieces[oppMove.from];
+      const attackerVal = attackerPiece ? SACRIFICE_PIECE_VALUES[attackerPiece.type] : 0;
+      const afterOppCap = applyMove(stateAfter, oppMove);
+      const recaptures = generateLegal(afterOppCap).filter((r) => r.to === oppMove.to);
+      const isDefended = recaptures.length > 0;
+      const netSac = isDefended
+        ? targetVal - capturedVal - attackerVal
+        : targetVal - capturedVal;
+
+      if (netSac > maxNetGainForOpponent) {
+        maxNetGainForOpponent = netSac;
+      }
+    }
+  }
+
+  return Math.max(0, maxNetGainForOpponent);
+}
+
+/**
+ * Check on the board whether `playedMove` is the ONLY legal move in `stateBefore`
+ * that avoids immediate checkmate in 1 (or unconditional loss of >= 400 cp).
+ */
+export function isOnlyDefensiveMoveOnBoard(
+  stateBefore: GameState,
+  stateAfter: GameState,
+  playedMove: Move,
+): boolean {
+  const legalMoves = generateLegal(stateBefore);
+  if (legalMoves.length < 2) return false;
+
+  // Must have an opponent mate threat in stateBefore:
+  // if opponent were to move in stateBefore, they could deliver mate in 1
+  const oppColor = stateBefore.turn === 'white' ? 'black' : 'white';
+  const oppThreatState: GameState = {
+    ...stateBefore,
+    turn: oppColor,
+  };
+  const oppThreatMoves = generateLegal(oppThreatState);
+  const oppHasMateThreat = oppThreatMoves.some((r) => isCheckmate(applyMove(oppThreatState, r)));
+  if (!oppHasMateThreat) {
+    return false;
+  }
+
+  // Played move must not allow immediate mate in 1
+  const oppRepliesAfterPlayed = generateLegal(stateAfter);
+  for (const r of oppRepliesAfterPlayed) {
+    if (isCheckmate(applyMove(stateAfter, r))) {
+      return false;
+    }
+  }
+
+  // Every other legal move must allow immediate mate in 1 by opponent
+  // or decisive material loss (e.g. queen capture by opponent)
+  let allAlternativesDisastrous = true;
+  let checkedAlternatives = 0;
+
+  for (const alt of legalMoves) {
+    if (isSameMove(alt, playedMove)) continue;
+    checkedAlternatives++;
+    const afterAlt = applyMove(stateBefore, alt);
+    const oppReplies = generateLegal(afterAlt);
+    const allowsMateIn1 = oppReplies.some((r) => isCheckmate(applyMove(afterAlt, r)));
+    if (allowsMateIn1) continue;
+
+    const allowsMajorLoss = oppReplies.some((r) => {
+      const victim = afterAlt.board.pieces[r.to];
+      return victim && victim.type === 'queen';
+    });
+
+    if (!allowsMajorLoss) {
+      allAlternativesDisastrous = false;
+      break;
+    }
+  }
+
+  return checkedAlternatives > 0 && allAlternativesDisastrous;
+}
+
+/**
+ * Normalize winBefore and winAfter so callers can pass either percentage [0, 100]
+ * or unit [0, 1] probabilities.
+ */
+function normalizeWinScale(winBefore: number, winAfter: number): {
+  winBeforePct: number;
+  winAfterPct: number;
+  isUnitScale: boolean;
+} {
+  const isUnitScale =
+    winBefore >= 0 &&
+    winAfter >= 0 &&
+    winBefore <= 1 &&
+    winAfter <= 1 &&
+    (winBefore > 0 || winAfter > 0) &&
+    (!Number.isInteger(winBefore) || !Number.isInteger(winAfter) || winBefore === 1 || winAfter === 1);
+
+  if (isUnitScale) {
+    return {
+      winBeforePct: winBefore * 100,
+      winAfterPct: winAfter * 100,
+      isUnitScale: true,
+    };
+  }
+  return {
+    winBeforePct: winBefore,
+    winAfterPct: winAfter,
+    isUnitScale: false,
+  };
+}
+
+/** Convert an engine Score (White's perspective) to centipawns from `moverColor`'s perspective. */
+function moverScoreCp(score: Score, moverColor: Color): number {
+  const whiteCp = scoreToCp(score);
+  return moverColor === 'white' ? whiteCp : -whiteCp;
+}
+
+/**
+ * Classify a move based on win-probability before and after the move (from the mover's perspective),
+ * material sacrifices ('stellar'), forced/only moves ('superb'), and missed wins ('missed').
  */
 export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
+  const { winBeforePct, winAfterPct, isUnitScale } = normalizeWinScale(input.winBefore, input.winAfter);
+
+  const rawSecondGap = input.secondBestGap !== undefined
+    ? (isUnitScale && input.secondBestGap <= 1 ? input.secondBestGap * 100 : input.secondBestGap)
+    : undefined;
+
   let onlyMove = false;
-  if (input.secondBestGap !== undefined) {
-    onlyMove = input.secondBestGap > THRESHOLDS.onlyMoveGap;
+  if (rawSecondGap !== undefined) {
+    onlyMove = rawSecondGap > THRESHOLDS.onlyMoveGap;
   } else if (input.linesBefore && input.moverColor) {
     onlyMove = isOnlyMove(input.linesBefore, input.moverColor);
   }
 
-  // Opening book moves are classified as 'opening' with zero loss
+  // 1. Opening book moves are classified as 'opening' with zero loss
   if (input.isBookMove) {
     return {
       moveClass: 'opening',
@@ -147,7 +370,51 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
     };
   }
 
-  // Delivering checkmate is always the best move with zero loss
+  const lossPct = Math.max(0, winBeforePct - winAfterPct);
+  const lossOut = isUnitScale ? Math.max(0, input.winBefore - input.winAfter) : lossPct;
+
+  const walkedIntoMate = isForcedMateAgainstMover(input.evalAfter, input.moverColor);
+  const deliversForcedMate =
+    Boolean(input.isCheckmateMove) ||
+    isForcedMateForMover(input.evalAfter, input.moverColor) ||
+    isForcedMateForMover(input.evalBefore, input.moverColor);
+
+  const isTopMove =
+    Boolean(input.isCheckmateMove) ||
+    input.matchedBestMove === true ||
+    (input.matchedBestMove === undefined && lossPct <= THRESHOLDS.bestMaxLoss) ||
+    lossPct <= THRESHOLDS.excellentLoss;
+
+  // 2. Check for 'stellar' (!!) — Material sacrifice (>= 150 cp) that is the best/winning move
+  if (!walkedIntoMate && isTopMove && lossPct <= THRESHOLDS.excellentLoss && winAfterPct >= 48) {
+    const holdsEval =
+      deliversForcedMate ||
+      winBeforePct < 60 ||
+      winAfterPct >= winBeforePct - 3;
+
+    if (holdsEval) {
+      let sacCp = input.netMaterialLoss ?? (input.isSacrifice ? THRESHOLDS.stellarMinSacrificeCp : 0);
+      if (sacCp < THRESHOLDS.stellarMinSacrificeCp && input.stateBefore && input.stateAfter && input.move) {
+        sacCp = computeMoveMaterialSacrifice(
+          input.stateBefore,
+          input.stateAfter,
+          input.move,
+          deliversForcedMate,
+        );
+      }
+
+      if (sacCp >= THRESHOLDS.stellarMinSacrificeCp) {
+        return {
+          moveClass: 'stellar',
+          label: MOVE_CLASS_LABELS.stellar,
+          loss: input.isCheckmateMove ? 0 : lossOut,
+          onlyMove,
+        };
+      }
+    }
+  }
+
+  // 3. Delivering checkmate on the board (when not a 'stellar' sacrifice) is always 'best' with zero loss
   if (input.isCheckmateMove) {
     return {
       moveClass: 'best',
@@ -157,32 +424,74 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
     };
   }
 
-  const loss = Math.max(0, input.winBefore - input.winAfter);
+  // 4. Check for 'superb' (!) — Critical only move holding the position or decisive advantage
+  const matchedBestForSuperb =
+    input.matchedBestMove === true ||
+    (input.matchedBestMove === undefined && lossPct <= THRESHOLDS.bestMaxLoss);
 
+  if (!walkedIntoMate && matchedBestForSuperb && lossPct <= THRESHOLDS.excellentLoss && winAfterPct >= 40) {
+    let isSuperbOnlyMove = Boolean(input.isOnlyDefensiveMove);
+
+    if (!isSuperbOnlyMove && rawSecondGap !== undefined && rawSecondGap >= THRESHOLDS.superbMinWinGap) {
+      isSuperbOnlyMove = true;
+    }
+
+    if (!isSuperbOnlyMove && input.cpGap !== undefined && input.cpGap >= THRESHOLDS.superbMinCpGap) {
+      isSuperbOnlyMove = true;
+    }
+
+    if (!isSuperbOnlyMove && input.linesBefore && input.linesBefore.length >= 2 && input.moverColor) {
+      const firstScore = input.linesBefore[0].score;
+      const secondScore = input.linesBefore[1].score;
+      const firstWin = povWinChance(firstScore, input.moverColor);
+      const secondWin = povWinChance(secondScore, input.moverColor);
+      const winGap = firstWin - secondWin;
+      const cpDiff = moverScoreCp(firstScore, input.moverColor) - moverScoreCp(secondScore, input.moverColor);
+
+      // Trigger superb when win probability gap >= 20 pp, or cp gap >= 120 when 2nd best is not also easily winning (< 75%)
+      if (winGap >= THRESHOLDS.superbMinWinGap || (cpDiff >= THRESHOLDS.superbMinCpGap && secondWin < 75)) {
+        isSuperbOnlyMove = true;
+      }
+    }
+
+    if (!isSuperbOnlyMove && input.stateBefore && input.stateAfter && input.move) {
+      isSuperbOnlyMove = isOnlyDefensiveMoveOnBoard(input.stateBefore, input.stateAfter, input.move);
+    }
+
+    if (isSuperbOnlyMove) {
+      return {
+        moveClass: 'superb',
+        label: MOVE_CLASS_LABELS.superb,
+        loss: lossOut,
+        onlyMove: true,
+      };
+    }
+  }
+
+  // 5. Standard loss-based classification
   let rawClass: MoveClass;
-  if (loss <= THRESHOLDS.bestMaxLoss) {
+  if (lossPct <= THRESHOLDS.bestMaxLoss) {
     rawClass = 'best';
-  } else if (loss < THRESHOLDS.excellentLoss) {
+  } else if (lossPct < THRESHOLDS.excellentLoss) {
     rawClass = 'excellent';
-  } else if (loss < THRESHOLDS.goodLoss) {
+  } else if (lossPct < THRESHOLDS.goodLoss) {
     rawClass = 'good';
-  } else if (loss < THRESHOLDS.inaccuracyLoss) {
+  } else if (lossPct < THRESHOLDS.inaccuracyLoss) {
     rawClass = 'inaccuracy';
-  } else if (loss < THRESHOLDS.mistakeLoss) {
+  } else if (lossPct < THRESHOLDS.mistakeLoss) {
     rawClass = 'mistake';
   } else {
     rawClass = 'blunder';
   }
 
   // Check whether the move walks into a forced mate against the mover while a non-mating defence existed
-  const walkedIntoMate = isForcedMateAgainstMover(input.evalAfter, input.moverColor);
   const hadNonMatingReply =
     walkedIntoMate &&
     ((input.evalBefore !== undefined && !isForcedMateAgainstMover(input.evalBefore, input.moverColor)) ||
       (input.linesBefore !== undefined &&
         input.moverColor !== undefined &&
         input.linesBefore.some((l) => !isForcedMateAgainstMover(l.score, input.moverColor))) ||
-      input.winBefore >= THRESHOLDS.decidedLowWin);
+      winBeforePct >= THRESHOLDS.decidedLowWin);
 
   // A move leading into a forced mate against the mover can never be 'best'
   if (walkedIntoMate && rawClass === 'best') {
@@ -191,26 +500,44 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
 
   // Minimum class 'mistake' applies only if the position before the move was not already decided
   // (winBefore for the mover > 3%); otherwise classify normally by loss.
-  const isDecidedLost = input.winBefore <= THRESHOLDS.decidedLowWin;
+  const isDecidedLost = winBeforePct <= THRESHOLDS.decidedLowWin;
   if (walkedIntoMate && hadNonMatingReply && !isDecidedLost) {
     if (SEVERITY_ORDER[rawClass] < SEVERITY_ORDER.mistake) {
-      rawClass = loss >= THRESHOLDS.mistakeLoss ? 'blunder' : 'mistake';
+      rawClass = lossPct >= THRESHOLDS.mistakeLoss ? 'blunder' : 'mistake';
     }
   }
 
   // In an already decided position (winBefore < 3, or winBefore > 97 unless the win is thrown away below 50%),
   // a move is not classified stricter than 'good'
-  const isAlreadyLost = input.winBefore < THRESHOLDS.decidedLowWin;
-  const isAlreadyWon = input.winBefore > THRESHOLDS.decidedHighWin && input.winAfter >= 50;
-  let moveClass = rawClass;
+  const isAlreadyLost = winBeforePct < THRESHOLDS.decidedLowWin;
+  const isAlreadyWon = winBeforePct > THRESHOLDS.decidedHighWin && winAfterPct >= 50;
+  let moveClass: MoveClass = rawClass;
   if ((isAlreadyLost || isAlreadyWon) && SEVERITY_ORDER[moveClass] > SEVERITY_ORDER.good) {
     moveClass = 'good';
+  }
+
+  // 6. Check for 'missed' (✖!) — Missed win (winBefore >= 75% dropped to <= 55% with loss >= 20%)
+  if (
+    !walkedIntoMate &&
+    (moveClass === 'mistake' || moveClass === 'blunder') &&
+    winBeforePct >= THRESHOLDS.missedMinWinBefore &&
+    winAfterPct <= THRESHOLDS.missedMaxWinAfter &&
+    lossPct >= THRESHOLDS.missedMinLoss
+  ) {
+    const evalBeforeOk =
+      !input.evalBefore ||
+      !input.moverColor ||
+      moverScoreCp(input.evalBefore, input.moverColor) >= 200;
+
+    if (evalBeforeOk) {
+      moveClass = 'missed';
+    }
   }
 
   return {
     moveClass,
     label: MOVE_CLASS_LABELS[moveClass],
-    loss,
+    loss: lossOut,
     onlyMove,
   };
 }

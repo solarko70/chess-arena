@@ -110,7 +110,7 @@ describe('Stage 4d-2: Opening book, ECO identification, and opening move class',
     const meta = getMoveClassMeta('opening');
     expect(meta).toBeDefined();
     expect(meta.id).toBe('opening');
-    expect(meta.nameRu).toBe('Дебютный ход');
+    expect(meta.nameRu).toBe('Дебют');
     expect(meta.shortRu).toBe('Дебют');
     expect(meta.cssVar).toBe('--class-opening');
     expect(meta.color).toBe('#94723c');
