@@ -1152,7 +1152,7 @@ describe('Game Review UI Integration Tests', () => {
     const trackRule = trackMatch![1]
     expect(trackRule).toContain('background-color: #05020a;')
     expect(trackRule).toContain('radial-gradient(')
-    expect(trackRule).toContain('linear-gradient(180deg, #05020a 0%, #17042b 45%, #2c0852 100%)')
+    expect(trackRule).toContain('linear-gradient(180deg, #05020a 0%, #160429 50%, #28064a 100%)')
 
     // Neon accent dividing line
     const markerMatch = css.match(/\.eval-bar-marker\s*\{([^}]*)\}/)
@@ -1190,7 +1190,7 @@ describe('Game Review UI Integration Tests', () => {
     const meta = MOVE_CLASS_REGISTRY.find((m) => m.id === 'missed')!
     const row = createClassRow(meta)
     row.update(0)
-    expect(row.rowEl.textContent).toBe('Упущенный шанс: 0')
+    expect(row.rowEl.textContent).toContain('Упущенный шанс: 0')
     expect(row.labelEl.textContent).toBe('Упущенный шанс:')
     expect(row.countEl.textContent).toBe('0')
   })

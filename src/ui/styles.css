@@ -143,6 +143,7 @@
   /* Move class color palette */
   --class-opening: #94723c;
   --class-opening-bg: rgba(148, 114, 60, 0.15);
+  --class-opening-gradient: linear-gradient(135deg, #78531e 0%, #a17838 100%);
   --class-stellar: #c026d3;
   --class-stellar-bg: rgba(192, 38, 211, 0.15);
   --class-stellar-gradient: linear-gradient(135deg, #4c1d95 0%, #db2777 100%);
@@ -151,18 +152,25 @@
   --class-superb-gradient: linear-gradient(135deg, #f43f5e 0%, #db2777 100%);
   --class-best: #f59e0b;
   --class-best-bg: rgba(245, 158, 11, 0.15);
+  --class-best-gradient: linear-gradient(135deg, #d97706 0%, #fbbf24 100%);
   --class-excellent: #06b6d4;
   --class-excellent-bg: rgba(6, 182, 212, 0.15);
+  --class-excellent-gradient: linear-gradient(135deg, #0284c7 0%, #22d3ee 100%);
   --class-good: #10b981;
   --class-good-bg: rgba(16, 185, 129, 0.15);
+  --class-good-gradient: linear-gradient(135deg, #059669 0%, #34d399 100%);
   --class-inaccuracy: #eab308;
   --class-inaccuracy-bg: rgba(234, 179, 8, 0.15);
+  --class-inaccuracy-gradient: linear-gradient(135deg, #ca8a04 0%, #fde047 100%);
   --class-mistake: #f97316;
   --class-mistake-bg: rgba(249, 115, 22, 0.15);
+  --class-mistake-gradient: linear-gradient(135deg, #ea580c 0%, #fb923c 100%);
   --class-blunder: #ef4444;
   --class-blunder-bg: rgba(239, 68, 68, 0.15);
+  --class-blunder-gradient: linear-gradient(135deg, #b91c1c 0%, #f87171 100%);
   --class-missed: #e11d48;
   --class-missed-bg: #27272a;
+  --class-missed-gradient: linear-gradient(135deg, #18181b 0%, #27272a 100%);
 }
 
 [data-theme='light'] {
@@ -647,7 +655,7 @@ body.review-active #app {
 }
 
 .board-move-badge.badge-opening {
-  background: var(--class-opening);
+  background: var(--class-opening-gradient);
 }
 
 .board-move-badge.badge-stellar {
@@ -661,32 +669,33 @@ body.review-active #app {
 }
 
 .board-move-badge.badge-best {
-  background: var(--class-best);
+  background: var(--class-best-gradient);
 }
 
 .board-move-badge.badge-excellent {
-  background: var(--class-excellent);
+  background: var(--class-excellent-gradient);
 }
 
 .board-move-badge.badge-good {
-  background: var(--class-good);
+  background: var(--class-good-gradient);
 }
 
 .board-move-badge.badge-inaccuracy {
-  background: var(--class-inaccuracy);
+  background: var(--class-inaccuracy-gradient);
 }
 
 .board-move-badge.badge-mistake {
-  background: var(--class-mistake);
+  background: var(--class-mistake-gradient);
 }
 
 .board-move-badge.badge-blunder {
-  background: var(--class-blunder);
+  background: var(--class-blunder-gradient);
 }
 
 .board-move-badge.badge-missed {
-  background: var(--class-missed-bg);
-  border: 1.5px solid var(--class-missed);
+  background: var(--class-missed-gradient);
+  border: 1.5px solid #e11d48;
+  box-sizing: border-box;
 }
 
 .board-move-badge svg,
@@ -1068,12 +1077,19 @@ body.review-active #app {
   flex-direction: column-reverse;
   background-color: #05020a;
   background-image:
-    radial-gradient(1.8px 1.8px at 25% 18%, #ffffff 80%, transparent 100%),
-    radial-gradient(1.4px 1.4px at 70% 32%, #f472b6 75%, transparent 100%),
-    radial-gradient(2.2px 2.2px at 35% 55%, #ffffff 90%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 80% 72%, #67e8f9 80%, transparent 100%),
-    radial-gradient(1.8px 1.8px at 20% 88%, #ffffff 85%, transparent 100%),
-    linear-gradient(180deg, #05020a 0%, #17042b 45%, #2c0852 100%);
+    radial-gradient(1.8px 1.8px at 20% 8%, #ffffff 90%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 75% 14%, rgba(255, 255, 255, 0.8) 90%, transparent 100%),
+    radial-gradient(2.0px 2.0px at 35% 22%, #ffffff 95%, transparent 100%),
+    radial-gradient(1.4px 1.4px at 80% 30%, #f472b6 90%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 15% 38%, rgba(255, 255, 255, 0.7) 90%, transparent 100%),
+    radial-gradient(2.2px 2.2px at 60% 46%, #ffffff 95%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 25% 55%, #67e8f9 85%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 85% 63%, rgba(255, 255, 255, 0.8) 90%, transparent 100%),
+    radial-gradient(2.0px 2.0px at 40% 72%, #ffffff 90%, transparent 100%),
+    radial-gradient(1.4px 1.4px at 70% 80%, rgba(255, 255, 255, 0.75) 90%, transparent 100%),
+    radial-gradient(1.8px 1.8px at 20% 88%, #ffffff 90%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 75% 94%, #f472b6 80%, transparent 100%),
+    linear-gradient(180deg, #05020a 0%, #160429 50%, #28064a 100%);
   background-size: 100% 100%;
 }
 
@@ -1128,9 +1144,8 @@ body.review-active #app {
 }
 
 .badge-opening {
-  background: var(--class-opening-bg);
-  color: var(--class-opening);
-  border: 1px solid var(--class-opening);
+  background: var(--class-opening-gradient);
+  color: #ffffff;
 }
 
 .badge-stellar {
@@ -1146,45 +1161,40 @@ body.review-active #app {
 }
 
 .badge-best {
-  background: var(--class-best-bg);
-  color: var(--class-best);
-  border: 1px solid var(--class-best);
+  background: var(--class-best-gradient);
+  color: #ffffff;
 }
 
 .badge-excellent {
-  background: var(--class-excellent-bg);
-  color: var(--class-excellent);
-  border: 1px solid var(--class-excellent);
+  background: var(--class-excellent-gradient);
+  color: #ffffff;
 }
 
 .badge-good {
-  background: var(--class-good-bg);
-  color: var(--class-good);
-  border: 1px solid var(--class-good);
+  background: var(--class-good-gradient);
+  color: #ffffff;
 }
 
 .badge-inaccuracy {
-  background: var(--class-inaccuracy-bg);
-  color: var(--class-inaccuracy);
-  border: 1px solid var(--class-inaccuracy);
+  background: var(--class-inaccuracy-gradient);
+  color: #ffffff;
 }
 
 .badge-mistake {
-  background: var(--class-mistake-bg);
-  color: var(--class-mistake);
-  border: 1px solid var(--class-mistake);
+  background: var(--class-mistake-gradient);
+  color: #ffffff;
 }
 
 .badge-blunder {
-  background: var(--class-blunder-bg);
-  color: var(--class-blunder);
-  border: 1px solid var(--class-blunder);
+  background: var(--class-blunder-gradient);
+  color: #ffffff;
 }
 
 .badge-missed {
-  background: var(--class-missed-bg);
-  color: var(--class-missed);
-  border: 1.5px solid var(--class-missed);
+  background: var(--class-missed-gradient);
+  color: #ffffff;
+  border: 1.5px solid #e11d48;
+  box-sizing: border-box;
 }
 
 .review-move-badge {
@@ -1203,7 +1213,7 @@ body.review-active #app {
 }
 
 .review-move-badge.badge-opening {
-  background: var(--class-opening);
+  background: var(--class-opening-gradient);
   color: #ffffff;
 }
 .review-move-badge.badge-stellar {
@@ -1217,33 +1227,34 @@ body.review-active #app {
   box-shadow: 0 0 8px rgba(236, 72, 153, 0.45);
 }
 .review-move-badge.badge-best {
-  background: var(--class-best);
+  background: var(--class-best-gradient);
   color: #ffffff;
 }
 .review-move-badge.badge-excellent {
-  background: var(--class-excellent);
+  background: var(--class-excellent-gradient);
   color: #ffffff;
 }
 .review-move-badge.badge-good {
-  background: var(--class-good);
+  background: var(--class-good-gradient);
   color: #ffffff;
 }
 .review-move-badge.badge-inaccuracy {
-  background: var(--class-inaccuracy);
+  background: var(--class-inaccuracy-gradient);
   color: #ffffff;
 }
 .review-move-badge.badge-mistake {
-  background: var(--class-mistake);
+  background: var(--class-mistake-gradient);
   color: #ffffff;
 }
 .review-move-badge.badge-blunder {
-  background: var(--class-blunder);
+  background: var(--class-blunder-gradient);
   color: #ffffff;
 }
 .review-move-badge.badge-missed {
-  background: var(--class-missed-bg);
+  background: var(--class-missed-gradient);
   color: #ffffff;
-  border: 1.5px solid var(--class-missed);
+  border: 1.5px solid #e11d48;
+  box-sizing: border-box;
 }
 
 /* Unified round class row badges in summary modal and review panel */
@@ -1279,7 +1290,7 @@ body.review-active #app {
 
 .class-row-badge.badge-opening,
 .move-class-badge.class-row-badge.badge-opening {
-  background: var(--class-opening);
+  background: var(--class-opening-gradient);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
 }
@@ -1299,45 +1310,46 @@ body.review-active #app {
 }
 .class-row-badge.badge-best,
 .move-class-badge.class-row-badge.badge-best {
-  background: var(--class-best);
+  background: var(--class-best-gradient);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
 }
 .class-row-badge.badge-excellent,
 .move-class-badge.class-row-badge.badge-excellent {
-  background: var(--class-excellent);
+  background: var(--class-excellent-gradient);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
 }
 .class-row-badge.badge-good,
 .move-class-badge.class-row-badge.badge-good {
-  background: var(--class-good);
+  background: var(--class-good-gradient);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
 }
 .class-row-badge.badge-inaccuracy,
 .move-class-badge.class-row-badge.badge-inaccuracy {
-  background: var(--class-inaccuracy);
+  background: var(--class-inaccuracy-gradient);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
 }
 .class-row-badge.badge-mistake,
 .move-class-badge.class-row-badge.badge-mistake {
-  background: var(--class-mistake);
+  background: var(--class-mistake-gradient);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
 }
 .class-row-badge.badge-blunder,
 .move-class-badge.class-row-badge.badge-blunder {
-  background: var(--class-blunder);
+  background: var(--class-blunder-gradient);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
 }
 .class-row-badge.badge-missed,
 .move-class-badge.class-row-badge.badge-missed {
-  background: var(--class-missed-bg);
+  background: var(--class-missed-gradient);
   color: #ffffff;
-  border: 1.5px solid var(--class-missed);
+  border: 1.5px solid #e11d48;
+  box-sizing: border-box;
 }
 
 .move-feedback-card {

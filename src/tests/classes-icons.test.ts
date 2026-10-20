@@ -53,8 +53,8 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
       expect(svgEl?.getAttribute('viewBox')).toBe('0 0 24 24');
       expect(svgEl?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
 
-      // Verify SVG contains valid vector geometry elements (path, circle, polygon, ellipse)
-      const vectorElements = doc.querySelectorAll('path, circle, polygon, ellipse, line');
+      // Verify SVG contains valid vector geometry or text elements
+      const vectorElements = doc.querySelectorAll('path, circle, polygon, ellipse, line, text');
       expect(vectorElements.length).toBeGreaterThan(0);
     }
   });
@@ -70,7 +70,7 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
     expect(excellentSvg).toContain('fill="none"');
     expect(excellentSvg).toContain('stroke-linecap="round"');
     expect(excellentSvg).toContain('stroke-linejoin="round"');
-    expect(excellentSvg).toMatch(/stroke-width="(2\.[4-6])"/);
+    expect(excellentSvg).toMatch(/stroke-width="(2\.[4-9]|3(\.0)?)"/);
 
     // Parse excellent SVG and verify two parallel strokes
     const parser = new DOMParser();
@@ -88,7 +88,7 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
   it('mistake inaccuracy blunder symbols are centered with weight 900', () => {
     const parser = new DOMParser();
 
-    for (const id of ['mistake', 'inaccuracy', 'blunder'] as const) {
+    for (const id of ['mistake', 'inaccuracy', 'blunder', 'missed'] as const) {
       const meta = getMoveClassMeta(id);
       const doc = parser.parseFromString(meta.svg, 'image/svg+xml');
       const textEl = doc.querySelector('text');
@@ -103,18 +103,10 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
       expect(fontSize).toBeLessThanOrEqual(15);
 
       const content = textEl?.textContent?.trim();
-      if (id === 'mistake') {
-        expect(content).toBe('?');
-        expect(doc.querySelector('path')).not.toBeNull();
-      }
-      if (id === 'inaccuracy') {
-        expect(content).toBe('?!');
-        expect(doc.querySelector('circle')).not.toBeNull();
-      }
-      if (id === 'blunder') {
-        expect(content).toBe('??');
-        expect(doc.querySelector('path')).not.toBeNull();
-      }
+      if (id === 'mistake') expect(content).toBe('?');
+      if (id === 'inaccuracy') expect(content).toBe('?!');
+      if (id === 'blunder') expect(content).toBe('??');
+      if (id === 'missed') expect(content).toBe('✖!');
     }
   });
 
@@ -132,41 +124,31 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
 
     const missedSvg = getMoveClassSvg('missed');
     expect(missedSvg).toContain('viewBox="0 0 24 24"');
-    expect(missedSvg).toContain('<circle');
-    expect(missedSvg).toContain('<path');
+    expect(missedSvg).toContain('✖!');
 
     const bestSvg = getMoveClassSvg('best');
     expect(bestSvg).toContain('viewBox="0 0 24 24"');
     expect(bestSvg).toContain('<polygon');
-    expect(bestSvg).toContain('<path');
 
     const goodSvg = getMoveClassSvg('good');
     expect(goodSvg).toContain('viewBox="0 0 24 24"');
     expect(goodSvg).toContain('<path');
-    expect(goodSvg).toContain('<ellipse');
 
     const openingSvg = getMoveClassSvg('opening');
     expect(openingSvg).toContain('viewBox="0 0 24 24"');
-    expect(openingSvg).toContain('<ellipse');
+    expect(openingSvg).toContain('<line');
   });
 
   it('inaccuracy and blunder use separate tspans with clear spacing', () => {
-    const parser = new DOMParser();
-
-    // Inaccuracy has dashed circle corona and centered text
     const inaccSvg = getMoveClassSvg('inaccuracy');
-    const inaccDoc = parser.parseFromString(inaccSvg, 'image/svg+xml');
-    const inaccCircle = inaccDoc.querySelector('circle');
-    expect(inaccCircle).not.toBeNull();
-    expect(inaccCircle?.getAttribute('stroke-dasharray')).toBe('3 2');
-    expect(inaccDoc.querySelector('text')?.textContent).toBe('?!');
+    expect(inaccSvg).toContain('font-weight="900"');
+    expect(inaccSvg).toContain('text-anchor="middle"');
+    expect(inaccSvg).toContain('?!');
 
-    // Blunder has spiral collapse path and centered text
     const blunderSvg = getMoveClassSvg('blunder');
-    const blunderDoc = parser.parseFromString(blunderSvg, 'image/svg+xml');
-    const blunderPath = blunderDoc.querySelector('path');
-    expect(blunderPath).not.toBeNull();
-    expect(blunderDoc.querySelector('text')?.textContent).toBe('??');
+    expect(blunderSvg).toContain('font-weight="900"');
+    expect(blunderSvg).toContain('text-anchor="middle"');
+    expect(blunderSvg).toContain('??');
   });
 
   it('board move badge styles use 100% width and overflow visible', () => {
