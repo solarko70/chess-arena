@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import fs from 'fs';
-import path from 'path';
-import { globalStore } from '@/state/store';
-import { initApp } from '@/main';
-import { buildReviewScene } from '@/ui/space-scenes';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'fs'
+import path from 'path'
+import { globalStore, ChessStore } from '@/state/store'
+import { ChessBoardUI } from '@/ui/board'
+import { initApp } from '@/main'
+import { buildReviewScene } from '@/ui/space-scenes'
 import {
   exportReviewedPGN,
   runGameReview,
@@ -11,9 +12,9 @@ import {
   type AnalysisEngine,
   type ReviewWorkerLike,
   type ReviewWorkerResponse,
-} from '@/analysis';
+} from '@/analysis'
 
-import type { Move } from '@/core';
+import type { Move } from '@/core'
 
 function createMockReviewResult(): GameReviewResult {
   return {
@@ -118,64 +119,64 @@ function createMockReviewResult(): GameReviewResult {
       { ply: 3, score: { type: 'cp', value: 35 }, cp: 35, whiteWinChance: 53.5 },
       { ply: 4, score: { type: 'cp', value: 300 }, cp: 300, whiteWinChance: 82 },
     ],
-  };
+  }
 }
 
 describe('Game Review UI Integration Tests', () => {
   beforeEach(() => {
-    localStorage.clear();
-    document.body.innerHTML = '<div id="app"></div>';
-    globalStore.newGame();
-    initApp();
-  });
+    localStorage.clear()
+    document.body.innerHTML = '<div id="app"></div>'
+    globalStore.newGame()
+    initApp()
+  })
 
   afterEach(() => {
-    globalStore.setReviewEngine(undefined);
-    globalStore.setReviewWorkerFactory(undefined);
-  });
+    globalStore.setReviewEngine(undefined)
+    globalStore.setReviewWorkerFactory(undefined)
+  })
 
   it('Кнопка разбора партии становится доступной после мата', () => {
     // At initial position (0 moves), review is not available
-    expect(globalStore.canReview()).toBe(false);
+    expect(globalStore.canReview()).toBe(false)
 
     // Play Fool's mate: 1. f3 e5 2. g4 Qh4#
     // Square indexes in classical 8x8: sq = y * 8 + x (where y=0 is rank 8, y=7 is rank 1)
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    expect(globalStore.getGameResult().type).toBe('checkmate');
-    expect(globalStore.canReview()).toBe(true);
+    expect(globalStore.getGameResult().type).toBe('checkmate')
+    expect(globalStore.canReview()).toBe(true)
 
-    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    expect(modalReviewBtn).toBeTruthy();
-    expect(modalReviewBtn.disabled).toBe(false);
-  });
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    expect(modalReviewBtn).toBeTruthy()
+    expect(modalReviewBtn.disabled).toBe(false)
+  })
 
   it('Индикатор прогресса разбора корректно доходит до 100%', async () => {
     // Play 2 moves so review is allowed
-    const e4 = globalStore.coordsToSquare(4, 4);
-    const e2 = globalStore.coordsToSquare(4, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    globalStore.makeMove(e2, e4);
-    globalStore.makeMove(e7, e5);
+    const e4 = globalStore.coordsToSquare(4, 4)
+    const e2 = globalStore.coordsToSquare(4, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    globalStore.makeMove(e2, e4)
+    globalStore.makeMove(e7, e5)
 
-    const mockReviewResult = createMockReviewResult();
+    const mockReviewResult = createMockReviewResult()
     const mockEngine: AnalysisEngine = {
       name: 'MockEngine',
       analyze: async (_st, opts) => {
-        const depth = opts?.depth ?? 16;
+        const depth = opts?.depth ?? 16
         return {
           engineName: 'MockEngine',
           bestMove: { from: 12, to: 28 } as unknown as Move,
@@ -193,105 +194,105 @@ describe('Game Review UI Integration Tests', () => {
               pvSan: ['e4'],
             },
           ],
-        };
+        }
       },
       dispose: () => {},
-    };
-    globalStore.setReviewEngine(mockEngine);
+    }
+    globalStore.setReviewEngine(mockEngine)
 
-    expect(globalStore.canReview()).toBe(true);
+    expect(globalStore.canReview()).toBe(true)
 
     // Simulate progress updates
-    globalStore.setReviewInProgress(true);
-    globalStore.setReviewProgress({ completed: 1, total: 3, ply: 0 });
-    const progressText = document.getElementById('review-progress-text') as HTMLElement;
-    const progressBar = document.getElementById('review-progress-bar') as HTMLProgressElement;
-    expect(progressText.textContent).toContain('33%');
+    globalStore.setReviewInProgress(true)
+    globalStore.setReviewProgress({ completed: 1, total: 3, ply: 0 })
+    const progressText = document.getElementById('review-progress-text') as HTMLElement
+    const progressBar = document.getElementById('review-progress-bar') as HTMLProgressElement
+    expect(progressText.textContent).toContain('33%')
 
-    globalStore.setReviewProgress({ completed: 3, total: 3, ply: 2 });
-    expect(progressText.textContent).toContain('100%');
-    expect(progressBar.value).toBe(3);
+    globalStore.setReviewProgress({ completed: 3, total: 3, ply: 2 })
+    expect(progressText.textContent).toContain('100%')
+    expect(progressBar.value).toBe(3)
 
     // Complete review
-    globalStore.setReviewResult(mockReviewResult);
-    globalStore.setReviewProgress(null);
-    globalStore.setReviewInProgress(false);
-    globalStore.setReviewMode(true);
+    globalStore.setReviewResult(mockReviewResult)
+    globalStore.setReviewProgress(null)
+    globalStore.setReviewInProgress(false)
+    globalStore.setReviewMode(true)
 
-    const resultsSection = document.getElementById('review-results-section') as HTMLElement;
-    expect(resultsSection.style.display).not.toBe('none');
-    const accWhite = document.getElementById('review-acc-white') as HTMLElement;
-    expect(accWhite.textContent).toBe('94.5%');
-  });
+    const resultsSection = document.getElementById('review-results-section') as HTMLElement
+    expect(resultsSection.style.display).not.toBe('none')
+    const accWhite = document.getElementById('review-acc-white') as HTMLElement
+    expect(accWhite.textContent).toBe('94.5%')
+  })
 
   it('Кнопка отмены успешно прерывает выполнение разбора', () => {
     // Play 2 moves
-    const e4 = globalStore.coordsToSquare(4, 4);
-    const e2 = globalStore.coordsToSquare(4, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    globalStore.makeMove(e2, e4);
-    globalStore.makeMove(e7, e5);
+    const e4 = globalStore.coordsToSquare(4, 4)
+    const e2 = globalStore.coordsToSquare(4, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    globalStore.makeMove(e2, e4)
+    globalStore.makeMove(e7, e5)
 
     // Start review state
-    globalStore.setReviewInProgress(true);
-    globalStore.setReviewProgress({ completed: 1, total: 3, ply: 0 });
+    globalStore.setReviewInProgress(true)
+    globalStore.setReviewProgress({ completed: 1, total: 3, ply: 0 })
 
-    const progressSection = document.getElementById('review-progress-section') as HTMLElement;
-    expect(progressSection.style.display).not.toBe('none');
+    const progressSection = document.getElementById('review-progress-section') as HTMLElement
+    expect(progressSection.style.display).not.toBe('none')
 
-    const cancelBtn = document.getElementById('btn-cancel-review') as HTMLButtonElement;
-    cancelBtn.click();
+    const cancelBtn = document.getElementById('btn-cancel-review') as HTMLButtonElement
+    cancelBtn.click()
 
-    expect(globalStore.isReviewInProgress()).toBe(false);
-    expect(progressSection.style.display).toBe('none');
-  });
+    expect(globalStore.isReviewInProgress()).toBe(false)
+    expect(progressSection.style.display).toBe('none')
+  })
 
   it('Клик по ходу отображает бейдж класса и стрелку лучшего хода', () => {
-    const e4 = globalStore.coordsToSquare(4, 4);
-    const e2 = globalStore.coordsToSquare(4, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const Nf3 = globalStore.coordsToSquare(5, 5);
-    const g1 = globalStore.coordsToSquare(6, 7);
-    const f6 = globalStore.coordsToSquare(5, 2);
-    const f7 = globalStore.coordsToSquare(5, 1);
+    const e4 = globalStore.coordsToSquare(4, 4)
+    const e2 = globalStore.coordsToSquare(4, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const Nf3 = globalStore.coordsToSquare(5, 5)
+    const g1 = globalStore.coordsToSquare(6, 7)
+    const f6 = globalStore.coordsToSquare(5, 2)
+    const f7 = globalStore.coordsToSquare(5, 1)
 
-    globalStore.makeMove(e2, e4);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g1, Nf3);
-    globalStore.makeMove(f7, f6);
+    globalStore.makeMove(e2, e4)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g1, Nf3)
+    globalStore.makeMove(f7, f6)
 
-    const mockResult = createMockReviewResult();
-    globalStore.setReviewResult(mockResult);
-    globalStore.setReviewMode(true);
+    const mockResult = createMockReviewResult()
+    globalStore.setReviewResult(mockResult)
+    globalStore.setReviewMode(true)
 
     // Fourth move (index 3: f6) was classified as blunder
-    const moveEls = document.querySelectorAll('.history-move');
-    expect(moveEls.length).toBe(4);
+    const moveEls = document.querySelectorAll('.history-move')
+    expect(moveEls.length).toBe(4)
 
-    const move4 = moveEls[3] as HTMLElement;
-    const badge = move4.querySelector('.badge-blunder') as HTMLElement;
-    expect(badge).toBeTruthy();
-    expect(badge.dataset.class).toBe('blunder');
+    const move4 = moveEls[3] as HTMLElement
+    const badge = move4.querySelector('.badge-blunder') as HTMLElement
+    expect(badge).toBeTruthy()
+    expect(badge.dataset.class).toBe('blunder')
 
     // Click on move 4
-    move4.click();
+    move4.click()
 
     // Check detail panel shows eval and best move
-    const detailPanel = document.getElementById('history-detail-panel') as HTMLElement;
-    expect(detailPanel.style.display).not.toBe('none');
-    expect(detailPanel.textContent).toContain('зевок');
-    expect(detailPanel.textContent).toContain('Nc6');
+    const detailPanel = document.getElementById('history-detail-panel') as HTMLElement
+    expect(detailPanel.style.display).not.toBe('none')
+    expect(detailPanel.textContent).toContain('зевок')
+    expect(detailPanel.textContent).toContain('Nc6')
 
     // Check SVG arrow on board
-    const arrowLine = document.querySelector('.best-move-arrow-line') as SVGLineElement;
-    expect(arrowLine).toBeTruthy();
-    expect(arrowLine.getAttribute('stroke')).toBe('#22c55e');
-  });
+    const arrowLine = document.querySelector('.best-move-arrow-line') as SVGLineElement
+    expect(arrowLine).toBeTruthy()
+    expect(arrowLine.getAttribute('stroke')).toBe('#22c55e')
+  })
 
   it('При ошибке Stockfish происходит fallback со специальной плашкой', async () => {
-    const states = [globalStore.getState()];
+    const states = [globalStore.getState()]
 
     const mockWorker: ReviewWorkerLike = {
       postMessage: function (msg) {
@@ -301,32 +302,32 @@ describe('Game Review UI Integration Tests', () => {
               type: 'result',
               id: msg.id,
               result: createMockReviewResult(),
-            };
-            this.onmessage?.({ data: reply } as MessageEvent);
-          }, 0);
+            }
+            this.onmessage?.({ data: reply } as MessageEvent)
+          }, 0)
         }
       },
       terminate: () => {},
       onmessage: null,
       onerror: null,
-    };
+    }
 
     // Test runGameReview with forceOwnEngine to trigger graceful fallback
     const res = await runGameReview(states, {
       forceOwnEngine: true,
       workerFactory: () => mockWorker,
-    });
+    })
 
-    expect(res.fallbackNote).toBe('разбор сделан встроенным движком (менее точный)');
+    expect(res.fallbackNote).toBe('разбор сделан встроенным движком (менее точный)')
 
     // In UI, setting result with fallback displays banner
-    globalStore.setReviewResult(res, res.fallbackNote);
-    globalStore.setReviewMode(true);
+    globalStore.setReviewResult(res, res.fallbackNote)
+    globalStore.setReviewMode(true)
 
-    const fallbackEl = document.getElementById('review-fallback-note') as HTMLElement;
-    expect(fallbackEl.style.display).not.toBe('none');
-    expect(fallbackEl.textContent).toContain('разбор сделан встроенным движком (менее точный)');
-  });
+    const fallbackEl = document.getElementById('review-fallback-note') as HTMLElement
+    expect(fallbackEl.style.display).not.toBe('none')
+    expect(fallbackEl.textContent).toContain('разбор сделан встроенным движком (менее точный)')
+  })
 
   it('Закрытие панели разбора восстанавливает обычный режим игры', () => {
     globalStore.setReviewEngine({
@@ -342,277 +343,277 @@ describe('Game Review UI Integration Tests', () => {
         lines: [],
       }),
       dispose: () => {},
-    });
+    })
 
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
     // Open review overlay via summary modal button
-    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    modalReviewBtn.click();
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    modalReviewBtn.click()
 
-    expect(globalStore.isReviewMode()).toBe(true);
-    const reviewOverlay = document.getElementById('review-overlay') as HTMLElement;
-    expect(reviewOverlay.style.display).toBe('flex');
+    expect(globalStore.isReviewMode()).toBe(true)
+    const reviewOverlay = document.getElementById('review-overlay') as HTMLElement
+    expect(reviewOverlay.style.display).toBe('flex')
 
-    const closeBtn = document.getElementById('btn-close-review-overlay') as HTMLButtonElement;
-    closeBtn.click();
+    const closeBtn = document.getElementById('btn-close-review-overlay') as HTMLButtonElement
+    closeBtn.click()
 
-    expect(globalStore.isReviewMode()).toBe(false);
-    expect(reviewOverlay.style.display).toBe('none');
-    const resultsSection = document.getElementById('review-results-section') as HTMLElement;
-    expect(resultsSection.style.display).toBe('none');
-  });
+    expect(globalStore.isReviewMode()).toBe(false)
+    expect(reviewOverlay.style.display).toBe('none')
+    const resultsSection = document.getElementById('review-results-section') as HTMLElement
+    expect(resultsSection.style.display).toBe('none')
+  })
 
   it('Экспорт партии содержит комментарии с оценками [%eval] и NAG', () => {
-    const mockResult = createMockReviewResult();
-    const pgn = exportReviewedPGN(globalStore.getLiveState(), mockResult);
+    const mockResult = createMockReviewResult()
+    const pgn = exportReviewedPGN(globalStore.getLiveState(), mockResult)
 
-    expect(pgn).toContain('{[%eval');
-    expect(pgn).toContain('??'); // NAG for blunder (ply 4)
-    expect(pgn).toContain('[WhiteAccuracy "94.5"]');
-    expect(pgn).toContain('[BlackAccuracy "88.2"]');
+    expect(pgn).toContain('{[%eval')
+    expect(pgn).toContain('??') // NAG for blunder (ply 4)
+    expect(pgn).toContain('[WhiteAccuracy "94.5"]')
+    expect(pgn).toContain('[BlackAccuracy "88.2"]')
 
     // UI copy button
-    globalStore.setReviewResult(mockResult);
-    globalStore.setReviewMode(true);
+    globalStore.setReviewResult(mockResult)
+    globalStore.setReviewMode(true)
 
-    const copyBtn = document.getElementById('btn-copy-reviewed-pgn') as HTMLButtonElement;
-    expect(copyBtn).toBeTruthy();
-  });
+    const copyBtn = document.getElementById('btn-copy-reviewed-pgn') as HTMLButtonElement
+    expect(copyBtn).toBeTruthy()
+  })
 
   it('Игровые часы останавливаются на время действия режима разбора', () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers()
     try {
-      globalStore.setClockMode('blitz-5-0');
-      const e4 = globalStore.coordsToSquare(4, 4);
-      const e2 = globalStore.coordsToSquare(4, 6);
-      globalStore.makeMove(e2, e4);
+      globalStore.setClockMode('blitz-5-0')
+      const e4 = globalStore.coordsToSquare(4, 4)
+      const e2 = globalStore.coordsToSquare(4, 6)
+      globalStore.makeMove(e2, e4)
 
       // Advance time by 2 seconds during Black's live turn
-      vi.advanceTimersByTime(2000);
-      globalStore.tickClock();
-      const blackTimeBefore = globalStore.getTime('black');
+      vi.advanceTimersByTime(2000)
+      globalStore.tickClock()
+      const blackTimeBefore = globalStore.getTime('black')
 
       // Enter review mode
-      globalStore.setReviewMode(true);
-      expect(globalStore.isClockActive()).toBe(false);
+      globalStore.setReviewMode(true)
+      expect(globalStore.isClockActive()).toBe(false)
 
       // Advance time by 5 seconds while reviewing
-      vi.advanceTimersByTime(5000);
-      globalStore.tickClock();
-      const blackTimeDuring = globalStore.getTime('black');
+      vi.advanceTimersByTime(5000)
+      globalStore.tickClock()
+      const blackTimeDuring = globalStore.getTime('black')
 
       // Clock must NOT tick down during review mode
-      expect(blackTimeDuring).toBe(blackTimeBefore);
+      expect(blackTimeDuring).toBe(blackTimeBefore)
     } finally {
-      vi.useRealTimers();
+      vi.useRealTimers()
     }
-  });
+  })
 
   it('Кнопки навигации смонтированы в review-board-nav под доской в оверлее разбора', () => {
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    modalReviewBtn.click();
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    modalReviewBtn.click()
 
-    const boardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement;
-    expect(boardSlot).toBeTruthy();
+    const boardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement
+    expect(boardSlot).toBeTruthy()
 
-    const nav = boardSlot.querySelector('.review-board-nav') as HTMLElement;
-    expect(nav).toBeTruthy();
-    expect(nav.id).toBe('review-board-nav');
+    const nav = boardSlot.querySelector('.review-board-nav') as HTMLElement
+    expect(nav).toBeTruthy()
+    expect(nav.id).toBe('review-board-nav')
 
     // Board mount is placed directly above review-board-nav
-    const children = Array.from(boardSlot.children);
-    expect(children.length).toBe(2);
-    expect(children[0].id).toBe('board-mount');
-    expect(children[1].id).toBe('review-board-nav');
-  });
+    const children = Array.from(boardSlot.children)
+    expect(children.length).toBe(2)
+    expect(children[0].id).toBe('board-mount')
+    expect(children[1].id).toBe('review-board-nav')
+  })
 
   it('Кнопки review-board-nav имеют верные aria-label, SVG-иконки и не содержат эмодзи', () => {
-    const nav = document.getElementById('review-board-nav') as HTMLElement;
-    expect(nav).toBeTruthy();
+    const nav = document.getElementById('review-board-nav') as HTMLElement
+    expect(nav).toBeTruthy()
 
-    const firstBtn = nav.querySelector('#review-nav-first') as HTMLButtonElement;
-    const prevBtn = nav.querySelector('#review-nav-prev') as HTMLButtonElement;
-    const nextBtn = nav.querySelector('#review-nav-next') as HTMLButtonElement;
-    const lastBtn = nav.querySelector('#review-nav-last') as HTMLButtonElement;
+    const firstBtn = nav.querySelector('#review-nav-first') as HTMLButtonElement
+    const prevBtn = nav.querySelector('#review-nav-prev') as HTMLButtonElement
+    const nextBtn = nav.querySelector('#review-nav-next') as HTMLButtonElement
+    const lastBtn = nav.querySelector('#review-nav-last') as HTMLButtonElement
 
-    expect(firstBtn).toBeTruthy();
-    expect(prevBtn).toBeTruthy();
-    expect(nextBtn).toBeTruthy();
-    expect(lastBtn).toBeTruthy();
+    expect(firstBtn).toBeTruthy()
+    expect(prevBtn).toBeTruthy()
+    expect(nextBtn).toBeTruthy()
+    expect(lastBtn).toBeTruthy()
 
-    expect(firstBtn.getAttribute('aria-label')).toBe('В начало (Home)');
-    expect(prevBtn.getAttribute('aria-label')).toBe('Назад (←)');
-    expect(nextBtn.getAttribute('aria-label')).toBe('Вперёд (→)');
-    expect(lastBtn.getAttribute('aria-label')).toBe('В конец (End)');
+    expect(firstBtn.getAttribute('aria-label')).toBe('В начало (Home)')
+    expect(prevBtn.getAttribute('aria-label')).toBe('Назад (←)')
+    expect(nextBtn.getAttribute('aria-label')).toBe('Вперёд (→)')
+    expect(lastBtn.getAttribute('aria-label')).toBe('В конец (End)')
 
     // Ensure all 4 navigation buttons contain vector SVG icons with viewBox 0 0 24 24
-    [firstBtn, prevBtn, nextBtn, lastBtn].forEach((btn) => {
-      const svg = btn.querySelector('svg');
-      expect(svg).toBeTruthy();
-      expect(svg?.getAttribute('viewBox')).toBe('0 0 24 24');
-      expect(svg?.getAttribute('fill')).toBe('none');
-      expect(svg?.getAttribute('stroke')).toBe('currentColor');
-    });
+    ;[firstBtn, prevBtn, nextBtn, lastBtn].forEach((btn) => {
+      const svg = btn.querySelector('svg')
+      expect(svg).toBeTruthy()
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 24 24')
+      expect(svg?.getAttribute('fill')).toBe('none')
+      expect(svg?.getAttribute('stroke')).toBe('currentColor')
+    })
 
     // Zero emojis in button text/titles
-    const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
-    expect(emojiRegex.test(nav.textContent || '')).toBe(false);
-  });
+    const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u
+    expect(emojiRegex.test(nav.textContent || '')).toBe(false)
+  })
 
   it('Клики по кнопкам навигации review-board-nav корректно переключают viewIndex', () => {
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    modalReviewBtn.click();
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    modalReviewBtn.click()
 
-    const firstBtn = document.getElementById('review-nav-first') as HTMLButtonElement;
-    const prevBtn = document.getElementById('review-nav-prev') as HTMLButtonElement;
-    const nextBtn = document.getElementById('review-nav-next') as HTMLButtonElement;
-    const lastBtn = document.getElementById('review-nav-last') as HTMLButtonElement;
+    const firstBtn = document.getElementById('review-nav-first') as HTMLButtonElement
+    const prevBtn = document.getElementById('review-nav-prev') as HTMLButtonElement
+    const nextBtn = document.getElementById('review-nav-next') as HTMLButtonElement
+    const lastBtn = document.getElementById('review-nav-last') as HTMLButtonElement
 
-    firstBtn.click();
-    expect(globalStore.getViewIndex()).toBe(-1);
+    firstBtn.click()
+    expect(globalStore.getViewIndex()).toBe(-1)
 
-    nextBtn.click();
-    expect(globalStore.getViewIndex()).toBe(0);
+    nextBtn.click()
+    expect(globalStore.getViewIndex()).toBe(0)
 
-    nextBtn.click();
-    expect(globalStore.getViewIndex()).toBe(1);
+    nextBtn.click()
+    expect(globalStore.getViewIndex()).toBe(1)
 
-    prevBtn.click();
-    expect(globalStore.getViewIndex()).toBe(0);
+    prevBtn.click()
+    expect(globalStore.getViewIndex()).toBe(0)
 
-    lastBtn.click();
-    expect(globalStore.getViewIndex()).toBe(null);
+    lastBtn.click()
+    expect(globalStore.getViewIndex()).toBe(null)
 
-    prevBtn.click();
-    expect(globalStore.getViewIndex()).toBe(2);
-  });
+    prevBtn.click()
+    expect(globalStore.getViewIndex()).toBe(2)
+  })
 
   it('Кнопки навигации review-board-nav корректно меняют disabled состояние', () => {
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    modalReviewBtn.click();
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    modalReviewBtn.click()
 
-    const firstBtn = document.getElementById('review-nav-first') as HTMLButtonElement;
-    const prevBtn = document.getElementById('review-nav-prev') as HTMLButtonElement;
-    const nextBtn = document.getElementById('review-nav-next') as HTMLButtonElement;
-    const lastBtn = document.getElementById('review-nav-last') as HTMLButtonElement;
+    const firstBtn = document.getElementById('review-nav-first') as HTMLButtonElement
+    const prevBtn = document.getElementById('review-nav-prev') as HTMLButtonElement
+    const nextBtn = document.getElementById('review-nav-next') as HTMLButtonElement
+    const lastBtn = document.getElementById('review-nav-last') as HTMLButtonElement
 
     // At the end of game (viewIndex = null)
-    expect(globalStore.getViewIndex()).toBe(null);
-    expect(firstBtn.disabled).toBe(false);
-    expect(prevBtn.disabled).toBe(false);
-    expect(nextBtn.disabled).toBe(true);
-    expect(lastBtn.disabled).toBe(true);
+    expect(globalStore.getViewIndex()).toBe(null)
+    expect(firstBtn.disabled).toBe(false)
+    expect(prevBtn.disabled).toBe(false)
+    expect(nextBtn.disabled).toBe(true)
+    expect(lastBtn.disabled).toBe(true)
 
     // Navigate to beginning
-    firstBtn.click();
-    expect(globalStore.getViewIndex()).toBe(-1);
-    expect(firstBtn.disabled).toBe(true);
-    expect(prevBtn.disabled).toBe(true);
-    expect(nextBtn.disabled).toBe(false);
-    expect(lastBtn.disabled).toBe(false);
+    firstBtn.click()
+    expect(globalStore.getViewIndex()).toBe(-1)
+    expect(firstBtn.disabled).toBe(true)
+    expect(prevBtn.disabled).toBe(true)
+    expect(nextBtn.disabled).toBe(false)
+    expect(lastBtn.disabled).toBe(false)
 
     // In the middle
-    nextBtn.click();
-    expect(globalStore.getViewIndex()).toBe(0);
-    expect(firstBtn.disabled).toBe(false);
-    expect(prevBtn.disabled).toBe(false);
-    expect(nextBtn.disabled).toBe(false);
-    expect(lastBtn.disabled).toBe(false);
-  });
+    nextBtn.click()
+    expect(globalStore.getViewIndex()).toBe(0)
+    expect(firstBtn.disabled).toBe(false)
+    expect(prevBtn.disabled).toBe(false)
+    expect(nextBtn.disabled).toBe(false)
+    expect(lastBtn.disabled).toBe(false)
+  })
 
   it('Строки классов в модальном окне и панели разбора имеют значки class-row-badge', () => {
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    const modalRows = document.querySelectorAll('#game-over-modal-mount .card-class-row');
-    const reviewRows = document.querySelectorAll('#review-mount .card-class-row');
+    const modalRows = document.querySelectorAll('#game-over-modal-mount .card-class-row')
+    const reviewRows = document.querySelectorAll('#review-mount .card-class-row')
 
-    expect(modalRows.length).toBeGreaterThan(0);
-    expect(reviewRows.length).toBeGreaterThan(0);
+    expect(modalRows.length).toBeGreaterThan(0)
+    expect(reviewRows.length).toBeGreaterThan(0)
 
-    const allBadges = document.querySelectorAll('.card-class-row .class-row-badge');
-    expect(allBadges.length).toBe(modalRows.length + reviewRows.length);
+    const allBadges = document.querySelectorAll('.card-class-row .class-row-badge')
+    expect(allBadges.length).toBe(modalRows.length + reviewRows.length)
 
     allBadges.forEach((badge) => {
-      expect(badge.classList.contains('class-row-badge')).toBe(true);
-      const svg = badge.querySelector('svg');
-      expect(svg).toBeTruthy();
-      expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
-    });
-  });
+      expect(badge.classList.contains('class-row-badge')).toBe(true)
+      const svg = badge.querySelector('svg')
+      expect(svg).toBeTruthy()
+      expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet')
+    })
+  })
 
   it('Автоанализ после окончания партии вызывается с depth = 14', async () => {
-    let requestedDepth: number | undefined;
+    let requestedDepth: number | undefined
     const mockEngine: AnalysisEngine = {
       name: 'DepthSpyEngine',
       analyze: async (_st, opts) => {
-        requestedDepth = opts?.depth;
+        requestedDepth = opts?.depth
         return {
           engineName: 'DepthSpyEngine',
           bestMove: null,
@@ -622,54 +623,54 @@ describe('Game Review UI Integration Tests', () => {
           timeMs: 1,
           pv: [],
           lines: [],
-        };
+        }
       },
       dispose: () => {},
-    };
-    globalStore.setReviewEngine(mockEngine);
+    }
+    globalStore.setReviewEngine(mockEngine)
 
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    expect(globalStore.isGameOver()).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(globalStore.isGameOver()).toBe(true)
+    await new Promise((resolve) => setTimeout(resolve, 50))
 
-    expect(requestedDepth).toBe(14);
-    expect(globalStore.getReviewResult()?.depth).toBe(14);
-  });
+    expect(requestedDepth).toBe(14)
+    expect(globalStore.getReviewResult()?.depth).toBe(14)
+  })
 
   it('В итоговом окне есть чекбокс глубокого анализа и состояние сохраняется в localStorage', () => {
-    localStorage.removeItem('chess_arena_deep_analysis');
-    const checkbox = document.getElementById('deep-analysis-checkbox') as HTMLInputElement;
-    expect(checkbox).toBeTruthy();
-    expect(checkbox.checked).toBe(false);
+    localStorage.removeItem('chess_arena_deep_analysis')
+    const checkbox = document.getElementById('deep-analysis-checkbox') as HTMLInputElement
+    expect(checkbox).toBeTruthy()
+    expect(checkbox.checked).toBe(false)
 
-    checkbox.click();
-    expect(checkbox.checked).toBe(true);
-    expect(localStorage.getItem('chess_arena_deep_analysis')).toBe('true');
+    checkbox.click()
+    expect(checkbox.checked).toBe(true)
+    expect(localStorage.getItem('chess_arena_deep_analysis')).toBe('true')
 
-    checkbox.click();
-    expect(checkbox.checked).toBe(false);
-    expect(localStorage.getItem('chess_arena_deep_analysis')).toBe('false');
-  });
+    checkbox.click()
+    expect(checkbox.checked).toBe(false)
+    expect(localStorage.getItem('chess_arena_deep_analysis')).toBe('false')
+  })
 
   it('Запуск разбора с активным чекбоксом передаёт depth = 20', async () => {
-    let requestedDepth: number | undefined;
+    let requestedDepth: number | undefined
     const mockEngine: AnalysisEngine = {
       name: 'Depth20Engine',
       analyze: async (_st, opts) => {
-        requestedDepth = opts?.depth;
+        requestedDepth = opts?.depth
         return {
           engineName: 'Depth20Engine',
           bestMove: null,
@@ -679,45 +680,45 @@ describe('Game Review UI Integration Tests', () => {
           timeMs: 1,
           pv: [],
           lines: [],
-        };
+        }
       },
       dispose: () => {},
-    };
-    globalStore.setReviewEngine(mockEngine);
+    }
+    globalStore.setReviewEngine(mockEngine)
 
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    const checkbox = document.getElementById('deep-analysis-checkbox') as HTMLInputElement;
-    checkbox.checked = true;
-    checkbox.dispatchEvent(new Event('change'));
+    const checkbox = document.getElementById('deep-analysis-checkbox') as HTMLInputElement
+    checkbox.checked = true
+    checkbox.dispatchEvent(new Event('change'))
 
-    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    reviewModalBtn.click();
+    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    reviewModalBtn.click()
 
     await vi.waitFor(() => {
-      expect(requestedDepth).toBe(20);
-      expect(globalStore.getReviewResult()?.depth).toBe(20);
-    });
-  });
+      expect(requestedDepth).toBe(20)
+      expect(globalStore.getReviewResult()?.depth).toBe(20)
+    })
+  })
 
   it('Бейдж глубины в разборе показывает число, и кнопка углубления пересчитывает на 20', async () => {
-    let currentDepth = 16;
+    let currentDepth = 16
     const mockEngine: AnalysisEngine = {
       name: 'DynamicDepthEngine',
       analyze: async (_st, opts) => {
-        currentDepth = opts?.depth ?? currentDepth;
+        currentDepth = opts?.depth ?? currentDepth
         return {
           engineName: 'DynamicDepthEngine',
           bestMove: null,
@@ -727,51 +728,51 @@ describe('Game Review UI Integration Tests', () => {
           timeMs: 1,
           pv: [],
           lines: [],
-        };
+        }
       },
       dispose: () => {},
-    };
-    globalStore.setReviewEngine(mockEngine);
+    }
+    globalStore.setReviewEngine(mockEngine)
 
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
     // Initial review at depth 16
-    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    reviewModalBtn.click();
+    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    reviewModalBtn.click()
     await vi.waitFor(() => {
-      const depthBadge = document.querySelector('.engine-depth');
-      expect(depthBadge?.textContent).toContain('16');
-    });
+      const depthBadge = document.querySelector('.engine-depth')
+      expect(depthBadge?.textContent).toContain('16')
+    })
 
-    const deepenBtn = document.getElementById('btn-deepen-review') as HTMLButtonElement;
-    expect(deepenBtn).toBeTruthy();
+    const deepenBtn = document.getElementById('btn-deepen-review') as HTMLButtonElement
+    expect(deepenBtn).toBeTruthy()
 
-    deepenBtn.click();
+    deepenBtn.click()
     await vi.waitFor(() => {
-      const depthBadge = document.querySelector('.engine-depth');
-      expect(depthBadge?.textContent).toContain('20');
-      expect(document.getElementById('btn-deepen-review')).toBeNull();
-    });
-  });
+      const depthBadge = document.querySelector('.engine-depth')
+      expect(depthBadge?.textContent).toContain('20')
+      expect(document.getElementById('btn-deepen-review')).toBeNull()
+    })
+  })
 
   it('Повторное открытие разбора с той же или меньшей глубиной не сбрасывает кэш', async () => {
-    let analyzeCount = 0;
+    let analyzeCount = 0
     const mockEngine: AnalysisEngine = {
       name: 'CacheCheckEngine',
       analyze: async (_st, opts) => {
-        analyzeCount++;
+        analyzeCount++
         return {
           engineName: 'CacheCheckEngine',
           bestMove: null,
@@ -781,326 +782,405 @@ describe('Game Review UI Integration Tests', () => {
           timeMs: 1,
           pv: [],
           lines: [],
-        };
+        }
       },
       dispose: () => {},
-    };
-    globalStore.setReviewEngine(mockEngine);
+    }
+    globalStore.setReviewEngine(mockEngine)
 
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
     // Open review overlay with depth 16
-    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    reviewModalBtn.click();
+    const reviewModalBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    reviewModalBtn.click()
     await vi.waitFor(() => {
-      expect(globalStore.isReviewInProgress()).toBe(false);
-      expect(globalStore.getReviewResult()).not.toBeNull();
-    });
+      expect(globalStore.isReviewInProgress()).toBe(false)
+      expect(globalStore.getReviewResult()).not.toBeNull()
+    })
 
-    const initialAnalyzeCount = analyzeCount;
-    expect(initialAnalyzeCount).toBeGreaterThan(0);
+    const initialAnalyzeCount = analyzeCount
+    expect(initialAnalyzeCount).toBeGreaterThan(0)
 
     // Close review overlay
-    const closeBtn = document.getElementById('btn-close-review-overlay') as HTMLButtonElement;
-    closeBtn.click();
+    const closeBtn = document.getElementById('btn-close-review-overlay') as HTMLButtonElement
+    closeBtn.click()
 
     // Reopen review overlay
-    const reopenReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    reopenReviewBtn.click();
+    const reopenReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    reopenReviewBtn.click()
     await vi.waitFor(() => {
-      expect(globalStore.isReviewInProgress()).toBe(false);
-    });
+      expect(globalStore.isReviewInProgress()).toBe(false)
+    })
 
     // analyzeCount should not have increased because cached depth 16 was reused
-    expect(analyzeCount).toBe(initialAnalyzeCount);
-  });
+    expect(analyzeCount).toBe(initialAnalyzeCount)
+  })
 
   it('Контейнер review-board-nav на узких экранах содержит ровно 4 кнопки без выпадения', () => {
-    const cssPath = path.resolve(__dirname, '../ui/styles.css');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
 
-    const nav = document.getElementById('review-board-nav') as HTMLElement;
-    expect(nav).toBeTruthy();
+    const nav = document.getElementById('review-board-nav') as HTMLElement
+    expect(nav).toBeTruthy()
 
-    const buttons = nav.querySelectorAll<HTMLButtonElement>('.review-nav-btn');
-    expect(buttons.length).toBe(4);
-    expect(document.getElementById('review-nav-first')).toBeTruthy();
-    expect(document.getElementById('review-nav-prev')).toBeTruthy();
-    expect(document.getElementById('review-nav-next')).toBeTruthy();
-    expect(document.getElementById('review-nav-last')).toBeTruthy();
+    const buttons = nav.querySelectorAll<HTMLButtonElement>('.review-nav-btn')
+    expect(buttons.length).toBe(4)
+    expect(document.getElementById('review-nav-first')).toBeTruthy()
+    expect(document.getElementById('review-nav-prev')).toBeTruthy()
+    expect(document.getElementById('review-nav-next')).toBeTruthy()
+    expect(document.getElementById('review-nav-last')).toBeTruthy()
 
     // Check CSS grid and button flex-shrink rules
-    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*1fr\);/);
-    expect(css).toMatch(/\.review-nav-btn\s*\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.review-nav-btn\s+svg\s*\{[^}]*max-width:\s*20px;[^}]*max-height:\s*20px;/);
+    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*1fr\);/)
+    expect(css).toMatch(/\.review-nav-btn\s*\{[^}]*min-width:\s*0;/)
+    expect(css).toMatch(
+      /\.review-nav-btn\s+svg\s*\{[^}]*max-width:\s*20px;[^}]*max-height:\s*20px;/
+    )
 
     // Check mobile responsive constraints (<= 800px)
-    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*width:\s*min\(calc\(100vw - 24px\),\s*400px\);/);
-    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*1fr\);/);
-    expect(css).toMatch(/\.review-nav-btn\s*\{[^}]*height:\s*42px;/);
-  });
+    expect(css).toMatch(
+      /\.review-board-nav\s*\{[^}]*width:\s*min\(calc\(100vw - 24px\),\s*400px\);/
+    )
+    expect(css).toMatch(/\.review-board-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*1fr\);/)
+    expect(css).toMatch(/\.review-nav-btn\s*\{[^}]*height:\s*42px;/)
+  })
 
   it('Элементы class-row имеют min-height не менее 32px и flex-shrink: 0', () => {
-    const cssPath = path.resolve(__dirname, '../ui/styles.css');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
 
-    const classRows = document.querySelectorAll('.class-row');
-    expect(classRows.length).toBeGreaterThan(0);
+    const classRows = document.querySelectorAll('.class-row')
+    expect(classRows.length).toBeGreaterThan(0)
 
     // Verify base rules have min-height >= 32px and flex-shrink: 0
-    const baseRowMatch = css.match(/\.(?:card-class-row,\s*\.class-row|class-row)\s*\{([^}]*)\}/);
-    expect(baseRowMatch).not.toBeNull();
-    const minHeightMatch = baseRowMatch![1].match(/min-height:\s*(\d+)px;/);
-    expect(minHeightMatch).not.toBeNull();
-    expect(Number(minHeightMatch![1])).toBeGreaterThanOrEqual(32);
-    expect(baseRowMatch![1]).toMatch(/flex-shrink:\s*0;/);
+    const baseRowMatch = css.match(/\.(?:card-class-row,\s*\.class-row|class-row)\s*\{([^}]*)\}/)
+    expect(baseRowMatch).not.toBeNull()
+    const minHeightMatch = baseRowMatch![1].match(/min-height:\s*(\d+)px;/)
+    expect(minHeightMatch).not.toBeNull()
+    expect(Number(minHeightMatch![1])).toBeGreaterThanOrEqual(32)
+    expect(baseRowMatch![1]).toMatch(/flex-shrink:\s*0;/)
 
     // Verify mobile responsive rule <= 800px has min-height: 38px, height: 38px, flex-shrink: 0
-    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*min-height:\s*38px;/);
-    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*height:\s*38px;/);
-    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*flex-shrink:\s*0;/);
-    expect(css).toMatch(/color:\s*var\(--solar-text,\s*#f8fafc\);/);
-  });
+    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*min-height:\s*38px;/)
+    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*height:\s*38px;/)
+    expect(css).toMatch(/\.class-row,\s*\.card-class-row\s*\{[^}]*flex-shrink:\s*0;/)
+    expect(css).toMatch(/color:\s*var\(--solar-text,\s*#f8fafc\);/)
+  })
 
   it('Мобильные вкладки (Ходы / Обзор / График) переключают видимость секций', async () => {
-    const cssPath = path.resolve(__dirname, '../ui/styles.css');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
 
     // Desktop rule: .review-mobile-tabs is hidden
-    expect(css).toMatch(/\.review-mobile-tabs\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/\.review-mobile-tabs\s*\{[^}]*display:\s*none;/)
 
     // Mobile rule <= 800px has display: grid and tabs switching rules
-    expect(css).toMatch(/\.review-mobile-tabs\s*\{[^}]*display:\s*grid;/);
-    expect(css).toContain('[data-active-tab="moves"]');
-    expect(css).toContain('[data-active-tab="overview"]');
-    expect(css).toContain('[data-active-tab="graph"]');
+    expect(css).toMatch(/\.review-mobile-tabs\s*\{[^}]*display:\s*grid;/)
+    expect(css).toMatch(/\[data-active-tab=['"]moves['"]\]/)
+    expect(css).toMatch(/\[data-active-tab=['"]overview['"]\]/)
+    expect(css).toMatch(/\[data-active-tab=['"]graph['"]\]/)
 
     // Open review overlay
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    modalReviewBtn.click();
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    modalReviewBtn.click()
 
-    const sideCol = document.getElementById('review-overlay-side-col') as HTMLElement;
-    expect(sideCol).toBeTruthy();
-    expect(sideCol.getAttribute('data-active-tab')).toBe('moves');
+    const sideCol = document.getElementById('review-overlay-side-col') as HTMLElement
+    expect(sideCol).toBeTruthy()
+    expect(sideCol.getAttribute('data-active-tab')).toBe('moves')
 
-    const mobileTabs = document.getElementById('review-mobile-tabs') as HTMLElement;
-    expect(mobileTabs).toBeTruthy();
+    const mobileTabs = document.getElementById('review-mobile-tabs') as HTMLElement
+    expect(mobileTabs).toBeTruthy()
 
-    const movesBtn = mobileTabs.querySelector('[data-tab="moves"]') as HTMLButtonElement;
-    const overviewBtn = mobileTabs.querySelector('[data-tab="overview"]') as HTMLButtonElement;
-    const graphBtn = mobileTabs.querySelector('[data-tab="graph"]') as HTMLButtonElement;
+    const movesBtn = mobileTabs.querySelector('[data-tab="moves"]') as HTMLButtonElement
+    const overviewBtn = mobileTabs.querySelector('[data-tab="overview"]') as HTMLButtonElement
+    const graphBtn = mobileTabs.querySelector('[data-tab="graph"]') as HTMLButtonElement
 
-    expect(movesBtn).toBeTruthy();
-    expect(overviewBtn).toBeTruthy();
-    expect(graphBtn).toBeTruthy();
+    expect(movesBtn).toBeTruthy()
+    expect(overviewBtn).toBeTruthy()
+    expect(graphBtn).toBeTruthy()
 
-    expect(movesBtn.classList.contains('active')).toBe(true);
-    expect(overviewBtn.classList.contains('active')).toBe(false);
-    expect(graphBtn.classList.contains('active')).toBe(false);
+    expect(movesBtn.classList.contains('active')).toBe(true)
+    expect(overviewBtn.classList.contains('active')).toBe(false)
+    expect(graphBtn.classList.contains('active')).toBe(false)
 
     // Switch to Overview tab
-    overviewBtn.click();
-    expect(sideCol.getAttribute('data-active-tab')).toBe('overview');
-    expect(overviewBtn.classList.contains('active')).toBe(true);
-    expect(movesBtn.classList.contains('active')).toBe(false);
+    overviewBtn.click()
+    expect(sideCol.getAttribute('data-active-tab')).toBe('overview')
+    expect(overviewBtn.classList.contains('active')).toBe(true)
+    expect(movesBtn.classList.contains('active')).toBe(false)
 
     // Switch to Graph tab
-    graphBtn.click();
-    expect(sideCol.getAttribute('data-active-tab')).toBe('graph');
-    expect(graphBtn.classList.contains('active')).toBe(true);
-    expect(overviewBtn.classList.contains('active')).toBe(false);
+    graphBtn.click()
+    expect(sideCol.getAttribute('data-active-tab')).toBe('graph')
+    expect(graphBtn.classList.contains('active')).toBe(true)
+    expect(overviewBtn.classList.contains('active')).toBe(false)
 
     // Switch back to Moves tab
-    movesBtn.click();
-    expect(sideCol.getAttribute('data-active-tab')).toBe('moves');
-    expect(movesBtn.classList.contains('active')).toBe(true);
+    movesBtn.click()
+    expect(sideCol.getAttribute('data-active-tab')).toBe('moves')
+    expect(movesBtn.classList.contains('active')).toBe(true)
 
     // Check data-review-tab attributes on review sections
-    expect(document.querySelector('.review-accuracies')?.getAttribute('data-review-tab')).toBe('overview');
-    expect(document.querySelector('.review-classes-table-wrap')?.getAttribute('data-review-tab')).toBe('overview');
-    expect(document.querySelector('.review-engine-info')?.getAttribute('data-review-tab')).toBe('graph');
-    expect(document.querySelector('.review-graph-wrap')?.getAttribute('data-review-tab')).toBe('graph');
-    expect(document.querySelector('.review-key-moments-wrap')?.getAttribute('data-review-tab')).toBe('graph');
-    expect(document.querySelector('.review-actions')?.getAttribute('data-review-tab')).toBe('graph');
-  });
+    expect(document.querySelector('.review-accuracies')?.getAttribute('data-review-tab')).toBe(
+      'overview'
+    )
+    expect(
+      document.querySelector('.review-classes-table-wrap')?.getAttribute('data-review-tab')
+    ).toBe('overview')
+    expect(document.querySelector('.review-engine-info')?.getAttribute('data-review-tab')).toBe(
+      'graph'
+    )
+    expect(document.querySelector('.review-graph-wrap')?.getAttribute('data-review-tab')).toBe(
+      'graph'
+    )
+    expect(
+      document.querySelector('.review-key-moments-wrap')?.getAttribute('data-review-tab')
+    ).toBe('graph')
+    expect(document.querySelector('.review-actions')?.getAttribute('data-review-tab')).toBe('graph')
+  })
 
   it('Кнопки перехода по ошибкам в разборе партии осуществляют навигацию по ошибкам', () => {
-    const f3 = globalStore.coordsToSquare(5, 5);
-    const f2 = globalStore.coordsToSquare(5, 6);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const g4 = globalStore.coordsToSquare(6, 4);
-    const g2 = globalStore.coordsToSquare(6, 6);
-    const h4 = globalStore.coordsToSquare(7, 4);
-    const d8 = globalStore.coordsToSquare(3, 0);
+    const f3 = globalStore.coordsToSquare(5, 5)
+    const f2 = globalStore.coordsToSquare(5, 6)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const g4 = globalStore.coordsToSquare(6, 4)
+    const g2 = globalStore.coordsToSquare(6, 6)
+    const h4 = globalStore.coordsToSquare(7, 4)
+    const d8 = globalStore.coordsToSquare(3, 0)
 
-    globalStore.makeMove(f2, f3);
-    globalStore.makeMove(e7, e5);
-    globalStore.makeMove(g2, g4);
-    globalStore.makeMove(d8, h4);
+    globalStore.makeMove(f2, f3)
+    globalStore.makeMove(e7, e5)
+    globalStore.makeMove(g2, g4)
+    globalStore.makeMove(d8, h4)
 
-    const mockResult = createMockReviewResult();
-    globalStore.setReviewResult(mockResult);
-    globalStore.setReviewMode(true);
+    const mockResult = createMockReviewResult()
+    globalStore.setReviewResult(mockResult)
+    globalStore.setReviewMode(true)
 
-    const prevMistakeBtn = document.getElementById('btn-prev-mistake') as HTMLButtonElement;
-    const nextMistakeBtn = document.getElementById('btn-next-mistake') as HTMLButtonElement;
-    expect(prevMistakeBtn).toBeTruthy();
-    expect(nextMistakeBtn).toBeTruthy();
+    const prevMistakeBtn = document.getElementById('btn-prev-mistake') as HTMLButtonElement
+    const nextMistakeBtn = document.getElementById('btn-next-mistake') as HTMLButtonElement
+    expect(prevMistakeBtn).toBeTruthy()
+    expect(nextMistakeBtn).toBeTruthy()
 
     // In mock review, move index 3 (ply 4: f6) is blunder
-    globalStore.setViewIndex(0);
-    expect(nextMistakeBtn.disabled).toBe(false);
+    globalStore.setViewIndex(0)
+    expect(nextMistakeBtn.disabled).toBe(false)
 
-    nextMistakeBtn.click();
-    expect(globalStore.getViewIndex()).toBe(3);
+    nextMistakeBtn.click()
+    expect(globalStore.getViewIndex()).toBe(3)
 
     // Now at index 3 (last blunder), next should be disabled
-    expect(nextMistakeBtn.disabled).toBe(true);
-  });
+    expect(nextMistakeBtn.disabled).toBe(true)
+  })
 
   it('в разборе партии на мобильных список ходов ориентирован вертикально', () => {
-    const cssPath = path.resolve(__dirname, '../ui/styles.css');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
 
-    expect(css).toMatch(/\.review-moves-list\s*\{[^}]*flex-direction:\s*column/);
-    expect(css).toMatch(/\.review-moves-list\s*\{[^}]*overflow-x:\s*hidden/);
-    expect(css).toMatch(/\.review-moves-list\s+\.history-row\s*\{[^}]*grid-template-columns:\s*36px\s+1fr\s+1fr/);
+    expect(css).toMatch(/\.review-moves-list\s*\{[^}]*flex-direction:\s*column/)
+    expect(css).toMatch(/\.review-moves-list\s*\{[^}]*overflow-x:\s*hidden/)
+    expect(css).toMatch(
+      /\.review-moves-list\s+\.history-row\s*\{[^}]*grid-template-columns:\s*36px\s+1fr\s+1fr/
+    )
 
     // Make moves and verify DOM structure in review mode
-    const e2 = globalStore.coordsToSquare(4, 6);
-    const e4 = globalStore.coordsToSquare(4, 4);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    globalStore.makeMove(e2, e4);
-    globalStore.makeMove(e7, e5);
+    const e2 = globalStore.coordsToSquare(4, 6)
+    const e4 = globalStore.coordsToSquare(4, 4)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    globalStore.makeMove(e2, e4)
+    globalStore.makeMove(e7, e5)
 
-    const mockResult = createMockReviewResult();
-    globalStore.setReviewResult(mockResult);
-    globalStore.setReviewMode(true);
+    const mockResult = createMockReviewResult()
+    globalStore.setReviewResult(mockResult)
+    globalStore.setReviewMode(true)
 
-    const historyList = document.querySelector('.history-list');
-    expect(historyList).toBeTruthy();
-    expect(historyList!.classList.contains('review-moves-list')).toBe(true);
-    const rows = historyList!.querySelectorAll('.history-row');
-    expect(rows.length).toBeGreaterThan(0);
-    const firstRow = rows[0];
-    expect(firstRow.querySelector('.history-num')).toBeTruthy();
-    expect(firstRow.querySelectorAll('.history-move').length).toBeGreaterThanOrEqual(1);
-  });
+    const historyList = document.querySelector('.history-list')
+    expect(historyList).toBeTruthy()
+    expect(historyList!.classList.contains('review-moves-list')).toBe(true)
+    const rows = historyList!.querySelectorAll('.history-row')
+    expect(rows.length).toBeGreaterThan(0)
+    const firstRow = rows[0]
+    expect(firstRow.querySelector('.history-num')).toBeTruthy()
+    expect(firstRow.querySelectorAll('.history-move').length).toBeGreaterThanOrEqual(1)
+  })
 
   it('рамка доски в разборе имеет aspect-ratio auto и выравнивание со шкалой оценки', () => {
-    const cssPath = path.resolve(__dirname, '../ui/styles.css');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
 
     // Desktop rule
-    const desktopMount = css.match(/\.review-overlay\s+\.game-board-mount\s*\{([^}]*)\}/);
-    expect(desktopMount).not.toBeNull();
-    expect(desktopMount![1]).toMatch(/aspect-ratio:\s*auto;/);
-    expect(desktopMount![1]).toMatch(/overflow:\s*hidden;/);
+    const desktopMount = css.match(/\.review-overlay\s+\.game-board-mount\s*\{([^}]*)\}/)
+    expect(desktopMount).not.toBeNull()
+    expect(desktopMount![1]).toMatch(/aspect-ratio:\s*auto;/)
+    expect(desktopMount![1]).toMatch(/overflow:\s*hidden;/)
 
     // Mobile rule
-    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?aspect-ratio:\s*auto;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.board-area\s*\{[\s\S]*?align-items:\s*stretch;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.eval-bar-wrapper\s*\{[\s\S]*?border-radius:\s*6px;/);
-  });
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?aspect-ratio:\s*auto;/
+    )
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.board-area\s*\{[\s\S]*?align-items:\s*stretch;/
+    )
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.eval-bar-wrapper\s*\{[\s\S]*?border-radius:\s*6px;/
+    )
+  })
 
   it('космические слои не используют contain: paint и масштабируются без срезов', () => {
-    const cssPath = path.resolve(__dirname, '../ui/styles.css');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
 
-    const animLayerMatch = css.match(/\.space-anim-layer\s*\{([^}]*)\}/);
-    expect(animLayerMatch).not.toBeNull();
-    const animRule = animLayerMatch![1];
+    const animLayerMatch = css.match(/\.space-anim-layer\s*\{([^}]*)\}/)
+    expect(animLayerMatch).not.toBeNull()
+    const animRule = animLayerMatch![1]
 
-    expect(animRule).not.toMatch(/contain:[^;]*paint/);
-    expect(animRule).toMatch(/overflow:\s*visible;/);
+    expect(animRule).not.toMatch(/contain:[^;]*paint/)
+    expect(animRule).toMatch(/overflow:\s*visible;/)
 
     // Review scene viewBox verification
-    const reviewMarkup = buildReviewScene();
-    const container = document.createElement('div');
-    container.innerHTML = reviewMarkup;
+    const reviewMarkup = buildReviewScene()
+    const container = document.createElement('div')
+    container.innerHTML = reviewMarkup
 
-    const layers = container.querySelectorAll('.space-anim-layer');
-    expect(layers.length).toBe(4);
+    const layers = container.querySelectorAll('.space-anim-layer')
+    expect(layers.length).toBe(4)
     for (const layer of Array.from(layers)) {
-      expect(layer.getAttribute('viewBox')).toBe('0 0 1920 1080');
-      expect(layer.getAttribute('style')).toContain('overflow: visible');
+      expect(layer.getAttribute('viewBox')).toBe('0 0 1920 1080')
+      expect(layer.getAttribute('style')).toContain('overflow: visible')
     }
-  });
+  })
   it('оверлей разбора использует justify-content: flex-start и сбрасывает scrollTop в 0', () => {
-    const cssPath = path.resolve(__dirname, '../ui/styles.css');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
 
     // Overlay containers use justify-content: flex-start !important and no margin: auto
-    expect(css).toMatch(/#review-overlay[\s\S]*?justify-content:\s*flex-start\s*!important/);
-    expect(css).toMatch(/\.review-overlay-body\s*\{[\s\S]*?justify-content:\s*flex-start\s*!important/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?width:\s*min\(calc\(100vw - 20px\),\s*380px\);/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?margin-top:\s*4px;/);
+    expect(css).toMatch(/#review-overlay[\s\S]*?justify-content:\s*flex-start\s*!important/)
+    expect(css).toMatch(
+      /\.review-overlay-body\s*\{[\s\S]*?justify-content:\s*flex-start\s*!important/
+    )
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?width:\s*min\(calc\(100vw - 20px\),\s*380px\);/
+    )
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*800px\)[\s\S]*?\.review-overlay\s+\.game-board-mount\s*\{[\s\S]*?margin-top:\s*4px;/
+    )
 
     // Make moves and open review overlay
-    const e2 = globalStore.coordsToSquare(4, 6);
-    const e4 = globalStore.coordsToSquare(4, 4);
-    const e7 = globalStore.coordsToSquare(4, 1);
-    const e5 = globalStore.coordsToSquare(4, 3);
-    globalStore.makeMove(e2, e4);
-    globalStore.makeMove(e7, e5);
+    const e2 = globalStore.coordsToSquare(4, 6)
+    const e4 = globalStore.coordsToSquare(4, 4)
+    const e7 = globalStore.coordsToSquare(4, 1)
+    const e5 = globalStore.coordsToSquare(4, 3)
+    globalStore.makeMove(e2, e4)
+    globalStore.makeMove(e7, e5)
 
-    const mockResult = createMockReviewResult();
-    globalStore.setReviewResult(mockResult);
+    const mockResult = createMockReviewResult()
+    globalStore.setReviewResult(mockResult)
 
-    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement;
-    modalReviewBtn.click();
+    const modalReviewBtn = document.getElementById('btn-modal-review') as HTMLButtonElement
+    modalReviewBtn.click()
 
-    const overlay = document.getElementById('review-overlay') as HTMLElement;
-    expect(overlay).toBeTruthy();
-    expect(overlay.style.display).toBe('flex');
-    expect(overlay.scrollTop).toBe(0);
+    const overlay = document.getElementById('review-overlay') as HTMLElement
+    expect(overlay).toBeTruthy()
+    expect(overlay.style.display).toBe('flex')
+    expect(overlay.scrollTop).toBe(0)
 
     // Scroll down and test reset on mobile tab click
-    overlay.scrollTop = 120;
-    expect(overlay.scrollTop).toBe(120);
+    overlay.scrollTop = 120
+    expect(overlay.scrollTop).toBe(120)
 
-    const mobileTabs = document.getElementById('review-mobile-tabs');
-    expect(mobileTabs).toBeTruthy();
-    const overviewTabBtn = mobileTabs?.querySelector('[data-tab="overview"]') as HTMLButtonElement;
-    expect(overviewTabBtn).toBeTruthy();
+    const mobileTabs = document.getElementById('review-mobile-tabs')
+    expect(mobileTabs).toBeTruthy()
+    const overviewTabBtn = mobileTabs?.querySelector('[data-tab="overview"]') as HTMLButtonElement
+    expect(overviewTabBtn).toBeTruthy()
 
-    overviewTabBtn.click();
-    expect(overlay.scrollTop).toBe(0);
+    overviewTabBtn.click()
+    expect(overlay.scrollTop).toBe(0)
 
     // Verify DOM structure inside review-overlay-body
-    const boardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement;
-    const boardMount = document.getElementById('board-mount') as HTMLElement;
-    const nav = document.getElementById('review-board-nav') as HTMLElement;
-    expect(boardSlot).toBeTruthy();
-    expect(boardSlot.contains(boardMount)).toBe(true);
-    expect(boardSlot.contains(nav)).toBe(true);
-  });
-});
+    const boardSlot = document.getElementById('review-overlay-board-slot') as HTMLElement
+    const boardMount = document.getElementById('board-mount') as HTMLElement
+    const nav = document.getElementById('review-board-nav') as HTMLElement
+    expect(boardSlot).toBeTruthy()
+    expect(boardSlot.contains(boardMount)).toBe(true)
+    expect(boardSlot.contains(nav)).toBe(true)
+  })
+
+  it('шкала оценки содержит солнечный градиент заливки и звёздный фон', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf8')
+
+    // Solar photosphere gradient on white side fill
+    const fillMatch = css.match(/\.eval-bar-fill\s*\{([^}]*)\}/)
+    expect(fillMatch).not.toBeNull()
+    const fillRule = fillMatch![1]
+    expect(fillRule).toContain('linear-gradient(180deg, #fffbeb 0%, #fde68a 35%, #f59e0b 100%)')
+    expect(fillRule).toMatch(/box-shadow:\s*inset\s+0\s+0\s+4px\s+rgba\(255,\s*255,\s*255,\s*0\.6\);/)
+
+    // Deep space starry void gradient on track
+    const trackMatch = css.match(/\.eval-bar-track\s*\{([^}]*)\}/)
+    expect(trackMatch).not.toBeNull()
+    const trackRule = trackMatch![1]
+    expect(trackRule).toContain('background-color: #0d0824;')
+    expect(trackRule).toContain('radial-gradient(')
+    expect(trackRule).toContain('linear-gradient(180deg, #130a2e 0%, #080415 100%)')
+
+    // Neon accent dividing line
+    const markerMatch = css.match(/\.eval-bar-marker\s*\{([^}]*)\}/)
+    expect(markerMatch).not.toBeNull()
+    const markerRule = markerMatch![1]
+    expect(markerRule).toMatch(/height:\s*2px;/)
+    expect(markerRule).toContain('var(--solar-accent')
+    expect(markerRule).toContain('box-shadow: 0 0 4px #f59e0b;')
+
+    // High contrast centered eval text
+    const textMatch = css.match(/\.eval-bar-text\s*\{([^}]*)\}/)
+    expect(textMatch).not.toBeNull()
+    const textRule = textMatch![1]
+    expect(textRule).toMatch(/top:\s*50%;/)
+    expect(textRule).toMatch(/transform:\s*translate\(-50%,\s*-50%\);/)
+
+    // DOM tree integration inside board-area
+    const mount = document.createElement('div')
+    document.body.appendChild(mount)
+    const testStore = new ChessStore()
+    const boardUi = new ChessBoardUI(mount, testStore)
+    expect(boardUi).toBeTruthy()
+
+    const wrapper = mount.querySelector('#eval-bar-wrapper')
+    expect(wrapper).toBeTruthy()
+    expect(wrapper?.querySelector('.eval-bar-track')).toBeTruthy()
+    expect(wrapper?.querySelector('.eval-bar-fill')).toBeTruthy()
+    expect(wrapper?.querySelector('.eval-bar-marker')).toBeTruthy()
+    expect(wrapper?.querySelector('.eval-bar-text')).toBeTruthy()
+
+    mount.remove()
+  })
+})

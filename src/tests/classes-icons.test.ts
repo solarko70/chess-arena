@@ -12,6 +12,19 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
   it('all classes from registry return valid svg markup with viewbox', () => {
     expect(MOVE_CLASS_REGISTRY.length).toBe(10);
 
+    const EXPECTED_COLORS: Record<string, { color: string; cssVar: string }> = {
+      opening: { color: '#94723c', cssVar: '--class-opening' },
+      stellar: { color: '#c026d3', cssVar: '--class-stellar' },
+      superb: { color: '#ec4899', cssVar: '--class-superb' },
+      best: { color: '#f59e0b', cssVar: '--class-best' },
+      excellent: { color: '#06b6d4', cssVar: '--class-excellent' },
+      good: { color: '#10b981', cssVar: '--class-good' },
+      inaccuracy: { color: '#eab308', cssVar: '--class-inaccuracy' },
+      mistake: { color: '#f97316', cssVar: '--class-mistake' },
+      blunder: { color: '#ef4444', cssVar: '--class-blunder' },
+      missed: { color: '#e11d48', cssVar: '--class-missed' },
+    };
+
     for (const meta of MOVE_CLASS_REGISTRY) {
       const svg = meta.svg;
       expect(svg).toMatch(/^<svg\b/);
@@ -19,6 +32,15 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
       expect(svg).toContain('viewBox="0 0 24 24"');
       expect(svg).toContain('preserveAspectRatio="xMidYMid meet"');
       expect(svg).toContain('aria-hidden="true"');
+
+      // No emojis in SVG markup
+      expect(svg).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+
+      // Verify colors and CSS variable mapping
+      const exp = EXPECTED_COLORS[meta.id];
+      expect(exp).toBeDefined();
+      expect(meta.color).toBe(exp.color);
+      expect(meta.cssVar).toBe(exp.cssVar);
 
       // Verify SVG can be parsed by DOMParser without error
       const parser = new DOMParser();
@@ -38,7 +60,7 @@ describe('Stage A3.2: Move class SVG icons geometry and board integration', () =
     expect(goodSvg).toContain('fill="none"');
     expect(goodSvg).toContain('stroke-linecap="round"');
     expect(goodSvg).toContain('stroke-linejoin="round"');
-    expect(goodSvg).toMatch(/stroke-width="(2\.[89]|3(\.0)?)"/);
+    expect(goodSvg).toMatch(/stroke-width="(2\.[4-9]|3(\.0)?)"/);
 
     const excellentSvg = getMoveClassSvg('excellent');
     expect(excellentSvg).toContain('fill="none"');

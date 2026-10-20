@@ -3,19 +3,19 @@
  * Single source of truth for move class metadata:
  * Russian names, CSS color variables, symbols, display order, NAGs, and summary inclusion.
  */
-import type { MoveClass } from './classify';
+import type { MoveClass } from './classify'
 
 export interface MoveClassMeta {
-  readonly id: MoveClass;
-  readonly nameRu: string;
-  readonly shortRu: string;
-  readonly cssVar: string;
-  readonly color: string;
-  readonly symbol: string;
-  readonly order: number;
-  readonly showInSummary: boolean;
-  readonly nag: string;
-  readonly svg: string;
+  readonly id: MoveClass
+  readonly nameRu: string
+  readonly shortRu: string
+  readonly cssVar: string
+  readonly color: string
+  readonly symbol: string
+  readonly order: number
+  readonly showInSummary: boolean
+  readonly nag: string
+  readonly svg: string
 }
 
 export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
@@ -29,7 +29,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 0,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5h6a4 4 0 0 1 4 3.5v11.5a3 3 0 0 0-3-2.5H2z" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 4.5h-6a4 4 0 0 0-4 3.5v11.5a3 3 0 0 1 3-2.5h7z" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   },
   {
     id: 'stellar',
@@ -60,36 +60,36 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     nameRu: 'Лучший',
     shortRu: 'Лучший',
     cssVar: '--class-best',
-    color: '#22c55e',
+    color: '#f59e0b',
     symbol: '★',
     order: 3,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2l2.9 6.2 6.8.8-5 4.7 1.4 6.8L12 17.2l-6.1 3.3 1.4-6.8-5-4.7 6.8-.8z" fill="white"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="white" aria-hidden="true"><path d="M12 2.5l2.6 6.6 7 .3-5.5 4.6 1.9 6.8L12 17.2l-6 3.6 1.9-6.8-5.5-4.6 7-.3z" fill="white"/></svg>',
   },
   {
     id: 'excellent',
     nameRu: 'Отличный',
     shortRu: 'Отличный',
     cssVar: '--class-excellent',
-    color: '#84cc16',
+    color: '#06b6d4',
     symbol: '★',
     order: 4,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 14L7 16L14 7" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L12 16L19 7" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11l7-6 7 6" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18l7-6 7 6" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   },
   {
     id: 'good',
     nameRu: 'Хороший',
     shortRu: 'Хороший',
     cssVar: '--class-good',
-    color: '#06b6d4',
+    color: '#10b981',
     symbol: '✓',
     order: 5,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 11.5L9.5 16.5L19.5 6.5" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l4.5 4.5L19.5 6.5" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   },
   {
     id: 'inaccuracy',
@@ -137,20 +137,20 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
     order: 9,
     showInSummary: true,
     nag: '',
-    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2"/><path d="M8 8l8 8m0-8l-8 8" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    svg: '<svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.2"/><path d="M8 8l8 8m0-8l-8 8" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>',
   },
-];
+]
 
 export const MOVE_CLASS_MAP: Record<MoveClass, MoveClassMeta> = Object.fromEntries(
-  MOVE_CLASS_REGISTRY.map((meta) => [meta.id, meta]),
-) as Record<MoveClass, MoveClassMeta>;
+  MOVE_CLASS_REGISTRY.map((meta) => [meta.id, meta])
+) as Record<MoveClass, MoveClassMeta>
 
 export function getMoveClassSvg(id: MoveClass): string {
-  return getMoveClassMeta(id).svg;
+  return getMoveClassMeta(id).svg
 }
 
 export function getMoveClassMeta(id: MoveClass): MoveClassMeta {
-  return MOVE_CLASS_MAP[id] ?? MOVE_CLASS_REGISTRY[0];
+  return MOVE_CLASS_MAP[id] ?? MOVE_CLASS_REGISTRY[0]
 }
 
 /**
@@ -159,17 +159,17 @@ export function getMoveClassMeta(id: MoveClass): MoveClassMeta {
  * Examples: 1 очко, 2 очка, 5 очков, 11 очков, 21 очко, 22 очка, 25 очков.
  */
 export function formatMaterialPoints(pts: number): string {
-  const abs = Math.abs(pts);
-  const mod100 = abs % 100;
-  const mod10 = abs % 10;
+  const abs = Math.abs(pts)
+  const mod100 = abs % 100
+  const mod10 = abs % 10
   if (mod100 >= 11 && mod100 <= 19) {
-    return `${abs} очков`;
+    return `${abs} очков`
   }
   if (mod10 === 1) {
-    return `${abs} очко`;
+    return `${abs} очко`
   }
   if (mod10 >= 2 && mod10 <= 4) {
-    return `${abs} очка`;
+    return `${abs} очка`
   }
-  return `${abs} очков`;
+  return `${abs} очков`
 }

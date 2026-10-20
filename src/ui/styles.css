@@ -42,9 +42,14 @@
 
   /* Solar Chess theme variables */
   --solar-bg-edge: #0a0d16;
-  --solar-bg-base: radial-gradient(circle at var(--sun-x) var(--sun-y), #0d1a36 0%, #080f22 55%, var(--solar-bg-edge) 100%);
+  --solar-bg-base: radial-gradient(
+    circle at var(--sun-x) var(--sun-y),
+    #0d1a36 0%,
+    #080f22 55%,
+    var(--solar-bg-edge) 100%
+  );
   --solar-sun-core: rgba(251, 191, 36, 0.42);
-  --solar-sun-mid: rgba(245, 158, 11, 0.20);
+  --solar-sun-mid: rgba(245, 158, 11, 0.2);
   --solar-sun-glow: rgba(217, 119, 6, 0.08);
   --solar-orbit-border: rgba(251, 191, 36, 0.16);
   --solar-star-color: rgba(255, 255, 255, 0.75);
@@ -117,7 +122,7 @@
 
   /* Comet variables (dark theme) */
   --comet-head: #38bdf8;
-  --comet-glow: rgba(56, 189, 248, 0.40);
+  --comet-glow: rgba(56, 189, 248, 0.4);
   --comet-tail-start: rgba(56, 189, 248, 0.32);
   --comet-tail-end: rgba(56, 189, 248, 0);
 
@@ -126,7 +131,7 @@
   --nebula-purple: rgba(168, 85, 247, 0.08);
   --nebula-amber: rgba(245, 158, 11, 0.08);
   --galaxy-core: #fef3c7;
-  --galaxy-mid: rgba(251, 191, 36, 0.50);
+  --galaxy-mid: rgba(251, 191, 36, 0.5);
   --galaxy-arm: rgba(186, 230, 253, 0.85);
   --galaxy-opacity: 0.45;
 
@@ -144,12 +149,12 @@
   --class-superb: #ec4899;
   --class-superb-bg: rgba(236, 72, 153, 0.15);
   --class-superb-gradient: linear-gradient(135deg, #f43f5e 0%, #db2777 100%);
-  --class-best: #22c55e;
-  --class-best-bg: rgba(34, 197, 94, 0.15);
-  --class-excellent: #84cc16;
-  --class-excellent-bg: rgba(132, 204, 22, 0.15);
-  --class-good: #06b6d4;
-  --class-good-bg: rgba(6, 182, 212, 0.15);
+  --class-best: #f59e0b;
+  --class-best-bg: rgba(245, 158, 11, 0.15);
+  --class-excellent: #06b6d4;
+  --class-excellent-bg: rgba(6, 182, 212, 0.15);
+  --class-good: #10b981;
+  --class-good-bg: rgba(16, 185, 129, 0.15);
   --class-inaccuracy: #eab308;
   --class-inaccuracy-bg: rgba(234, 179, 8, 0.15);
   --class-mistake: #f97316;
@@ -189,7 +194,12 @@
 
   /* Solar Chess light theme variables */
   --solar-bg-edge: #f1f3f7;
-  --solar-bg-base: radial-gradient(circle at var(--sun-x) var(--sun-y), #fcf7ec 0%, #f5ecd8 55%, var(--solar-bg-edge) 100%);
+  --solar-bg-base: radial-gradient(
+    circle at var(--sun-x) var(--sun-y),
+    #fcf7ec 0%,
+    #f5ecd8 55%,
+    var(--solar-bg-edge) 100%
+  );
   --solar-sun-core: rgba(245, 158, 11, 0.24);
   --solar-sun-mid: rgba(217, 119, 6, 0.12);
   --solar-sun-glow: rgba(180, 83, 9, 0.04);
@@ -215,7 +225,7 @@
 
   /* Theme-dependent orbit and star styling in light mode */
   --orbit-stroke: rgba(180, 83, 9, 0.35);
-  --orbit-opacity: 0.30;
+  --orbit-opacity: 0.3;
   --star-fill: rgba(217, 119, 6, 0.35);
   --game-orbit-opacity: 0.26;
   --game-star-opacity: 0.26;
@@ -229,9 +239,9 @@
   --game-cosmic-opacity: 0.28;
 
   /* Stars & Sparkle variables (light theme) */
-  --star-color: rgba(180, 83, 9, 0.40);
-  --star-opacity-min: 0.30;
-  --star-opacity-max: 0.50;
+  --star-color: rgba(180, 83, 9, 0.4);
+  --star-opacity-min: 0.3;
+  --star-opacity-max: 0.5;
   --sparkle-fill: #b45309;
   --sparkle-halo: rgba(217, 119, 6, 0.22);
 
@@ -258,7 +268,7 @@
 
   /* Comet variables (light theme) */
   --comet-head: #0284c7;
-  --comet-glow: rgba(2, 132, 199, 0.30);
+  --comet-glow: rgba(2, 132, 199, 0.3);
   --comet-tail-start: rgba(2, 132, 199, 0.25);
   --comet-tail-end: rgba(2, 132, 199, 0);
 
@@ -273,7 +283,7 @@
 
   /* Eclipse variables (light theme) */
   --eclipse-disk: #1e293b;
-  --eclipse-corona-core: rgba(217, 119, 6, 0.60);
+  --eclipse-corona-core: rgba(217, 119, 6, 0.6);
   --eclipse-corona-outer: rgba(217, 119, 6, 0);
 
   /* Move class color palette (light theme) */
@@ -297,7 +307,16 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
@@ -611,7 +630,9 @@ body.review-active #app {
   pointer-events: none;
   opacity: 1;
   animation: badgeFadeIn 120ms ease-out;
-  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  transition:
+    opacity 120ms ease-out,
+    transform 120ms ease-out;
 }
 
 @keyframes badgeFadeIn {
@@ -682,13 +703,13 @@ body.review-active #app {
   color: #ffffff;
 }
 
-.board-move-badge svg path[fill="none"],
-.board-move-badge svg polyline[fill="none"],
-.review-move-badge svg path[fill="none"],
-.move-feedback-card svg path[fill="none"],
-.class-row svg path[fill="none"],
-.card-class-row svg path[fill="none"],
-.move-class-badge svg path[fill="none"] {
+.board-move-badge svg path[fill='none'],
+.board-move-badge svg polyline[fill='none'],
+.review-move-badge svg path[fill='none'],
+.move-feedback-card svg path[fill='none'],
+.class-row svg path[fill='none'],
+.card-class-row svg path[fill='none'],
+.move-class-badge svg path[fill='none'] {
   fill: none !important;
 }
 
@@ -794,8 +815,12 @@ body.review-active #app {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (max-width: 480px) {
@@ -847,8 +872,13 @@ body.review-active #app {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .clock-select {
@@ -915,7 +945,9 @@ body.review-active #app {
   cursor: pointer;
   padding: 0 4px;
   border-radius: 4px;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .history-move:hover {
@@ -1005,7 +1037,7 @@ body.review-active #app {
   flex-shrink: 0;
   border-radius: 6px;
   overflow: hidden;
-  background: #1e293b;
+  background: #0d0824;
   border: 1px solid var(--bg-tertiary);
   position: relative;
   box-shadow: var(--board-shadow);
@@ -1017,27 +1049,52 @@ body.review-active #app {
   position: relative;
   display: flex;
   flex-direction: column-reverse;
-  background: #0f172a;
+  background-color: #0d0824;
+  background-image:
+    radial-gradient(1px 1px at 25% 20%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+    radial-gradient(1px 1px at 75% 45%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 40% 70%, rgba(236, 72, 153, 0.7) 50%, transparent 100%),
+    radial-gradient(1px 1px at 80% 85%, rgba(255, 255, 255, 0.75) 50%, transparent 100%),
+    linear-gradient(180deg, #130a2e 0%, #080415 100%);
+  background-size: 100% 100%;
 }
 
 .eval-bar-fill {
   width: 100%;
-  background: #ffffff;
+  position: relative;
+  background: linear-gradient(180deg, #fffbeb 0%, #fde68a 35%, #f59e0b 100%);
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.6);
   transition: height 0.2s ease;
+}
+
+.eval-bar-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--solar-accent, #f59e0b);
+  box-shadow: 0 0 4px #f59e0b;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .eval-bar-text {
   position: absolute;
-  bottom: 6px;
-  left: 0;
-  right: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   text-align: center;
   font-size: 0.65rem;
   font-weight: 700;
-  color: #0f172a;
-  text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
-  z-index: 2;
+  color: #ffffff;
+  background: rgba(13, 8, 36, 0.7);
+  padding: 1px 3px;
+  border-radius: 3px;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 1px #000;
+  z-index: 3;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 /* Move Class Badges */
@@ -1127,16 +1184,49 @@ body.review-active #app {
   box-sizing: border-box;
 }
 
-.review-move-badge.badge-opening { background: var(--class-opening); color: #ffffff; }
-.review-move-badge.badge-stellar { background: var(--class-stellar-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(219, 39, 119, 0.45); }
-.review-move-badge.badge-superb { background: var(--class-superb-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(236, 72, 153, 0.45); }
-.review-move-badge.badge-best { background: var(--class-best); color: #ffffff; }
-.review-move-badge.badge-excellent { background: var(--class-excellent); color: #ffffff; }
-.review-move-badge.badge-good { background: var(--class-good); color: #ffffff; }
-.review-move-badge.badge-inaccuracy { background: var(--class-inaccuracy); color: #ffffff; }
-.review-move-badge.badge-mistake { background: var(--class-mistake); color: #ffffff; }
-.review-move-badge.badge-blunder { background: var(--class-blunder); color: #ffffff; }
-.review-move-badge.badge-missed { background: var(--class-missed-bg); color: #ffffff; border: 1.5px solid var(--class-missed); }
+.review-move-badge.badge-opening {
+  background: var(--class-opening);
+  color: #ffffff;
+}
+.review-move-badge.badge-stellar {
+  background: var(--class-stellar-gradient);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(219, 39, 119, 0.45);
+}
+.review-move-badge.badge-superb {
+  background: var(--class-superb-gradient);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.45);
+}
+.review-move-badge.badge-best {
+  background: var(--class-best);
+  color: #ffffff;
+}
+.review-move-badge.badge-excellent {
+  background: var(--class-excellent);
+  color: #ffffff;
+}
+.review-move-badge.badge-good {
+  background: var(--class-good);
+  color: #ffffff;
+}
+.review-move-badge.badge-inaccuracy {
+  background: var(--class-inaccuracy);
+  color: #ffffff;
+}
+.review-move-badge.badge-mistake {
+  background: var(--class-mistake);
+  color: #ffffff;
+}
+.review-move-badge.badge-blunder {
+  background: var(--class-blunder);
+  color: #ffffff;
+}
+.review-move-badge.badge-missed {
+  background: var(--class-missed-bg);
+  color: #ffffff;
+  border: 1.5px solid var(--class-missed);
+}
 
 /* Unified round class row badges in summary modal and review panel */
 .class-row-badge,
@@ -1170,25 +1260,67 @@ body.review-active #app {
 }
 
 .class-row-badge.badge-opening,
-.move-class-badge.class-row-badge.badge-opening { background: var(--class-opening); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-opening {
+  background: var(--class-opening);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-stellar,
-.move-class-badge.class-row-badge.badge-stellar { background: var(--class-stellar-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(219, 39, 119, 0.45); border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-stellar {
+  background: var(--class-stellar-gradient);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(219, 39, 119, 0.45);
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-superb,
-.move-class-badge.class-row-badge.badge-superb { background: var(--class-superb-gradient); color: #ffffff; box-shadow: 0 0 8px rgba(236, 72, 153, 0.45); border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-superb {
+  background: var(--class-superb-gradient);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.45);
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-best,
-.move-class-badge.class-row-badge.badge-best { background: var(--class-best); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-best {
+  background: var(--class-best);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-excellent,
-.move-class-badge.class-row-badge.badge-excellent { background: var(--class-excellent); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-excellent {
+  background: var(--class-excellent);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-good,
-.move-class-badge.class-row-badge.badge-good { background: var(--class-good); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-good {
+  background: var(--class-good);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-inaccuracy,
-.move-class-badge.class-row-badge.badge-inaccuracy { background: var(--class-inaccuracy); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-inaccuracy {
+  background: var(--class-inaccuracy);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-mistake,
-.move-class-badge.class-row-badge.badge-mistake { background: var(--class-mistake); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-mistake {
+  background: var(--class-mistake);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-blunder,
-.move-class-badge.class-row-badge.badge-blunder { background: var(--class-blunder); color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.move-class-badge.class-row-badge.badge-blunder {
+  background: var(--class-blunder);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .class-row-badge.badge-missed,
-.move-class-badge.class-row-badge.badge-missed { background: var(--class-missed-bg); color: #ffffff; border: 1.5px solid var(--class-missed); }
+.move-class-badge.class-row-badge.badge-missed {
+  background: var(--class-missed-bg);
+  color: #ffffff;
+  border: 1.5px solid var(--class-missed);
+}
 
 .move-feedback-card {
   display: flex;
@@ -1568,7 +1700,10 @@ body.review-active #app {
   background: rgba(255, 255, 255, 0.05);
   color: var(--solar-accent);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
   user-select: none;
 }
 
@@ -1735,7 +1870,9 @@ body.review-active #app {
   padding: 10px 14px;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .key-moment-item:hover {
@@ -1777,7 +1914,9 @@ body.review-active #app {
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5), 0 0 24px var(--solar-halo);
+  box-shadow:
+    0 20px 35px -5px rgba(0, 0, 0, 0.5),
+    0 0 24px var(--solar-halo);
 }
 
 .game-over-dialog.modal-anim-enter {
@@ -1886,39 +2025,71 @@ body.review-active #app {
 }
 
 @keyframes modalOrbitRotate1 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes modalCounterRotate1 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(-360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
 }
 
 @keyframes modalOrbitRotate2 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes modalCounterRotate2 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(-360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
 }
 
 @keyframes modalOrbitRotate3 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes modalCounterRotate3 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(-360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
 }
 
 @keyframes modalOrbitRotate4 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes modalCounterRotate4 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(-360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
 }
 
 .solar-anim-paused,
@@ -1944,7 +2115,9 @@ body.review-active #app {
   padding: 4px 8px;
   line-height: 1;
   z-index: 2;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 .game-over-close-btn:hover {
@@ -1976,7 +2149,9 @@ body.review-active #app {
   font-size: 0.95rem;
   margin-bottom: 8px;
   text-align: center;
-  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .verdict-icon {
@@ -2053,7 +2228,9 @@ body.review-active #app {
   height: 6px;
   border-radius: 3px;
   accent-color: var(--solar-accent);
-  transition: width 0.15s ease, transform 0.15s ease;
+  transition:
+    width 0.15s ease,
+    transform 0.15s ease;
 }
 
 .analysis-error-row {
@@ -2128,7 +2305,10 @@ body.review-active #app {
   flex-direction: column;
   gap: 12px;
   position: relative;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .game-over-card.card-anim-enter {
@@ -2145,7 +2325,9 @@ body.review-active #app {
 
 .game-over-card.winner-card {
   border: 2px solid var(--solar-accent);
-  box-shadow: 0 0 20px var(--solar-halo), 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0 0 20px var(--solar-halo),
+    0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .game-over-card.loser-card {
@@ -2212,7 +2394,9 @@ body.review-active #app {
   stroke-linecap: round;
   stroke-dasharray: 175.93;
   stroke-dashoffset: 175.93;
-  transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+  transition:
+    stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    stroke 0.3s ease;
 }
 
 .ring-progress.ring-high {
@@ -2265,7 +2449,9 @@ body.review-active #app {
   flex-shrink: 0;
   border-bottom: 1px solid var(--bg-tertiary);
   background: var(--row-class-bg, transparent);
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .card-class-row:last-child,
@@ -2314,7 +2500,12 @@ body.review-active #app {
   min-width: 28px;
   height: 16px;
   border-radius: 4px;
-  background: linear-gradient(90deg, var(--bg-tertiary) 25%, rgba(255, 255, 255, 0.08) 50%, var(--bg-tertiary) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    var(--bg-tertiary) 75%
+  );
   background-size: 200% 100%;
   animation: skeletonPulse 1.5s infinite;
   vertical-align: middle;
@@ -2344,7 +2535,9 @@ body.review-active #app {
   border: 1px solid var(--orbit-stroke);
   color: var(--text-secondary);
   cursor: default;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .card-performance-rating .rating-value,
@@ -2374,7 +2567,8 @@ body.review-active #app {
 }
 
 @keyframes skeletonPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.45;
   }
   50% {
@@ -2446,7 +2640,10 @@ body.review-active #app {
   border-radius: 4px;
   border: 1px solid var(--orbit-stroke);
   background: var(--bg-tertiary);
-  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
   box-sizing: border-box;
 }
 
@@ -2466,7 +2663,9 @@ body.review-active #app {
   stroke: #040814;
   opacity: 0;
   transform: scale(0.6);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .solar-checkbox:checked + .solar-checkbox-custom .solar-checkbox-check {
@@ -2491,7 +2690,10 @@ body.review-active #app {
   cursor: pointer;
   font-size: 0.92rem;
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease;
 }
 
 .btn-modal-primary:hover {
@@ -2513,7 +2715,10 @@ body.review-active #app {
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.92rem;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .btn-modal-secondary:hover {
@@ -2605,7 +2810,9 @@ body.review-active #app {
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.6), 0 0 24px var(--solar-halo);
+  box-shadow:
+    0 24px 40px -10px rgba(0, 0, 0, 0.6),
+    0 0 24px var(--solar-halo);
   animation: modalPopIn 0.2s ease-out;
 }
 
@@ -2622,7 +2829,9 @@ body.review-active #app {
   padding: 4px 8px;
   line-height: 1;
   z-index: 2;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 .setup-modal-close:hover {
@@ -2692,7 +2901,11 @@ body.review-active #app {
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
 .setup-time-card:hover {
@@ -2709,7 +2922,9 @@ body.review-active #app {
 .setup-time-card.selected {
   border-color: var(--solar-accent);
   background: rgba(245, 158, 11, 0.12);
-  box-shadow: 0 0 14px var(--solar-halo), 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 0 14px var(--solar-halo),
+    0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .setup-card-title {
@@ -2740,7 +2955,11 @@ body.review-active #app {
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
 .setup-level-card:hover {
@@ -2757,7 +2976,9 @@ body.review-active #app {
 .setup-level-card.selected {
   border-color: var(--solar-accent);
   background: rgba(245, 158, 11, 0.12);
-  box-shadow: 0 0 14px var(--solar-halo), 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 0 14px var(--solar-halo),
+    0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .setup-level-header {
@@ -2803,7 +3024,11 @@ body.review-active #app {
   border: 1px solid var(--bg-tertiary);
   color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
 .setup-color-card:hover {
@@ -2820,7 +3045,9 @@ body.review-active #app {
 .setup-color-card.selected {
   border-color: var(--solar-accent);
   background: rgba(245, 158, 11, 0.12);
-  box-shadow: 0 0 14px var(--solar-halo), 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 0 14px var(--solar-halo),
+    0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .setup-color-icon {
@@ -2859,7 +3086,10 @@ body.review-active #app {
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(245, 158, 11, 0.28);
-  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    filter 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .btn-setup-start:hover {
@@ -3127,7 +3357,8 @@ body.review-active #app {
 }
 
 @keyframes spaceSparklePulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.45;
     transform: scale(0.9);
   }
@@ -3138,7 +3369,8 @@ body.review-active #app {
 }
 
 @keyframes spaceStarTwinkleA {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.55;
   }
   50% {
@@ -3147,7 +3379,8 @@ body.review-active #app {
 }
 
 @keyframes spaceStarTwinkleB {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -3156,7 +3389,8 @@ body.review-active #app {
 }
 
 @keyframes spaceCometDrift {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.25;
     transform: translate(-18px, -11px);
   }
@@ -3167,7 +3401,8 @@ body.review-active #app {
 }
 
 @keyframes spaceCoronaPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.75;
   }
   50% {
@@ -3185,7 +3420,8 @@ body.review-active #app {
 }
 
 @keyframes spaceStarTwinkle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.55;
   }
   50% {
@@ -3194,7 +3430,8 @@ body.review-active #app {
 }
 
 @keyframes spaceGlowPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.75;
   }
   50% {
@@ -3388,13 +3625,17 @@ body.bg-anim-off .solar-background * {
   background: var(--bg-secondary);
   border: 1px solid var(--orbit-stroke);
   border-radius: var(--border-radius);
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(251, 191, 36, 0.10);
+  box-shadow:
+    0 4px 14px -2px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(251, 191, 36, 0.1);
   position: relative;
   overflow: hidden;
 }
 
 [data-theme='light'] .solar-card {
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .solar-section-title {
@@ -3436,7 +3677,10 @@ body.bg-anim-off .solar-background * {
   border-radius: 8px;
   cursor: pointer;
   padding: 8px 16px;
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .solar-btn:hover {
@@ -3452,7 +3696,11 @@ body.bg-anim-off .solar-background * {
   cursor: pointer;
   padding: 6px 14px;
   font-weight: 600;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .solar-btn-ghost:hover {
@@ -3523,7 +3771,9 @@ body.bg-anim-off .solar-background * {
   aspect-ratio: 1 / 1;
   border-radius: var(--border-radius);
   border: 1px solid var(--orbit-stroke);
-  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.45), 0 0 16px var(--solar-halo);
+  box-shadow:
+    0 12px 30px -4px rgba(0, 0, 0, 0.45),
+    0 0 16px var(--solar-halo);
   overflow: hidden;
   position: relative;
   z-index: 1;
@@ -3538,7 +3788,10 @@ body.bg-anim-off .solar-background * {
   background: var(--bg-secondary);
   border: 1px solid var(--bg-tertiary);
   border-radius: 8px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
   position: relative;
   z-index: 1;
 }
@@ -3597,7 +3850,11 @@ body.bg-anim-off .solar-background * {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .player-clock.active-clock {
@@ -3666,7 +3923,10 @@ body.bg-anim-off .solar-background * {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .btn-icon-flip:hover {
@@ -3719,7 +3979,11 @@ body.bg-anim-off .solar-background * {
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .side-panel-actions .btn-action:hover:not(:disabled) {
@@ -3887,7 +4151,10 @@ body.bg-anim-off .solar-background * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .review-overlay-close:hover {
@@ -3943,7 +4210,12 @@ body.bg-anim-off .solar-background * {
   border: 1px solid var(--orbit-stroke);
   color: var(--text-primary);
   cursor: pointer;
-  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+  transition:
+    transform 0.12s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease,
+    color 0.15s ease;
   user-select: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
@@ -3982,7 +4254,9 @@ body.review-active .review-overlay-side-col .history-nav {
   border-radius: calc(var(--border-radius) + 10px);
   background: var(--bg-secondary);
   border: 1px solid var(--orbit-stroke);
-  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.45), 0 0 16px var(--solar-halo);
+  box-shadow:
+    0 12px 30px -4px rgba(0, 0, 0, 0.45),
+    0 0 16px var(--solar-halo);
   overflow: hidden;
 }
 
@@ -4296,7 +4570,9 @@ body.review-active .review-overlay-side-col .history-nav {
     border-radius: 12px;
     background: var(--bg-secondary);
     border: 1px solid var(--orbit-stroke);
-    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.45), 0 0 16px var(--solar-halo);
+    box-shadow:
+      0 12px 30px -4px rgba(0, 0, 0, 0.45),
+      0 0 16px var(--solar-halo);
     overflow: hidden;
   }
 
@@ -4540,23 +4816,24 @@ body.review-active .review-overlay-side-col .history-nav {
     display: none !important;
   }
 
-  .review-overlay-side-col[data-active-tab="overview"] [data-review-tab="graph"] {
+  .review-overlay-side-col[data-active-tab="overview"] [data-review-tab='graph'] {
     display: none !important;
   }
-  .review-overlay-side-col[data-active-tab="overview"] [data-review-tab="overview"] {
+  .review-overlay-side-col[data-active-tab="overview"] [data-review-tab='overview'] {
     display: block !important;
   }
-  .review-overlay-side-col[data-active-tab="overview"] .review-accuracies[data-review-tab="overview"] {
+  .review-overlay-side-col[data-active-tab="overview"]
+    .review-accuracies[data-review-tab='overview'] {
     display: flex !important;
   }
 
-  .review-overlay-side-col[data-active-tab="graph"] [data-review-tab="overview"] {
+  .review-overlay-side-col[data-active-tab="graph"] [data-review-tab='overview'] {
     display: none !important;
   }
-  .review-overlay-side-col[data-active-tab="graph"] [data-review-tab="graph"] {
+  .review-overlay-side-col[data-active-tab="graph"] [data-review-tab='graph'] {
     display: block !important;
   }
-  .review-overlay-side-col[data-active-tab="graph"] .review-actions[data-review-tab="graph"] {
+  .review-overlay-side-col[data-active-tab="graph"] .review-actions[data-review-tab='graph'] {
     display: flex !important;
   }
 
@@ -4714,7 +4991,11 @@ body.review-active .review-overlay-side-col .history-nav {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease, right 0.15s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    right 0.15s ease;
 }
 
 /* In Review Overlay, shift theme toggle 12px left of the 40px close button (16px + 40px + 12px = 68px) */
@@ -4754,7 +5035,7 @@ body.review-active .theme-toggle-btn {
 }
 
 .solar-background:not(.active),
-.solar-background[style*="display: none"] {
+.solar-background[style*='display: none'] {
   display: none !important;
 }
 
@@ -4769,7 +5050,11 @@ body.review-active .theme-toggle-btn {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0, 0, 0, var(--vignette-strength)) 100%);
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 40%,
+    rgba(0, 0, 0, var(--vignette-strength)) 100%
+  );
   z-index: 5;
 }
 
@@ -4792,7 +5077,8 @@ body.review-active .theme-toggle-btn {
 }
 
 @keyframes starTwinkle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.2;
     transform: scale(0.85);
   }
@@ -4802,9 +5088,15 @@ body.review-active .theme-toggle-btn {
   }
 }
 
-.star-1 { animation: starTwinkle 4s ease-in-out infinite; }
-.star-2 { animation: starTwinkle 6s ease-in-out infinite 1.5s; }
-.star-3 { animation: starTwinkle 5s ease-in-out infinite 3s; }
+.star-1 {
+  animation: starTwinkle 4s ease-in-out infinite;
+}
+.star-2 {
+  animation: starTwinkle 6s ease-in-out infinite 1.5s;
+}
+.star-3 {
+  animation: starTwinkle 5s ease-in-out infinite 3s;
+}
 
 /* 2. The Sun: soft radial amber glow centered exactly at (--sun-x, --sun-y) */
 .solar-sun {
@@ -4815,7 +5107,13 @@ body.review-active .theme-toggle-btn {
   width: clamp(280px, 46vmin, 580px);
   height: clamp(280px, 46vmin, 580px);
   border-radius: 50%;
-  background: radial-gradient(circle, var(--solar-sun-core) 0%, var(--solar-sun-mid) 35%, var(--solar-sun-glow) 65%, transparent 75%);
+  background: radial-gradient(
+    circle,
+    var(--solar-sun-core) 0%,
+    var(--solar-sun-mid) 35%,
+    var(--solar-sun-glow) 65%,
+    transparent 75%
+  );
   filter: blur(28px);
   animation: solarPulse 14s ease-in-out infinite alternate;
   pointer-events: none;
@@ -4954,7 +5252,7 @@ body.review-active .theme-toggle-btn {
   height: 300px;
   transform: rotateX(60deg);
   transform-origin: bottom center;
-  background-image: 
+  background-image:
     linear-gradient(to right, var(--solar-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--solar-grid-line) 1px, transparent 1px);
   background-size: clamp(28px, 4vmin, 44px) clamp(28px, 4vmin, 44px);
@@ -5007,7 +5305,15 @@ body.review-active .theme-toggle-btn {
 }
 
 .home-title {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   font-size: clamp(2.6rem, 9vmin, 7rem);
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -5016,13 +5322,13 @@ body.review-active .theme-toggle-btn {
   line-height: 1.05;
   position: relative;
   z-index: 2;
-  text-shadow: 
+  text-shadow:
     0 0 24px rgba(251, 191, 36, 0.28),
     0 0 50px rgba(245, 158, 11, 0.16);
 }
 
 [data-theme='light'] .home-title {
-  text-shadow: 
+  text-shadow:
     0 0 20px rgba(245, 158, 11, 0.25),
     0 0 45px rgba(217, 119, 6, 0.14);
 }
@@ -5070,16 +5376,30 @@ body.review-active .theme-toggle-btn {
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
   opacity: 0;
   animation: menuButtonAppear 0.4s ease-out forwards;
 }
 
-.btn-menu:nth-child(1) { animation-delay: 0.35s; }
-.btn-menu:nth-child(2) { animation-delay: 0.43s; }
-.btn-menu:nth-child(3) { animation-delay: 0.51s; }
-.btn-menu:nth-child(4) { animation-delay: 0.59s; }
-.btn-menu:nth-child(5) { animation-delay: 0.67s; }
+.btn-menu:nth-child(1) {
+  animation-delay: 0.35s;
+}
+.btn-menu:nth-child(2) {
+  animation-delay: 0.43s;
+}
+.btn-menu:nth-child(3) {
+  animation-delay: 0.51s;
+}
+.btn-menu:nth-child(4) {
+  animation-delay: 0.59s;
+}
+.btn-menu:nth-child(5) {
+  animation-delay: 0.67s;
+}
 
 .btn-menu:hover {
   background: var(--bg-tertiary);
@@ -5138,7 +5458,11 @@ body.review-active .theme-toggle-btn {
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .btn-back-to-main:hover {
@@ -5266,7 +5590,3 @@ body.review-active .theme-toggle-btn {
     overflow-x: hidden !important;
   }
 }
-
-
-
-

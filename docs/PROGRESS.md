@@ -169,3 +169,24 @@
 - [x] Move Feedback Card Verdicts & Descriptions (`src/ui/history.ts`, `src/ui/styles.css`): added titles and explanatory descriptions in `.move-feedback-card` for `'stellar'` («Звёздный !!» — «Блестящая жертва материала, ведущая к победе»), `'superb'` («Превосходный !» — «Единственный ход, сохраняющий решающий перевес»), and `'missed'` («Упущенный шанс ✖!» — «Упущена возможность победить»).
 - [x] Tests (`src/tests/stellar-moves.test.ts`, `src/tests/openings.test.ts`): added 6 unit/integration tests for `'stellar'`, `'superb'`, `'missed'`, single-line registry labels, enlarged SVG geometry, and feedback card rendering; updated `openings.test.ts` `meta.nameRu` expectation to `'Дебют'`.
 - [x] Verification: 32 test files, 330 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.
+
+## Stage 4d-4: Solar Eval Bar & Move Classes Vector Redesign (Completed)
+- [x] Solar Eval Bar Photosphere & Void (`src/ui/styles.css`, `src/ui/board.ts`):
+  - White side (`.eval-bar-fill`): solar energy gradient `linear-gradient(180deg, #fffbeb 0%, #fde68a 35%, #f59e0b 100%)` with inner glow `box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.6)`.
+  - Black side (`.eval-bar-track`, `.eval-bar-wrapper`): deep cosmic void `#0d0824` with 4-point star-speckle radial gradients and linear gradient `linear-gradient(180deg, #130a2e 0%, #080415 100%)`.
+  - Separator marker (`.eval-bar-marker`): 2px line with `var(--solar-accent, #f59e0b)` and neon glow `box-shadow: 0 0 4px #f59e0b`.
+  - Eval text (`.eval-bar-text`): centered vertically and horizontally at `50%` with `transform: translate(-50%, -50%)`, high-contrast white text, subtle dark void backdrop `rgba(13, 8, 36, 0.7)`, and double text shadow for perfect legibility.
+- [x] Harmonization of Move Class Icons & Colors (`src/analysis/classes.ts`, `src/ui/styles.css`):
+  - `best` (★): radiant solar gold star (`fill="white"`), color `--class-best: #f59e0b`.
+  - `excellent` (★ / chevrons): double upward aurora light beams / parallel chevrons (`stroke-width="2.5"`, `stroke="white"`, `stroke-linecap="round"`), color `--class-excellent: #06b6d4` (neon cyan).
+  - `good` (✓): smooth orbital checkmark trajectory (`stroke-width="2.5"`, `stroke="white"`, `stroke-linecap="round"`), color `--class-good: #10b981` (emerald ray).
+  - `opening` (D / atlas): opened star atlas (`stroke-width="2"`, `stroke="white"`), color `--class-opening: #94723c`.
+  - `inaccuracy` (?!): solar perturbation contours with distinct tspans, color `--class-inaccuracy: #eab308`.
+  - `mistake` (?): sharp supergiant flash question mark, color `--class-mistake: #f97316`.
+  - `blunder` (??): dual gravitational collapse symbols, color `--class-blunder: #ef4444`.
+  - `missed` (✖!): solar eclipse corona with clean cross, color `--class-missed: #e11d48` with dark background `#27272a`.
+- [x] Test Suite Expansion (`src/tests/classes-icons.test.ts`, `src/tests/review-ui.test.ts`):
+  - Added full color and CSS variable mapping validation for all 10 classes.
+  - Added strict emoji-free validation across all move class SVG markups.
+  - Added comprehensive eval bar styling and DOM mount test.
+- [x] Verification: 32 test files, 331 tests passing via `npm test` (`scripts/safe-test.mjs`), 0 lint warnings/errors in `npm run lint`, and clean production build via `npm run build`.

@@ -1,35 +1,37 @@
-import { ChessStore } from '../state/store';
-import { getPieceSvg } from './pieces';
-import { getMoveClassMeta } from '@/analysis';
-import type { PieceType, Square } from '@/core';
+import { ChessStore } from '../state/store'
+import { getPieceSvg } from './pieces'
+import { getMoveClassMeta } from '@/analysis'
+import type { PieceType, Square } from '@/core'
 
 export class ChessBoardUI {
-  private container: HTMLElement;
-  private store: ChessStore;
-  private boardEl: HTMLElement;
-  private promoOverlayEl: HTMLElement;
-  private evalBarWrapperEl: HTMLElement;
-  private evalBarFillEl: HTMLElement;
-  private evalBarTextEl: HTMLElement;
-  private arrowLayerEl: SVGElement;
-  private badgeLayerEl: HTMLElement;
+  private container: HTMLElement
+  private store: ChessStore
+  private boardEl: HTMLElement
+  private promoOverlayEl: HTMLElement
+  private evalBarWrapperEl: HTMLElement
+  private evalBarFillEl: HTMLElement
+  private evalBarTextEl: HTMLElement
+  private arrowLayerEl: SVGElement
+  private badgeLayerEl: HTMLElement
 
   // Drag state
-  private isDragging = false;
-  private dragFromSquare: Square | null = null;
-  private floatingPieceEl: HTMLElement | null = null;
-  private isTouching = false;
-  private lastTouchEndTime = 0;
+  private isDragging = false
+  private dragFromSquare: Square | null = null
+  private floatingPieceEl: HTMLElement | null = null
+  private isTouching = false
+  private lastTouchEndTime = 0
 
   constructor(container: HTMLElement, store: ChessStore) {
-    this.container = container;
-    this.store = store;
+    this.container = container
+    this.store = store
 
     this.container.innerHTML = `
       <div class="board-area">
         <div class="eval-bar-wrapper" id="eval-bar-wrapper" style="display: none;">
           <div class="eval-bar-track">
-            <div class="eval-bar-fill" id="eval-bar-fill"></div>
+            <div class="eval-bar-fill" id="eval-bar-fill">
+              <div class="eval-bar-marker" aria-hidden="true"></div>
+            </div>
             <span class="eval-bar-text" id="eval-bar-text">50%</span>
           </div>
         </div>
@@ -40,264 +42,264 @@ export class ChessBoardUI {
           <div class="promo-overlay" style="display: none;"></div>
         </div>
       </div>
-    `;
+    `
 
-    this.boardEl = this.container.querySelector('.chess-board') as HTMLElement;
-    this.promoOverlayEl = this.container.querySelector('.promo-overlay') as HTMLElement;
-    this.evalBarWrapperEl = this.container.querySelector('#eval-bar-wrapper') as HTMLElement;
-    this.evalBarFillEl = this.container.querySelector('#eval-bar-fill') as HTMLElement;
-    this.evalBarTextEl = this.container.querySelector('#eval-bar-text') as HTMLElement;
-    this.arrowLayerEl = this.container.querySelector('.board-arrow-layer') as SVGElement;
-    this.badgeLayerEl = this.container.querySelector('.board-badge-layer') as HTMLElement;
+    this.boardEl = this.container.querySelector('.chess-board') as HTMLElement
+    this.promoOverlayEl = this.container.querySelector('.promo-overlay') as HTMLElement
+    this.evalBarWrapperEl = this.container.querySelector('#eval-bar-wrapper') as HTMLElement
+    this.evalBarFillEl = this.container.querySelector('#eval-bar-fill') as HTMLElement
+    this.evalBarTextEl = this.container.querySelector('#eval-bar-text') as HTMLElement
+    this.arrowLayerEl = this.container.querySelector('.board-arrow-layer') as SVGElement
+    this.badgeLayerEl = this.container.querySelector('.board-badge-layer') as HTMLElement
 
-    this.initEvents();
-    this.store.subscribe(() => this.render());
+    this.initEvents()
+    this.store.subscribe(() => this.render())
   }
 
   private initEvents(): void {
     // Pointer down on board
-    this.boardEl.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
-    window.addEventListener('pointermove', (e) => this.handlePointerMove(e));
-    window.addEventListener('pointerup', (e) => this.handlePointerUp(e));
+    this.boardEl.addEventListener('pointerdown', (e) => this.handlePointerDown(e))
+    window.addEventListener('pointermove', (e) => this.handlePointerMove(e))
+    window.addEventListener('pointerup', (e) => this.handlePointerUp(e))
 
     // Touch events for mobile touch devices
-    this.boardEl.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
-    window.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
-    window.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
-    window.addEventListener('touchcancel', () => this.handleTouchCancel());
+    this.boardEl.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false })
+    window.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false })
+    window.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false })
+    window.addEventListener('touchcancel', () => this.handleTouchCancel())
   }
 
   private render(): void {
-    const state = this.store.getState();
-    const { width, height, pieces } = state.board;
-    const flipped = this.store.isFlipped();
-    const selectedSq = this.store.getSelectedSquare();
-    const pendingPromo = this.store.getPendingPromotion();
-    const validDests = selectedSq !== null ? this.store.getValidDestinationsFor(selectedSq) : [];
-    const lastMove = this.store.getLastMove();
-    const inCheck = this.store.isInCheck();
-    const kingSq = inCheck ? this.store.getKingSquare() : null;
+    const state = this.store.getState()
+    const { width, height, pieces } = state.board
+    const flipped = this.store.isFlipped()
+    const selectedSq = this.store.getSelectedSquare()
+    const pendingPromo = this.store.getPendingPromotion()
+    const validDests = selectedSq !== null ? this.store.getValidDestinationsFor(selectedSq) : []
+    const lastMove = this.store.getLastMove()
+    const inCheck = this.store.isInCheck()
+    const kingSq = inCheck ? this.store.getKingSquare() : null
 
     // Set board CSS grid variable
-    this.boardEl.style.setProperty('--board-width', width.toString());
-    this.boardEl.style.setProperty('--board-height', height.toString());
+    this.boardEl.style.setProperty('--board-width', width.toString())
+    this.boardEl.style.setProperty('--board-height', height.toString())
 
-    this.boardEl.innerHTML = '';
+    this.boardEl.innerHTML = ''
 
     // Render squares in display order
     for (let r = 0; r < height; r++) {
       for (let c = 0; c < width; c++) {
-        const x = flipped ? width - 1 - c : c;
-        const y = flipped ? height - 1 - r : r;
-        const sq = y * width + x;
-        const piece = pieces[sq];
+        const x = flipped ? width - 1 - c : c
+        const y = flipped ? height - 1 - r : r
+        const sq = y * width + x
+        const piece = pieces[sq]
 
-        const isLight = (x + y) % 2 === 0;
-        const isSelected = selectedSq === sq;
-        const isLastMove = lastMove ? lastMove.from === sq || lastMove.to === sq : false;
-        const isKingInCheck = kingSq === sq;
-        const isDest = validDests.includes(sq);
+        const isLight = (x + y) % 2 === 0
+        const isSelected = selectedSq === sq
+        const isLastMove = lastMove ? lastMove.from === sq || lastMove.to === sq : false
+        const isKingInCheck = kingSq === sq
+        const isDest = validDests.includes(sq)
 
-        const sqEl = document.createElement('div');
-        sqEl.className = `chess-square ${isLight ? 'light' : 'dark'}`;
-        sqEl.dataset.square = sq.toString();
+        const sqEl = document.createElement('div')
+        sqEl.className = `chess-square ${isLight ? 'light' : 'dark'}`
+        sqEl.dataset.square = sq.toString()
 
-        if (isSelected) sqEl.classList.add('selected');
-        if (isLastMove) sqEl.classList.add('last-move');
-        if (isKingInCheck) sqEl.classList.add('in-check');
+        if (isSelected) sqEl.classList.add('selected')
+        if (isLastMove) sqEl.classList.add('last-move')
+        if (isKingInCheck) sqEl.classList.add('in-check')
 
         // Coordinate labels on edges
-        const isRankEdge = flipped ? c === width - 1 : c === 0;
-        const isFileEdge = flipped ? r === 0 : r === height - 1;
+        const isRankEdge = flipped ? c === width - 1 : c === 0
+        const isFileEdge = flipped ? r === 0 : r === height - 1
 
         if (isRankEdge) {
-          const rankLabel = document.createElement('span');
-          rankLabel.className = 'coord-label rank';
-          rankLabel.textContent = (height - y).toString();
-          sqEl.appendChild(rankLabel);
+          const rankLabel = document.createElement('span')
+          rankLabel.className = 'coord-label rank'
+          rankLabel.textContent = (height - y).toString()
+          sqEl.appendChild(rankLabel)
         }
 
         if (isFileEdge) {
-          const fileLabel = document.createElement('span');
-          fileLabel.className = 'coord-label file';
-          fileLabel.textContent = String.fromCharCode(97 + x);
-          sqEl.appendChild(fileLabel);
+          const fileLabel = document.createElement('span')
+          fileLabel.className = 'coord-label file'
+          fileLabel.textContent = String.fromCharCode(97 + x)
+          sqEl.appendChild(fileLabel)
         }
 
         // Destination hints
         if (isDest) {
-          const hint = document.createElement('div');
-          hint.className = piece ? 'dest-capture-ring' : 'dest-hint';
-          sqEl.appendChild(hint);
+          const hint = document.createElement('div')
+          hint.className = piece ? 'dest-capture-ring' : 'dest-hint'
+          sqEl.appendChild(hint)
         }
 
         // Piece
         if (piece) {
-          const pieceEl = document.createElement('div');
-          pieceEl.className = 'piece-wrapper';
-          pieceEl.innerHTML = getPieceSvg(piece.type, piece.color);
-          sqEl.appendChild(pieceEl);
+          const pieceEl = document.createElement('div')
+          pieceEl.className = 'piece-wrapper'
+          pieceEl.innerHTML = getPieceSvg(piece.type, piece.color)
+          sqEl.appendChild(pieceEl)
         }
 
-        this.boardEl.appendChild(sqEl);
+        this.boardEl.appendChild(sqEl)
       }
     }
 
     // Render promotion dialog if needed
     if (pendingPromo) {
-      this.renderPromotionModal(pendingPromo);
+      this.renderPromotionModal(pendingPromo)
     } else {
-      this.promoOverlayEl.style.display = 'none';
-      this.promoOverlayEl.innerHTML = '';
+      this.promoOverlayEl.style.display = 'none'
+      this.promoOverlayEl.innerHTML = ''
     }
 
-    this.renderEvalBar(flipped);
-    this.renderBestMoveArrow(flipped);
-    this.renderMoveBadge(flipped);
+    this.renderEvalBar(flipped)
+    this.renderBestMoveArrow(flipped)
+    this.renderMoveBadge(flipped)
   }
 
   private renderMoveBadge(flipped: boolean): void {
-    if (!this.badgeLayerEl) return;
-    this.badgeLayerEl.innerHTML = '';
+    if (!this.badgeLayerEl) return
+    this.badgeLayerEl.innerHTML = ''
 
-    const review = this.store.getReviewResult();
+    const review = this.store.getReviewResult()
     if (!review || !review.moves || review.moves.length === 0) {
-      return;
+      return
     }
 
-    const viewIndex = this.store.getViewIndex();
+    const viewIndex = this.store.getViewIndex()
     // In start position before the first move (viewIndex = -1), badge must not be shown
     if (viewIndex === -1) {
-      return;
+      return
     }
 
-    let moveIndex: number;
+    let moveIndex: number
     if (viewIndex === null) {
       // In live/current view, show badge in review mode or when game is finished
       if (!this.store.isReviewMode() && !this.store.isGameOver()) {
-        return;
+        return
       }
-      moveIndex = review.moves.length - 1;
+      moveIndex = review.moves.length - 1
     } else {
-      moveIndex = viewIndex;
+      moveIndex = viewIndex
     }
 
     if (moveIndex < 0 || moveIndex >= review.moves.length) {
-      return;
+      return
     }
 
-    const reviewedMove = review.moves[moveIndex];
+    const reviewedMove = review.moves[moveIndex]
     if (!reviewedMove || !reviewedMove.move) {
-      return;
+      return
     }
 
-    const toSquare = reviewedMove.move.to;
-    const moveClass = reviewedMove.class;
-    const meta = getMoveClassMeta(moveClass);
+    const toSquare = reviewedMove.move.to
+    const moveClass = reviewedMove.class
+    const meta = getMoveClassMeta(moveClass)
 
-    const { width, height } = this.store.getState().board;
-    const toX = toSquare % width;
-    const toY = Math.floor(toSquare / width);
+    const { width, height } = this.store.getState().board
+    const toX = toSquare % width
+    const toY = Math.floor(toSquare / width)
 
-    const col = flipped ? width - 1 - toX : toX;
-    const row = flipped ? height - 1 - toY : toY;
+    const col = flipped ? width - 1 - toX : toX
+    const row = flipped ? height - 1 - toY : toY
 
-    const leftPct = (col / width) * 100;
-    const topPct = (row / height) * 100;
-    const widthPct = 100 / width;
-    const heightPct = 100 / height;
+    const leftPct = (col / width) * 100
+    const topPct = (row / height) * 100
+    const widthPct = 100 / width
+    const heightPct = 100 / height
 
-    const slotEl = document.createElement('div');
-    slotEl.className = 'board-badge-slot';
-    slotEl.style.position = 'absolute';
-    slotEl.style.left = `${leftPct}%`;
-    slotEl.style.top = `${topPct}%`;
-    slotEl.style.width = `${widthPct}%`;
-    slotEl.style.height = `${heightPct}%`;
-    slotEl.style.pointerEvents = 'none';
+    const slotEl = document.createElement('div')
+    slotEl.className = 'board-badge-slot'
+    slotEl.style.position = 'absolute'
+    slotEl.style.left = `${leftPct}%`
+    slotEl.style.top = `${topPct}%`
+    slotEl.style.width = `${widthPct}%`
+    slotEl.style.height = `${heightPct}%`
+    slotEl.style.pointerEvents = 'none'
 
-    const badgeEl = document.createElement('div');
-    badgeEl.className = `board-move-badge badge-${moveClass}`;
-    badgeEl.dataset.class = moveClass;
-    badgeEl.dataset.square = toSquare.toString();
-    badgeEl.title = meta.nameRu;
-    badgeEl.innerHTML = meta.svg;
+    const badgeEl = document.createElement('div')
+    badgeEl.className = `board-move-badge badge-${moveClass}`
+    badgeEl.dataset.class = moveClass
+    badgeEl.dataset.square = toSquare.toString()
+    badgeEl.title = meta.nameRu
+    badgeEl.innerHTML = meta.svg
 
-    slotEl.appendChild(badgeEl);
-    this.badgeLayerEl.appendChild(slotEl);
+    slotEl.appendChild(badgeEl)
+    this.badgeLayerEl.appendChild(slotEl)
   }
 
   private renderEvalBar(flipped: boolean): void {
-    const review = this.store.getReviewResult();
-    const isReviewActive = this.store.isReviewMode();
+    const review = this.store.getReviewResult()
+    const isReviewActive = this.store.isReviewMode()
     if (!isReviewActive || !review || !review.evalHistory || review.evalHistory.length === 0) {
-      this.evalBarWrapperEl.style.display = 'none';
-      return;
+      this.evalBarWrapperEl.style.display = 'none'
+      return
     }
 
-    this.evalBarWrapperEl.style.display = 'flex';
-    const viewIdx = this.store.getViewIndex();
-    let ply = 0;
+    this.evalBarWrapperEl.style.display = 'flex'
+    const viewIdx = this.store.getViewIndex()
+    let ply = 0
     if (viewIdx === null) {
-      ply = review.evalHistory.length - 1;
+      ply = review.evalHistory.length - 1
     } else if (viewIdx >= 0) {
-      ply = Math.min(viewIdx + 1, review.evalHistory.length - 1);
+      ply = Math.min(viewIdx + 1, review.evalHistory.length - 1)
     }
 
-    const evalPoint = review.evalHistory[ply];
-    if (!evalPoint) return;
+    const evalPoint = review.evalHistory[ply]
+    if (!evalPoint) return
 
-    const whiteChance = Math.max(0, Math.min(100, evalPoint.whiteWinChance));
-    const fillHeight = flipped ? 100 - whiteChance : whiteChance;
-    this.evalBarFillEl.style.height = `${fillHeight}%`;
+    const whiteChance = Math.max(0, Math.min(100, evalPoint.whiteWinChance))
+    const fillHeight = flipped ? 100 - whiteChance : whiteChance
+    this.evalBarFillEl.style.height = `${fillHeight}%`
 
     if (evalPoint.score.type === 'mate') {
-      this.evalBarTextEl.textContent = 'Мат';
+      this.evalBarTextEl.textContent = 'Мат'
     } else {
-      this.evalBarTextEl.textContent = `${Math.round(whiteChance)}%`;
+      this.evalBarTextEl.textContent = `${Math.round(whiteChance)}%`
     }
   }
 
   private renderBestMoveArrow(flipped: boolean): void {
-    if (!this.arrowLayerEl) return;
-    this.arrowLayerEl.innerHTML = '';
+    if (!this.arrowLayerEl) return
+    this.arrowLayerEl.innerHTML = ''
 
-    const review = this.store.getReviewResult();
-    if (!review) return;
+    const review = this.store.getReviewResult()
+    if (!review) return
 
-    const viewIndex = this.store.getViewIndex();
+    const viewIndex = this.store.getViewIndex()
     if (viewIndex === null || viewIndex < 0 || viewIndex >= review.moves.length) {
-      return;
+      return
     }
 
-    const reviewedMove = review.moves[viewIndex];
-    if (!reviewedMove || !reviewedMove.bestMove) return;
+    const reviewedMove = review.moves[viewIndex]
+    if (!reviewedMove || !reviewedMove.bestMove) return
 
-    const { width, height } = this.store.getState().board;
-    const bestMove = reviewedMove.bestMove;
+    const { width, height } = this.store.getState().board
+    const bestMove = reviewedMove.bestMove
 
-    const sqW = 800 / width;
-    const sqH = 800 / height;
+    const sqW = 800 / width
+    const sqH = 800 / height
 
-    const fromX = bestMove.from % width;
-    const fromY = Math.floor(bestMove.from / width);
-    const toX = bestMove.to % width;
-    const toY = Math.floor(bestMove.to / width);
+    const fromX = bestMove.from % width
+    const fromY = Math.floor(bestMove.from / width)
+    const toX = bestMove.to % width
+    const toY = Math.floor(bestMove.to / width)
 
-    const fromCol = flipped ? width - 1 - fromX : fromX;
-    const fromRow = flipped ? height - 1 - fromY : fromY;
-    const toCol = flipped ? width - 1 - toX : toX;
-    const toRow = flipped ? height - 1 - toY : toY;
+    const fromCol = flipped ? width - 1 - fromX : fromX
+    const fromRow = flipped ? height - 1 - fromY : fromY
+    const toCol = flipped ? width - 1 - toX : toX
+    const toRow = flipped ? height - 1 - toY : toY
 
-    const x1 = fromCol * sqW + sqW / 2;
-    const y1 = fromRow * sqH + sqH / 2;
-    const x2 = toCol * sqW + sqW / 2;
-    const y2 = toRow * sqH + sqH / 2;
+    const x1 = fromCol * sqW + sqW / 2
+    const y1 = fromRow * sqH + sqH / 2
+    const x2 = toCol * sqW + sqW / 2
+    const y2 = toRow * sqH + sqH / 2
 
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    const shorten = sqW * 0.22;
-    const endX = x2 - Math.cos(angle) * shorten;
-    const endY = y2 - Math.sin(angle) * shorten;
+    const angle = Math.atan2(y2 - y1, x2 - x1)
+    const shorten = sqW * 0.22
+    const endX = x2 - Math.cos(angle) * shorten
+    const endY = y2 - Math.sin(angle) * shorten
 
     this.arrowLayerEl.innerHTML = `
       <defs>
@@ -317,159 +319,166 @@ export class ChessBoardUI {
         opacity="0.85"
         marker-end="url(#arrowhead)"
       />
-    `;
+    `
   }
 
   private renderPromotionModal(promo: { from: Square; to: Square }): void {
-    const state = this.store.getState();
-    const color = state.turn;
-    const pieces: PieceType[] = ['queen', 'rook', 'bishop', 'knight'];
+    const state = this.store.getState()
+    const color = state.turn
+    const pieces: PieceType[] = ['queen', 'rook', 'bishop', 'knight']
 
     this.promoOverlayEl.innerHTML = `
       <div class="promo-modal">
         <div class="promo-title">Выберите фигуру</div>
         <div class="promo-options"></div>
       </div>
-    `;
+    `
 
-    const optionsContainer = this.promoOverlayEl.querySelector('.promo-options') as HTMLElement;
+    const optionsContainer = this.promoOverlayEl.querySelector('.promo-options') as HTMLElement
     for (const p of pieces) {
-      const btn = document.createElement('button');
-      btn.className = 'promo-btn';
-      btn.innerHTML = getPieceSvg(p, color);
+      const btn = document.createElement('button')
+      btn.className = 'promo-btn'
+      btn.innerHTML = getPieceSvg(p, color)
       btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.store.makeMove(promo.from, promo.to, p);
-      });
-      optionsContainer.appendChild(btn);
+        e.stopPropagation()
+        this.store.makeMove(promo.from, promo.to, p)
+      })
+      optionsContainer.appendChild(btn)
     }
 
-    this.promoOverlayEl.style.display = 'flex';
+    this.promoOverlayEl.style.display = 'flex'
   }
 
   private processStartAt(target: HTMLElement, clientX: number, clientY: number): boolean {
-    if (this.store.getPendingPromotion()) return false;
-    if (!this.store.isPlayerTurn() || this.store.isAIThinking()) return false;
-    if (!target || !target.dataset.square) return false;
+    if (this.store.getPendingPromotion()) return false
+    if (!this.store.isPlayerTurn() || this.store.isAIThinking()) return false
+    if (!target || !target.dataset.square) return false
 
-    const sq = parseInt(target.dataset.square, 10);
-    const piece = this.store.getState().board.pieces[sq];
-    const turn = this.store.getState().turn;
-    const selectedSq = this.store.getSelectedSquare();
+    const sq = parseInt(target.dataset.square, 10)
+    const piece = this.store.getState().board.pieces[sq]
+    const turn = this.store.getState().turn
+    const selectedSq = this.store.getSelectedSquare()
 
     // If we already had a square selected and clicked on another square
     if (selectedSq !== null) {
       // If clicking on one of legal destinations
-      const validDests = this.store.getValidDestinationsFor(selectedSq);
+      const validDests = this.store.getValidDestinationsFor(selectedSq)
       if (validDests.includes(sq)) {
-        this.store.makeMove(selectedSq, sq);
-        return true;
+        this.store.makeMove(selectedSq, sq)
+        return true
       }
 
       // If clicking back on the same square -> deselect
       if (selectedSq === sq) {
-        this.store.selectSquare(null);
-        return true;
+        this.store.selectSquare(null)
+        return true
       }
     }
 
     // Clicked on a piece of current turn -> select & prepare drag
     if (piece && piece.color === turn) {
-      this.store.selectSquare(sq);
+      this.store.selectSquare(sq)
 
       // Start drag
-      this.isDragging = true;
-      this.dragFromSquare = sq;
+      this.isDragging = true
+      this.dragFromSquare = sq
 
       // Dim original piece
-      const pieceWrapper = target.querySelector('.piece-wrapper') as HTMLElement | null;
+      const pieceWrapper = target.querySelector('.piece-wrapper') as HTMLElement | null
       if (pieceWrapper) {
-        pieceWrapper.classList.add('dragging');
+        pieceWrapper.classList.add('dragging')
       }
 
       // Create floating element
       if (this.floatingPieceEl) {
-        this.floatingPieceEl.remove();
+        this.floatingPieceEl.remove()
       }
-      this.floatingPieceEl = document.createElement('div');
-      this.floatingPieceEl.className = 'floating-drag-piece';
-      this.floatingPieceEl.innerHTML = getPieceSvg(piece.type, piece.color);
-      this.floatingPieceEl.style.left = `${clientX}px`;
-      this.floatingPieceEl.style.top = `${clientY}px`;
-      document.body.appendChild(this.floatingPieceEl);
-      return true;
+      this.floatingPieceEl = document.createElement('div')
+      this.floatingPieceEl.className = 'floating-drag-piece'
+      this.floatingPieceEl.innerHTML = getPieceSvg(piece.type, piece.color)
+      this.floatingPieceEl.style.left = `${clientX}px`
+      this.floatingPieceEl.style.top = `${clientY}px`
+      document.body.appendChild(this.floatingPieceEl)
+      return true
     } else {
       // Clicked on empty space or enemy piece without active selection
-      this.store.selectSquare(null);
-      return false;
+      this.store.selectSquare(null)
+      return false
     }
   }
 
   private updateDragPosition(clientX: number, clientY: number): void {
-    if (!this.isDragging || !this.floatingPieceEl) return;
-    this.floatingPieceEl.style.left = `${clientX}px`;
-    this.floatingPieceEl.style.top = `${clientY}px`;
+    if (!this.isDragging || !this.floatingPieceEl) return
+    this.floatingPieceEl.style.left = `${clientX}px`
+    this.floatingPieceEl.style.top = `${clientY}px`
   }
 
   private finishDragAt(elemBelow: Element | null): void {
-    if (!this.isDragging) return;
+    if (!this.isDragging) return
 
-    this.isDragging = false;
+    this.isDragging = false
     if (this.floatingPieceEl) {
-      this.floatingPieceEl.remove();
-      this.floatingPieceEl = null;
+      this.floatingPieceEl.remove()
+      this.floatingPieceEl = null
     }
 
     // Restore dimmed piece
-    const fromEl = this.boardEl.querySelector(`[data-square="${this.dragFromSquare}"] .piece-wrapper`);
+    const fromEl = this.boardEl.querySelector(
+      `[data-square="${this.dragFromSquare}"] .piece-wrapper`
+    )
     if (fromEl) {
-      fromEl.classList.remove('dragging');
+      fromEl.classList.remove('dragging')
     }
 
     // Determine target square under drop position
-    const targetSqEl = elemBelow?.closest('.chess-square') as HTMLElement | null;
+    const targetSqEl = elemBelow?.closest('.chess-square') as HTMLElement | null
 
     if (targetSqEl && targetSqEl.dataset.square && this.dragFromSquare !== null) {
-      const toSq = parseInt(targetSqEl.dataset.square, 10);
+      const toSq = parseInt(targetSqEl.dataset.square, 10)
       if (toSq !== this.dragFromSquare) {
-        const validDests = this.store.getValidDestinationsFor(this.dragFromSquare);
+        const validDests = this.store.getValidDestinationsFor(this.dragFromSquare)
         if (validDests.includes(toSq)) {
-          this.store.makeMove(this.dragFromSquare, toSq);
-          this.dragFromSquare = null;
-          return;
+          this.store.makeMove(this.dragFromSquare, toSq)
+          this.dragFromSquare = null
+          return
         }
       }
     }
 
-    this.dragFromSquare = null;
+    this.dragFromSquare = null
   }
 
   private cancelDrag(): void {
-    if (!this.isDragging) return;
-    this.isDragging = false;
+    if (!this.isDragging) return
+    this.isDragging = false
     if (this.floatingPieceEl) {
-      this.floatingPieceEl.remove();
-      this.floatingPieceEl = null;
+      this.floatingPieceEl.remove()
+      this.floatingPieceEl = null
     }
-    const fromEl = this.boardEl.querySelector(`[data-square="${this.dragFromSquare}"] .piece-wrapper`);
+    const fromEl = this.boardEl.querySelector(
+      `[data-square="${this.dragFromSquare}"] .piece-wrapper`
+    )
     if (fromEl) {
-      fromEl.classList.remove('dragging');
+      fromEl.classList.remove('dragging')
     }
-    this.dragFromSquare = null;
+    this.dragFromSquare = null
   }
 
   private handlePointerDown(e: PointerEvent): void {
-    if (e.pointerType === 'touch' && (this.isTouching || Date.now() - this.lastTouchEndTime < 500)) {
-      return;
+    if (
+      e.pointerType === 'touch' &&
+      (this.isTouching || Date.now() - this.lastTouchEndTime < 500)
+    ) {
+      return
     }
-    const target = (e.target as HTMLElement).closest('.chess-square') as HTMLElement | null;
-    if (!target) return;
+    const target = (e.target as HTMLElement).closest('.chess-square') as HTMLElement | null
+    if (!target) return
 
-    const handled = this.processStartAt(target, e.clientX, e.clientY);
+    const handled = this.processStartAt(target, e.clientX, e.clientY)
     if (handled && e.pointerId !== undefined) {
       try {
         if (target.hasPointerCapture && !target.hasPointerCapture(e.pointerId)) {
-          target.setPointerCapture(e.pointerId);
+          target.setPointerCapture(e.pointerId)
         }
       } catch {
         // Ignore synthetic or unsupported pointer capture errors
@@ -478,64 +487,67 @@ export class ChessBoardUI {
   }
 
   private handlePointerMove(e: PointerEvent): void {
-    if (e.pointerType === 'touch' && this.isTouching) return;
-    this.updateDragPosition(e.clientX, e.clientY);
+    if (e.pointerType === 'touch' && this.isTouching) return
+    this.updateDragPosition(e.clientX, e.clientY)
   }
 
   private handlePointerUp(e: PointerEvent): void {
-    if (e.pointerType === 'touch' && (this.isTouching || Date.now() - this.lastTouchEndTime < 500)) {
-      return;
+    if (
+      e.pointerType === 'touch' &&
+      (this.isTouching || Date.now() - this.lastTouchEndTime < 500)
+    ) {
+      return
     }
-    if (!this.isDragging) return;
-    const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
-    this.finishDragAt(elemBelow);
+    if (!this.isDragging) return
+    const elemBelow = document.elementFromPoint(e.clientX, e.clientY)
+    this.finishDragAt(elemBelow)
   }
 
   private handleTouchStart(e: TouchEvent): void {
-    if (e.touches.length !== 1) return;
-    this.isTouching = true;
-    const touch = e.touches[0];
-    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (e.touches.length !== 1) return
+    this.isTouching = true
+    const touch = e.touches[0]
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY)
     const target =
       ((e.target as HTMLElement | null)?.closest('.chess-square') as HTMLElement | null) ??
-      (elem?.closest('.chess-square') as HTMLElement | null);
-    if (!target) return;
+      (elem?.closest('.chess-square') as HTMLElement | null)
+    if (!target) return
 
-    const handled = this.processStartAt(target, touch.clientX, touch.clientY);
+    const handled = this.processStartAt(target, touch.clientX, touch.clientY)
     if (handled) {
-      e.preventDefault();
+      e.preventDefault()
     }
   }
 
   private handleTouchMove(e: TouchEvent): void {
-    if (!this.isDragging || e.touches.length === 0) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    this.updateDragPosition(touch.clientX, touch.clientY);
+    if (!this.isDragging || e.touches.length === 0) return
+    e.preventDefault()
+    const touch = e.touches[0]
+    this.updateDragPosition(touch.clientX, touch.clientY)
   }
 
   private handleTouchEnd(e: TouchEvent): void {
     if (!this.isDragging) {
-      this.isTouching = false;
-      this.lastTouchEndTime = Date.now();
-      return;
+      this.isTouching = false
+      this.lastTouchEndTime = Date.now()
+      return
     }
-    e.preventDefault();
-    this.isTouching = false;
-    this.lastTouchEndTime = Date.now();
+    e.preventDefault()
+    this.isTouching = false
+    this.lastTouchEndTime = Date.now()
 
-    const touch = e.changedTouches[0] ?? e.touches[0];
+    const touch = e.changedTouches[0] ?? e.touches[0]
     if (touch) {
-      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-      this.finishDragAt(elemBelow);
+      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+      this.finishDragAt(elemBelow)
     } else {
-      this.cancelDrag();
+      this.cancelDrag()
     }
   }
 
   private handleTouchCancel(): void {
-    this.isTouching = false;
-    this.lastTouchEndTime = Date.now();
-    this.cancelDrag();
+    this.isTouching = false
+    this.lastTouchEndTime = Date.now()
+    this.cancelDrag()
   }
 }
