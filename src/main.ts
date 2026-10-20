@@ -429,7 +429,7 @@ export function initApp(): void {
     if (isHome) {
       startMenuAmbient();
     } else {
-      stopMenuAmbient(1000);
+      stopMenuAmbient(800);
     }
 
     if (homeScreen) {
@@ -549,6 +549,7 @@ export function initApp(): void {
   const openReviewOverlay = (options?: { isDeep?: boolean; depth?: number }): void => {
     if (isReviewOverlayOpen) return;
     isReviewOverlayOpen = true;
+    stopMenuAmbient(800);
     syncBgAnimState();
     document.body.classList.add('review-active');
     if (reviewSideCol && mobileTabs) {
@@ -1011,8 +1012,15 @@ export function initApp(): void {
   const handleButtonClickSound = (e: MouseEvent): void => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
+
+    // Do NOT play UI button click on move navigation and review elements (chess move sounds play instead)
+    const isMoveNav = target.closest(
+      '.review-nav-btn, .review-btn, .history-row, .card-class-row, .board-arrow-btn, .key-moment-item, .history-nav, .history-move, [data-nav], [data-move-idx], [data-move-index]'
+    );
+    if (isMoveNav) return;
+
     const btn = target.closest(
-      'button:not(.promo-btn):not(#sound-btn), .btn-menu, .btn-action, .review-tab-btn, .setup-time-card, .setup-level-card, .setup-color-card, .key-moment-item'
+      'button:not(.promo-btn):not(#sound-btn), .btn-menu, .btn-action, .review-tab-btn, .setup-time-card, .setup-level-card, .setup-color-card'
     );
     if (btn) {
       playButtonClick();

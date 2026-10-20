@@ -434,3 +434,29 @@
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 358 tests passed, watchdog clean).
+
+## Stage 5b-2: Sound Deconfliction on Move Navigation & Audible Ambient Acoustics (Completed)
+- [x] UI Click Deconfliction on Move Navigation (`src/main.ts`):
+  - Filtered out `playButtonClick()` for all move navigation and review controls (`.review-nav-btn`, `.review-btn`, `.history-row`, `.card-class-row`, `.board-arrow-btn`, `.key-moment-item`, `.history-nav`, `.history-move`, `[data-nav]`, `[data-move-idx]`, `[data-move-index]`).
+  - During move navigation and game review, only chess move sounds (`playMove`, `playCapture`, `playCheck`, `playCheckmate`, `playStellar`) sound, preventing clashing UI clicks.
+- [x] Audible Cosmic Ambient Acoustics (`src/audio/solar-audio.ts`):
+  - Shifted drone fundamentals into lower-mid range audible on laptop and mobile speakers:
+    - Osc 1: 110Hz ($A_2$, triangle wave).
+    - Osc 2: 164.8Hz ($E_3$, sine wave, deep cosmic fifth).
+    - Osc 3: 55Hz ($A_1$, sine wave, sub-octave for bass headphones/subwoofers).
+  - Cosmic wind & relic radiation noise:
+    - Filter: 380Hz bandpass filter ($Q = 2.5$).
+    - LFO: 0.06Hz sine wave modulating filter frequency between 230Hz and 530Hz (~16.6s breathing cycle).
+  - Increased master ambient gain to clear, comfortable 0.16 (range 0.14–0.18) with smooth 2.0s fade-in.
+  - Configured `stopMenuAmbient(800)` for responsive 800ms fade-out when transitioning to game or review.
+  - Instant start upon first gesture (`pointerdown`) if on menu screen.
+- [x] Navigation Lifecycle Integration (`src/main.ts`):
+  - Guaranteed `startMenuAmbient()` triggers on menu display, returning from game via «На главный» / «В меню», or starting a new game from summary modal.
+  - Guaranteed `stopMenuAmbient(800)` triggers when entering game screen or opening review overlay.
+- [x] Unit Tests & Verification (`src/tests/solar-audio.test.ts`):
+  - Added test verifying that clicking move navigation elements never calls `playButtonClick()`, while standard menu buttons do.
+  - Updated audio synthesis test for new 110Hz/164.8Hz/55Hz oscillators, 380Hz filter, 0.06Hz LFO, and 0.16 gain.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 359 tests passed, watchdog clean).

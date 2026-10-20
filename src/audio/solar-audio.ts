@@ -39,16 +39,24 @@ export class SolarAudio {
     const unlock = () => {
       const ctx = this.ensureContext();
       if (ctx) {
+        const isMenuScreen = typeof document !== 'undefined'
+          ? (document.body.classList.contains('home-active') ||
+             document.getElementById('screen-home')?.style.display !== 'none' ||
+             !document.getElementById('screen-game')?.classList.contains('active'))
+          : true;
+
+        const shouldLaunch = (this.isAmbientRequested || isMenuScreen) && !this.isMutedState && !this.ambientNodes;
+
         if (ctx.state === 'suspended') {
           void ctx.resume().then(() => {
-            if (this.isAmbientRequested && !this.isMutedState && !this.ambientNodes) {
+            if (shouldLaunch && !this.ambientNodes && !this.isMutedState) {
               this.launchAmbientDrone();
             }
           }).catch(() => {
             // Autoplay rejection safety
           });
         } else if (ctx.state === 'running') {
-          if (this.isAmbientRequested && !this.isMutedState && !this.ambientNodes) {
+          if (shouldLaunch && !this.ambientNodes && !this.isMutedState) {
             this.launchAmbientDrone();
           }
         }
@@ -183,10 +191,14 @@ export class SolarAudio {
 
   /**
    * Synthesis graph for cosmic black hole background drone:
-   * 1. Sub-bass oscillators: 48Hz sine + 51.5Hz triangle (~3.5Hz beat interference).
-   * 2. Cosmic relic radiation noise: looped noise buffer passed through 160Hz bandpass filter (Q: 3.0),
-   *    modulated by slow 0.08Hz LFO.
-   * 3. Ambient master gain: delicate volume ~0.05 with smooth 2.5s fade-in.
+   * 1. Audible harmonic chord layer (audible on laptop/phone speakers + sub for headphones):
+   *    - Osc 1: 110Hz (A2, triangle wave) - warm lower-mid tone
+   *    - Osc 2: 164.8Hz (E3, sine wave) - deep cosmic fifth
+   *    - Osc 3: 55Hz (A1, sine wave) - rich sub-octave for bass headphones/monitors
+   * 2. Cosmic wind / relic radiation noise layer:
+   *    - Looped noise buffer passed through 380Hz bandpass filter (Q: 2.5)
+   *    - Modulated by slow 0.06Hz LFO (~16.6s breathing cycle, 230Hz <-> 530Hz)
+   * 3. Master ambient gain: audible volume 0.16 with smooth 2.0s fade-in.
    */
   private launchAmbientDrone(): void {
     if (this.ambientNodes || this.isMutedState) return;
@@ -198,31 +210,38 @@ export class SolarAudio {
 
       const ambientMasterGain = ctx.createGain();
       ambientMasterGain.gain.setValueAtTime(0.0001, now);
-      ambientMasterGain.gain.linearRampToValueAtTime(0.05, now + 2.5);
+      ambientMasterGain.gain.linearRampToValueAtTime(0.16, now + 2.0);
       ambientMasterGain.connect(ctx.destination);
 
       const sources: (OscillatorNode | AudioBufferSourceNode)[] = [];
 
-      // Sub-bass layer: 48Hz sine + 51.5Hz triangle
-      const subGain = ctx.createGain();
-      subGain.gain.setValueAtTime(0.05, now);
-      subGain.connect(ambientMasterGain);
+      // Harmonic drone chord: 110Hz (A2) + 164.8Hz (E3) + 55Hz (A1)
+      const chordGain = ctx.createGain();
+      chordGain.gain.setValueAtTime(0.08, now);
+      chordGain.connect(ambientMasterGain);
 
       const osc1 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(48, now);
-      osc1.connect(subGain);
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(110, now);
+      osc1.connect(chordGain);
       osc1.start(now);
       sources.push(osc1);
 
       const osc2 = ctx.createOscillator();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(51.5, now);
-      osc2.connect(subGain);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(164.8, now);
+      osc2.connect(chordGain);
       osc2.start(now);
       sources.push(osc2);
 
-      // Relic radiation noise layer with bandpass filter and slow LFO
+      const osc3 = ctx.createOscillator();
+      osc3.type = 'sine';
+      osc3.frequency.setValueAtTime(55, now);
+      osc3.connect(chordGain);
+      osc3.start(now);
+      sources.push(osc3);
+
+      // Relic radiation noise layer with 380Hz bandpass filter (Q: 2.5) and slow 0.06Hz LFO
       if (typeof ctx.createBuffer === 'function' && typeof ctx.createBufferSource === 'function') {
         const sampleRate = ctx.sampleRate || 44100;
         const bufferLength = Math.floor(sampleRate * 3);
@@ -238,23 +257,23 @@ export class SolarAudio {
 
         const noiseFilter = ctx.createBiquadFilter();
         noiseFilter.type = 'bandpass';
-        noiseFilter.frequency.setValueAtTime(160, now);
-        noiseFilter.Q.setValueAtTime(3.0, now);
+        noiseFilter.frequency.setValueAtTime(380, now);
+        noiseFilter.Q.setValueAtTime(2.5, now);
 
         const noiseGain = ctx.createGain();
-        noiseGain.gain.setValueAtTime(0.04, now);
+        noiseGain.gain.setValueAtTime(0.06, now);
 
         noiseSource.connect(noiseFilter);
         noiseFilter.connect(noiseGain);
         noiseGain.connect(ambientMasterGain);
 
-        // Slow LFO for 0.08Hz cosmic breathing
+        // Slow LFO for 0.06Hz cosmic breathing (~16.6s cycle)
         const lfo = ctx.createOscillator();
         lfo.type = 'sine';
-        lfo.frequency.setValueAtTime(0.08, now);
+        lfo.frequency.setValueAtTime(0.06, now);
 
         const lfoGain = ctx.createGain();
-        lfoGain.gain.setValueAtTime(40, now);
+        lfoGain.gain.setValueAtTime(150, now);
 
         lfo.connect(lfoGain);
         lfoGain.connect(noiseFilter.frequency);
@@ -274,9 +293,9 @@ export class SolarAudio {
   }
 
   /**
-   * Smooth fade-out of menu ambient drone over fadeMs (default 1000ms).
+   * Smooth fade-out of menu ambient drone over fadeMs (default 800ms).
    */
-  public stopMenuAmbient(fadeMs = 1000): void {
+  public stopMenuAmbient(fadeMs = 800): void {
     this.isAmbientRequested = false;
     if (!this.ambientNodes) return;
 
@@ -293,7 +312,7 @@ export class SolarAudio {
       if (typeof nodes.masterGain.gain.cancelScheduledValues === 'function') {
         nodes.masterGain.gain.cancelScheduledValues(now);
       }
-      const currentVal = nodes.masterGain.gain.value ?? 0.05;
+      const currentVal = nodes.masterGain.gain.value ?? 0.16;
       nodes.masterGain.gain.setValueAtTime(currentVal, now);
       nodes.masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeSec);
 

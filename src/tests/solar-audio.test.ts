@@ -512,7 +512,7 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     expect(createdOscillators[0].stop).toHaveBeenCalledWith(10.035);
   });
 
-  it('startMenuAmbient synthesizes low sub-bass drone with relic noise and LFO', () => {
+  it('startMenuAmbient synthesizes audible drone with 110Hz, 164.8Hz, 55Hz and 380Hz wind', () => {
     const createdOscillators: Array<{
       type: string;
       frequency: { setValueAtTime: ReturnType<typeof vi.fn> };
@@ -567,7 +567,7 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
             setValueAtTime: vi.fn(),
             linearRampToValueAtTime: vi.fn(),
             cancelScheduledValues: vi.fn(),
-            value: 0.05,
+            value: 0.16,
           },
           connect: vi.fn(),
           disconnect: vi.fn(),
@@ -607,31 +607,32 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     solarAudio.setMuted(false);
     solarAudio.startMenuAmbient();
 
-    // Master gain: ramps from 0.0001 to 0.05 over 2.5s
+    // Master gain: ramps from 0.0001 to 0.16 over 2.0s
     expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.0001, 10);
-    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.05, 12.5);
+    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.16, 12);
 
-    // Sub-bass layer: 48Hz sine + 51.5Hz triangle
-    expect(createdOscillators.length).toBeGreaterThanOrEqual(2);
-    expect(createdOscillators[0].type).toBe('sine');
-    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(48, 10);
-    expect(createdOscillators[1].type).toBe('triangle');
-    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(51.5, 10);
+    // Harmonic chord: 110Hz triangle + 164.8Hz sine + 55Hz sine
+    expect(createdOscillators.length).toBe(4);
+    expect(createdOscillators[0].type).toBe('triangle');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(110, 10);
+    expect(createdOscillators[1].type).toBe('sine');
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(164.8, 10);
+    expect(createdOscillators[2].type).toBe('sine');
+    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(55, 10);
 
     // Relic noise buffer source
     expect(createdBufferSources.length).toBe(1);
     expect(createdBufferSources[0].loop).toBe(true);
     expect(createdBufferSources[0].start).toHaveBeenCalledWith(10);
 
-    // Filter bandpass 160Hz with Q 3.0
+    // Filter bandpass 380Hz with Q 2.5
     expect(createdFilters.length).toBe(1);
     expect(createdFilters[0].type).toBe('bandpass');
-    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(160, 10);
-    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(3.0, 10);
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(380, 10);
+    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(2.5, 10);
 
-    // LFO at 0.08Hz
-    expect(createdOscillators.length).toBe(3);
-    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(0.08, 10);
+    // LFO at 0.06Hz
+    expect(createdOscillators[3].frequency.setValueAtTime).toHaveBeenCalledWith(0.06, 10);
   });
 
   it('stopMenuAmbient performs smooth gain ramp down and stops audio sources', () => {
@@ -758,6 +759,47 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
 
     expect(clickSpy).toHaveBeenCalled();
 
+    getRouter()?.destroy();
+  });
+
+  it('does not trigger playButtonClick on move navigation and review elements', () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    initApp();
+
+    const navWrap = document.createElement('div');
+    navWrap.innerHTML = `
+      <button class="review-nav-btn" id="btn-rev-next">Next</button>
+      <button class="review-btn" id="btn-rev-mistake">Mistake</button>
+      <div class="history-nav"><button id="hist-next">Hist Next</button></div>
+      <div class="history-row"><span class="history-move" id="move-span">e4</span></div>
+      <div class="card-class-row" id="class-row">Class Row</div>
+      <button class="board-arrow-btn" id="arrow-btn">Arrow</button>
+      <button data-nav="next" id="data-nav-btn">Data Nav</button>
+      <div class="key-moment-item" id="km-item">Key Moment</div>
+    `;
+    document.body.appendChild(navWrap);
+
+    const clickSpy = vi.spyOn(solarAudio, 'playButtonClick');
+
+    // Move navigation elements must NOT trigger playButtonClick
+    document.getElementById('btn-rev-next')?.click();
+    document.getElementById('btn-rev-mistake')?.click();
+    document.getElementById('hist-next')?.click();
+    document.getElementById('move-span')?.click();
+    document.getElementById('class-row')?.click();
+    document.getElementById('arrow-btn')?.click();
+    document.getElementById('data-nav-btn')?.click();
+    document.getElementById('km-item')?.click();
+
+    expect(clickSpy).not.toHaveBeenCalled();
+
+    // Standard UI button (like menu button) DOES trigger playButtonClick
+    const menuBtn = document.getElementById('btn-play-local') as HTMLButtonElement | null;
+    expect(menuBtn).not.toBeNull();
+    menuBtn?.click();
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+
+    navWrap.remove();
     getRouter()?.destroy();
   });
 
