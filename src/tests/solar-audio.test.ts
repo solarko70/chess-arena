@@ -77,8 +77,13 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
 
     const createdFilters: Array<{
       type: string;
-      frequency: { setValueAtTime: ReturnType<typeof vi.fn> };
+      frequency: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime?: ReturnType<typeof vi.fn> };
       Q: { setValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const createdDelays: Array<{
+      delayTime: { setValueAtTime: ReturnType<typeof vi.fn> };
       connect: ReturnType<typeof vi.fn>;
     }> = [];
 
@@ -113,12 +118,20 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
       createBiquadFilter: vi.fn().mockImplementation(() => {
         const filter = {
           type: 'bandpass',
-          frequency: { setValueAtTime: vi.fn() },
+          frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
           Q: { setValueAtTime: vi.fn() },
           connect: vi.fn(),
         };
         createdFilters.push(filter);
         return filter;
+      }),
+      createDelay: vi.fn().mockImplementation(() => {
+        const delay = {
+          delayTime: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        };
+        createdDelays.push(delay);
+        return delay;
       }),
       createBuffer: vi.fn().mockImplementation(() => ({
         getChannelData: vi.fn().mockReturnValue(new Float32Array(100)),
@@ -155,18 +168,18 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(createdFilters[0].type).toBe('lowpass');
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(550, 10);
 
-    // Test playCheck synthesis (C5 523.25Hz + E5 659.25Hz + 1200Hz lowpass + reduced peak gain 0.14)
+    // Test playCheck synthesis (B4 493.88Hz + D#5 622.25Hz + 1100Hz lowpass + reduced peak gain 0.09)
     createdOscillators.length = 0;
     createdFilters.length = 0;
     createdGains.length = 0;
     solarAudio.playCheck();
     expect(createdOscillators.length).toBe(2);
-    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(523.25, 10);
-    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(659.25, 10);
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(493.88, 10);
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(622.25, 10);
     expect(createdFilters.length).toBe(1);
     expect(createdFilters[0].type).toBe('lowpass');
-    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(1200, 10);
-    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.14, 10.015);
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(1100, 10);
+    expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.09, 10.015);
 
     // Test playCheckmate synthesis (low chord: C3 + G3 + E4 + 800Hz lowpass)
     createdOscillators.length = 0;
@@ -177,25 +190,35 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(createdFilters[0].type).toBe('lowpass');
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10);
 
-    // Test playStellar synthesis (vocal choir: 4 chord oscs D4/A4/D5/F#5 + LFO vibrato + 3-formant bank F1/F2/F3 + breath)
+    // Test playStellar synthesis (3-layer cosmic patch: Sub-bass, Laser sweep, Celestial Shimmer)
     createdOscillators.length = 0;
     createdFilters.length = 0;
+    createdDelays.length = 0;
     solarAudio.playStellar();
-    expect(createdOscillators.length).toBe(5);
-    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(5.2, 10); // LFO
-    expect(createdOscillators[1].type).toBe('triangle');
-    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(293.7, 10);
-    expect(createdFilters.length).toBe(4);
-    // 3 parallel formants
-    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(700, 10);
-    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(4.5, 10);
-    expect(createdFilters[1].frequency.setValueAtTime).toHaveBeenCalledWith(1150, 10);
-    expect(createdFilters[1].Q.setValueAtTime).toHaveBeenCalledWith(5.5, 10);
-    expect(createdFilters[2].frequency.setValueAtTime).toHaveBeenCalledWith(2600, 10);
-    expect(createdFilters[2].Q.setValueAtTime).toHaveBeenCalledWith(6.0, 10);
-    // Noise breath filter
-    expect(createdFilters[3].frequency.setValueAtTime).toHaveBeenCalledWith(1600, 10);
-    expect(createdFilters[3].Q.setValueAtTime).toHaveBeenCalledWith(2.0, 10);
+    expect(createdOscillators.length).toBe(7);
+
+    // Layer 1: Sub-bass (120Hz -> 40Hz)
+    expect(createdOscillators[0].type).toBe('triangle');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(120, 10);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(40, 11.5);
+
+    // Layer 2: Laser sweep (300Hz -> 1500Hz + 800Hz -> 4000Hz lowpass)
+    expect(createdOscillators[1].type).toBe('sawtooth');
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(300, 10);
+    expect(createdOscillators[1].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(1500, 10.4);
+    expect(createdFilters.length).toBe(1);
+    expect(createdFilters[0].type).toBe('lowpass');
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10);
+    expect(createdFilters[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(4000, 10.4);
+
+    // Layer 3: Celestial Shimmer (5 sine oscs + 5 delay nodes)
+    const shimmerFreqs = [523.25, 659.25, 783.99, 987.77, 1174.66];
+    for (let i = 0; i < 5; i++) {
+      expect(createdOscillators[2 + i].type).toBe('sine');
+      expect(createdOscillators[2 + i].frequency.setValueAtTime).toHaveBeenCalledWith(shimmerFreqs[i], 10);
+    }
+    expect(createdDelays.length).toBe(5);
+    expect(createdDelays[0].delayTime.setValueAtTime).toHaveBeenCalledWith(0.04, 10);
   });
 
   it('navigating to a stellar half-move in game review calls playStellar', () => {

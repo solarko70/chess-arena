@@ -283,9 +283,9 @@
   - Procedural sound palette:
     - `playMove()`: soft move click (frequency ramp 240Hz -> 90Hz in 0.05s).
     - `playCapture()`: chess.com style tactile wooden knock (triangle wave 140Hz -> 45Hz in 0.08s, warm bone click shaped by a 550Hz lowpass filter, 0.09s gain decay).
-    - `playCheck()`: crystal warning chime in middle register (C5 523.25Hz + E5 659.25Hz, 0.015s soft attack, reduced peak gain 0.14 (-40%), 1200Hz lowpass filter, 0.38s smooth decay).
+    - `playCheck()`: soft & quiet crystal warning chime (B4 493.88Hz + D#5 622.25Hz, 0.015s soft attack, reduced peak gain 0.09, 1100Hz lowpass filter, 0.38s smooth decay).
     - `playCheckmate()`: deep noble low victory chord in bass-mid range (C3 130.81Hz, G3 196.0Hz, E4 329.63Hz, 800Hz lowpass filter, 0.05s attack, 1.3s resonating decay).
-    - `playStellar()`: multi-formant human vocal choir ("Ah-h-h" based on reference: chord D4/A4/D5/F#5 with ±4-7 cents detuning, 5.2Hz LFO vibrato with 6 cents depth, 3-formant vocal tract filter bank: F1 700Hz Q:4.5 gain:1.0, F2 1150Hz Q:5.5 gain:0.65, F3 2600Hz Q:6.0 gain:0.25, noise breath air stream bandpass at 1600Hz gain:0.035, choral swell envelope with 0.45s attack, 0.9s sustain, 2.0s ethereal release, total 3.35s).
+    - `playStellar()`: 3-layer procedural cosmic patch (Sub-bass Supernova 120Hz->40Hz, Laser energy sweep 300Hz->1500Hz with 800Hz->4000Hz lowpass, Celestial Shimmer with 5 sine oscillators [C5, E5, G5, B5, D6], staggered delays 0.04s*(i+1), micro-modulated gain, master gain 0.55).
 - [x] Gameplay & Review Mode Integration (`src/ui/board.ts`, `src/ui/history.ts`, `src/main.ts`):
   - In `ChessBoardUI`: live moves play `playCheckmate` on checkmate, `playCheck` on check, `playCapture` on piece capture, and `playMove` on quiet moves.
   - In `HistoryUI`: move navigation in review mode plays corresponding sound, and plays `playStellar()` when inspected move has `class === 'stellar'`.
