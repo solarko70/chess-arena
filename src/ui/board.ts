@@ -353,16 +353,34 @@ export class ChessBoardUI {
     wingsMount.className = 'stellar-wings-mount'
     wingsMount.setAttribute('aria-hidden', 'true')
     wingsMount.innerHTML = `
-      <svg class="stellar-wings-svg stellar-wings-flutter" viewBox="0 0 140 80" width="140" height="80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <svg class="stellar-wings-svg stellar-wings-flutter" viewBox="0 0 100 60" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
+          <linearGradient id="solar-wing-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fef08a" />
+            <stop offset="45%" stop-color="#f43f5e" />
+            <stop offset="100%" stop-color="#c026d3" />
+          </linearGradient>
+          <linearGradient id="wing-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fef08a" />
+            <stop offset="45%" stop-color="#f43f5e" />
+            <stop offset="100%" stop-color="#c026d3" />
+          </linearGradient>
           <linearGradient id="solar-wings-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#fde68a" />
-            <stop offset="100%" stop-color="#ec4899" />
+            <stop offset="0%" stop-color="#fef08a" />
+            <stop offset="100%" stop-color="#c026d3" />
           </linearGradient>
         </defs>
-        <g class="stellar-wings-group" fill="url(#solar-wings-grad)">
-          <path class="stellar-wing-left" d="M 62 48 C 55 45 44 38 34 28 C 24 18 16 12 6 12 C 9 17 14 22 20 26 C 12 25 7 27 2 31 C 8 35 15 39 24 41 C 17 42 12 45 8 50 C 16 53 26 54 36 51 C 46 49 55 48 62 48 Z" />
-          <path class="stellar-wing-right" d="M 78 48 C 85 45 96 38 106 28 C 116 18 124 12 134 12 C 131 17 126 22 120 26 C 128 25 133 27 138 31 C 132 35 125 39 116 41 C 123 42 128 45 132 50 C 124 53 114 54 104 51 C 94 49 85 48 78 48 Z" />
+        <g class="stellar-wings-group">
+          <!-- Left Angelic Wing -->
+          <g class="stellar-wing stellar-wing-left">
+            <path class="wing-feather-main" d="M 45 35 C 41 24, 30 12, 16 3 L -4 -2 C 4 7, 10 13, 13 18 L -1 18 C 7 22, 13 26, 16 30 L 5 31 C 12 34, 17 37, 20 40 L 12 43 C 18 45, 23 47, 26 49 L 22 52 C 30 50, 38 44, 45 35 Z" fill="url(#solar-wing-gradient)" stroke="none" />
+            <path class="wing-feather-soft" d="M 44 34 C 38 25, 29 16, 18 9 L 6 7 C 12 13, 18 19, 21 24 L 11 25 C 17 29, 22 33, 24 37 L 18 39 C 24 42, 31 43, 36 41 C 41 39, 43 36, 44 34 Z" fill="url(#solar-wing-gradient)" opacity="0.6" stroke="none" />
+          </g>
+          <!-- Right Angelic Wing -->
+          <g class="stellar-wing stellar-wing-right">
+            <path class="wing-feather-main" d="M 55 35 C 59 24, 70 12, 84 3 L 104 -2 C 96 7, 90 13, 87 18 L 101 18 C 93 22, 87 26, 84 30 L 95 31 C 88 34, 83 37, 80 40 L 88 43 C 82 45, 77 47, 74 49 L 78 52 C 70 50, 62 44, 55 35 Z" fill="url(#solar-wing-gradient)" stroke="none" />
+            <path class="wing-feather-soft" d="M 56 34 C 62 25, 71 16, 82 9 L 94 7 C 88 13, 82 19, 79 24 L 89 25 C 83 29, 78 33, 76 37 L 82 39 C 76 42, 69 43, 64 41 C 59 39, 57 36, 56 34 Z" fill="url(#solar-wing-gradient)" opacity="0.6" stroke="none" />
+          </g>
         </g>
       </svg>
     `.trim()
@@ -390,7 +408,7 @@ export class ChessBoardUI {
     }
 
     wingsMount.addEventListener('animationend', cleanup, { once: true })
-    this.wingsTimer = setTimeout(cleanup, 2500)
+    this.wingsTimer = setTimeout(cleanup, 1900)
   }
 
   private renderMoveBadge(flipped: boolean): void {

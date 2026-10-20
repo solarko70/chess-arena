@@ -316,3 +316,56 @@
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 344 tests passed, watchdog clean).
+
+## Stage 5a-2.1: Refined Angelic Wings & Symmetrical Synchronous Flutter Kinematics (Completed)
+- [x] Symmetrical Separated Solar Wings Architecture (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Centered `.stellar-wings-mount` on the target square (`top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2`).
+  - Separated left and right wings into distinct elements `<g class="stellar-wing stellar-wing-left">` and `<g class="stellar-wing stellar-wing-right">` within `viewBox="0 0 100 60"`.
+  - Classic angelic wing shape with gracefully curved feathers tapering to fine tips and inner radiant contour lines.
+  - Feather fills rendered with soft lunar-gold gradient `url(#wing-glow)` (`#ffffff` -> `#fffbeb` -> `#fde68a`), delicate cosmic magenta contour lines (`rgba(236, 72, 153, 0.55)`), and refined outer glow `filter: drop-shadow(0 0 5px rgba(236, 72, 153, 0.6))`.
+- [x] Synchronous Symmetrical Wing Flap Kinematics (`src/ui/styles.css`):
+  - Dedicated anatomical attachment points (`transform-origin`):
+    - `.stellar-wing-left`: `transform-origin: 45px 35px;` (right edge of left wing at piece body)
+    - `.stellar-wing-right`: `transform-origin: 55px 35px;` (left edge of right wing at piece body)
+  - Synchronous mirror keyframes (`@keyframes stellarWingLeftFlutter` & `@keyframes stellarWingRightFlutter`, ~2.2s):
+    - `0%`: both wings folded behind back (left: `rotate(35deg) scale(0.6)`, right: `rotate(-35deg) scale(0.6)`), `opacity: 0`.
+    - `15%`: rapid emergence, feathers uncurling, `opacity: 1`.
+    - `35%`: full power flap spreading wide upwards & outwards (left: `rotate(-25deg) scale(1.08)`, right: `rotate(25deg) scale(1.08)`).
+    - `60%`: gentle downward return to neutral hovering posture (left: `rotate(10deg)`, right: `rotate(-10deg)`).
+    - `80%`: secondary gentle hover and ascending glide (`translateY(-6px)`).
+    - `100%`: ethereal dissolution into cosmic space (`opacity: 0, translateY(-10px), scale(1.05)`).
+  - Maintained auto-cleanup timeout (2300ms) and instant dismantle on `viewIndex` changes.
+- [x] Test Suite & Verification (`src/tests/stellar-wings-anim.test.ts`):
+  - Added verification for presence of `.stellar-wing-left` and `.stellar-wing-right` elements and `#wing-glow` gradient.
+  - Added verification that CSS rules specify independent `transform-origin: 45px 35px` and `55px 35px`.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 346 tests passed, watchdog clean).
+
+## Stage 5a-2.2: Elongated Sharp Solar Wings, Rich Gradient & 2.5-Flap Cadence (Completed)
+- [x] Elongated Sharp Feather Geometry (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Expanded wing span to 136% of the square (`.stellar-wings-mount { width: 136%; height: 136%; }`), projecting boldly beyond the piece silhouette.
+  - Redesigned feather silhouettes with acute, tapered sharp points extending upwards and outwards.
+  - Removed all internal stroke lines (`stroke="none"`) to create pure monolithic silhouettes with soft secondary layers.
+  - Saturated cosmic gradient (`#solar-wing-gradient`): `#fef08a` (0%) -> `#f43f5e` (45%) -> `#c026d3` (100%) applied to both `.stellar-wing-left` and `.stellar-wing-right`.
+  - Neon glow drop shadow: `filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.7))`.
+- [x] Energetic 1.9s Flap Cadence (2 Full Flaps + 1 Partial Flap with Dissolution) (`src/ui/styles.css`, `src/ui/board.ts`):
+  - Shortened overall animation duration from 2.2s to 1.9s for a more lively, rhythmic feel.
+  - Keyframe structure across left and right wings:
+    - `0%`: folded emergence behind piece (`opacity: 0, scale: 0.4`).
+    - `8%`: uncurling and full appearance (`opacity: 1`).
+    - `22%`: Flap 1 crest — powerful deep ascent & wide spread (left: `rotate(-28deg) scale(1.08)`, right: `rotate(28deg) scale(1.08)`).
+    - `38%`: Flap 1 descent to neutral (left: `rotate(8deg)`, right: `rotate(-8deg)`).
+    - `54%`: Flap 2 crest — second powerful spread (left: `rotate(-24deg) scale(1.05)`, right: `rotate(24deg) scale(1.05)`).
+    - `70%`: Flap 2 descent to neutral (left: `rotate(6deg)`, right: `rotate(-6deg)`).
+    - `82%`: Flap 3 partial upward lift (`rotate(±12deg), translateY(-4px), opacity: 0.9`).
+    - `100%`: celestial dissolution without falling back (`opacity: 0, translateY(-12px), scale(1.04)`).
+  - Synchronized `.stellar-wings-mount` DOM auto-removal timeout to 1900ms.
+- [x] Test Suite & Verification (`src/tests/stellar-wings-anim.test.ts`):
+  - Verified presence of `solar-wing-gradient` and pure `stroke="none"` monolithic attributes on wing feathers.
+  - Verified cleanup timing: wings remain mounted at 1800ms and are cleanly removed after 1900ms (at 2000ms).
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 347 tests passed, watchdog clean).

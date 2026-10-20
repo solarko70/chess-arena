@@ -607,14 +607,14 @@ body.review-active #app {
   will-change: transform;
 }
 
-/* Solar Wings Angelic Effect for Stellar Moves (Stage 5a-2) */
+/* Solar Wings Angelic Effect for Stellar Moves (Stage 5a-2.2) */
 .stellar-wings-mount {
   position: absolute;
   top: 50%;
   left: 50%;
+  width: 136%;
+  height: 136%;
   transform: translate(-50%, -50%);
-  width: 140%;
-  height: 140%;
   pointer-events: none;
   z-index: 2;
   display: flex;
@@ -627,38 +627,89 @@ body.review-active #app {
   width: 100%;
   height: 100%;
   overflow: visible;
-  filter: drop-shadow(0 0 6px rgba(236, 72, 153, 0.75));
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.7));
   pointer-events: none;
 }
 
-.stellar-wings-flutter {
-  animation: stellarWingsFlutter 2.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-  will-change: transform, opacity;
-  transform-origin: center center;
+.stellar-wing {
+  pointer-events: none;
+  transform-box: view-box;
 }
 
-@keyframes stellarWingsFlutter {
+.stellar-wing-left {
+  transform-origin: 45px 35px;
+  animation: stellarWingLeftFlutter 1.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.stellar-wing-right {
+  transform-origin: 55px 35px;
+  animation: stellarWingRightFlutter 1.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.stellar-wings-flutter {
+  will-change: transform, opacity;
+}
+
+@keyframes stellarWingLeftFlutter {
   0% {
-    transform: scale(0.2) rotate(0deg);
+    transform: rotate(35deg) scale(0.4) translateY(0);
     opacity: 0;
   }
-  12% {
-    transform: scale(1.08) rotate(-6deg);
+  8% {
     opacity: 1;
   }
-  32% {
-    transform: scale(0.96) rotate(5deg);
+  22% {
+    transform: rotate(-28deg) scale(1.08) translateY(0);
+    opacity: 1;
   }
-  55% {
-    transform: scale(1.03) rotate(-4deg);
-    opacity: 0.95;
+  38% {
+    transform: rotate(8deg) scale(1.0) translateY(0);
   }
-  78% {
-    transform: scale(1.0) rotate(0deg);
-    opacity: 0.8;
+  54% {
+    transform: rotate(-24deg) scale(1.05) translateY(0);
+  }
+  70% {
+    transform: rotate(6deg) scale(1.0) translateY(0);
+  }
+  82% {
+    transform: rotate(-12deg) scale(1.02) translateY(-4px);
+    opacity: 0.9;
   }
   100% {
-    transform: scale(1.15) translateY(-10px);
+    transform: rotate(-12deg) scale(1.04) translateY(-12px);
+    opacity: 0;
+  }
+}
+
+@keyframes stellarWingRightFlutter {
+  0% {
+    transform: rotate(-35deg) scale(0.4) translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  22% {
+    transform: rotate(28deg) scale(1.08) translateY(0);
+    opacity: 1;
+  }
+  38% {
+    transform: rotate(-8deg) scale(1.0) translateY(0);
+  }
+  54% {
+    transform: rotate(24deg) scale(1.05) translateY(0);
+  }
+  70% {
+    transform: rotate(-6deg) scale(1.0) translateY(0);
+  }
+  82% {
+    transform: rotate(12deg) scale(1.02) translateY(-4px);
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(12deg) scale(1.04) translateY(-12px);
     opacity: 0;
   }
 }
@@ -5679,6 +5730,9 @@ body.review-active .theme-toggle-btn {
   .piece-wrapper.piece-sliding,
   .stellar-wings-mount,
   .stellar-wings-svg,
+  .stellar-wing,
+  .stellar-wing-left,
+  .stellar-wing-right,
   .stellar-wings-flutter {
     animation: none !important;
     transition: none !important;

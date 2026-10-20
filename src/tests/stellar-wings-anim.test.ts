@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { ChessStore } from '@/state/store';
 import { ChessBoardUI } from '@/ui/board';
 import type { GameReviewResult } from '@/analysis';
@@ -133,11 +135,43 @@ describe('Solar Wings and Piece Kinematics (Stage 5a-2)', () => {
     const grad = svg.querySelector('linearGradient#solar-wings-grad');
     expect(grad).not.toBeNull();
 
+    const solarGrad = svg.querySelector('linearGradient#solar-wing-gradient');
+    expect(solarGrad).not.toBeNull();
+
     // Verify pure vector geometry without emoji characters
     const html = wingsMount.innerHTML;
     // Standard emoji regex test
     const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
     expect(emojiRegex.test(html)).toBe(false);
+  });
+
+  it('содержит независимые зеркальные крылья stellar-wing-left и stellar-wing-right', () => {
+    const mockReview = createMockReviewWithStellar();
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
+    store.makeMove(store.coordsToSquare(4, 1), store.coordsToSquare(4, 3));
+    store.makeMove(store.coordsToSquare(6, 7), store.coordsToSquare(5, 5));
+
+    store.setReviewResult(mockReview);
+    store.setReviewMode(true);
+    store.setViewIndex(2);
+
+    const wingsMount = boardContainer.querySelector('.stellar-wings-mount') as HTMLElement;
+    expect(wingsMount).not.toBeNull();
+
+    const leftWing = wingsMount.querySelector('.stellar-wing.stellar-wing-left');
+    const rightWing = wingsMount.querySelector('.stellar-wing.stellar-wing-right');
+    expect(leftWing).not.toBeNull();
+    expect(rightWing).not.toBeNull();
+
+    const glowGrad = wingsMount.querySelector('linearGradient#wing-glow');
+    expect(glowGrad).not.toBeNull();
+  });
+
+  it('CSS задает независимые точки transform-origin для левого и правого крыла', () => {
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toMatch(/\.stellar-wing-left\s*\{[^}]*transform-origin:\s*45px\s+35px/);
+    expect(css).toMatch(/\.stellar-wing-right\s*\{[^}]*transform-origin:\s*55px\s+35px/);
   });
 
   it('при переключении хода на не-stellar элемент крыльев удаляется из DOM', () => {
@@ -171,11 +205,42 @@ describe('Solar Wings and Piece Kinematics (Stage 5a-2)', () => {
 
     expect(boardContainer.querySelector('.stellar-wings-mount')).not.toBeNull();
 
-    // Advance timers past the 2500ms safety window
-    vi.advanceTimersByTime(2600);
+    // At 1800ms wings are still mounted
+    vi.advanceTimersByTime(1800);
+    expect(boardContainer.querySelector('.stellar-wings-mount')).not.toBeNull();
+
+    // Advance past 1900ms (+200ms -> 2000ms total): wings are automatically removed
+    vi.advanceTimersByTime(200);
 
     expect(boardContainer.querySelector('.stellar-wings-mount')).toBeNull();
     vi.useRealTimers();
+  });
+
+  it('крылья используют градиент solar-wing-gradient и монолитный силуэт', () => {
+    const mockReview = createMockReviewWithStellar();
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
+    store.makeMove(store.coordsToSquare(4, 1), store.coordsToSquare(4, 3));
+    store.makeMove(store.coordsToSquare(6, 7), store.coordsToSquare(5, 5));
+
+    store.setReviewResult(mockReview);
+    store.setReviewMode(true);
+    store.setViewIndex(2);
+
+    const wingsMount = boardContainer.querySelector('.stellar-wings-mount') as HTMLElement;
+    expect(wingsMount).not.toBeNull();
+
+    const grad = wingsMount.querySelector('linearGradient#solar-wing-gradient');
+    expect(grad).not.toBeNull();
+
+    const leftMain = wingsMount.querySelector('.stellar-wing-left .wing-feather-main');
+    expect(leftMain).not.toBeNull();
+    expect(leftMain?.getAttribute('fill')).toBe('url(#solar-wing-gradient)');
+    expect(leftMain?.getAttribute('stroke')).toBe('none');
+
+    const rightMain = wingsMount.querySelector('.stellar-wing-right .wing-feather-main');
+    expect(rightMain).not.toBeNull();
+    expect(rightMain?.getAttribute('fill')).toBe('url(#solar-wing-gradient)');
+    expect(rightMain?.getAttribute('stroke')).toBe('none');
   });
 
   it('при навигации в разборе фигура получает CSS-класс piece-sliding', () => {
