@@ -273,3 +273,24 @@
   - `npm run lint`: 0 errors, 0 warnings.
   - `npm run build`: built production bundle in 597ms with exit code 0.
   - `npm test`: 32 test files passed, 332 tests passed (80s, watchdog clean).
+
+
+## Stage 5a-1: Solar Audio Web Audio API Sound Engine (Completed)
+- [x] Procedural Sound Engine Architecture (`src/audio/solar-audio.ts`):
+  - Created singleton `SolarAudio` and exported helper functions `playMove`, `playCapture`, `playCheck`, `playCheckmate`, `playStellar`.
+  - Lazy initialization & unlock on first user gesture (`click`, `touchstart`, `keydown`).
+  - Safe no-op in Node/jsdom environments without errors or crashes.
+  - Procedural sound palette:
+    - `playMove()`: soft move click (frequency ramp 240Hz -> 90Hz in 0.05s).
+    - `playCapture()`: dual burst (180Hz click + 60Hz bass body in 0.12s).
+    - `playCheck()`: pure harmonic solar chime (880Hz + 1760Hz sines with 0.35s decay).
+    - `playCheckmate()`: solemn low victory chord (C3/G3/C4/E4 with 0.8s decay).
+    - `playStellar()`: Heavenly Choir Chord (4 oscillators: C6, E6, G6, B6 with micro-detuning ±6-8 cents, routed through a formant bandpass BiquadFilter at 1800Hz with Q=3.0, smooth attack 0.12s, soft plateau, release up to 2.0s).
+- [x] Gameplay & Review Mode Integration (`src/ui/board.ts`, `src/ui/history.ts`, `src/main.ts`):
+  - In `ChessBoardUI`: live moves play `playCheckmate` on checkmate, `playCheck` on check, `playCapture` on piece capture, and `playMove` on quiet moves.
+  - In `HistoryUI`: move navigation in review mode plays corresponding sound, and plays `playStellar()` when inspected move has `class === 'stellar'`.
+- [x] Test Suite & Verification (`src/tests/solar-audio.test.ts`):
+  - Added 5 unit and integration tests with titles <= 100 characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle in 626ms with exit code 0).
+  - Verified `npm test` (33 test files passed, 337 tests passed, watchdog clean).

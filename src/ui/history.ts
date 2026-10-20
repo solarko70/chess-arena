@@ -1,6 +1,7 @@
 import { ChessStore } from '@/state/store';
 import { moveToSAN, classicalRuleSet } from '@/core';
 import { scoreToCp, getMoveClassMeta, identifyOpening } from '@/analysis';
+import { solarAudio } from '@/audio/solar-audio';
 
 export class HistoryUI {
   private container: HTMLElement;
@@ -11,6 +12,7 @@ export class HistoryUI {
   private mistakeNavEl!: HTMLElement;
   private prevMistakeBtn!: HTMLButtonElement;
   private nextMistakeBtn!: HTMLButtonElement;
+  private lastPlayedViewIndex: number | null = null;
 
   constructor(container: HTMLElement, store: ChessStore) {
     this.container = container;
@@ -51,8 +53,38 @@ export class HistoryUI {
     this.store.subscribe(() => this.render());
   }
 
+  private playReviewMoveSound(idx: number | null): void {
+    if (idx === null || idx < 0) {
+      this.lastPlayedViewIndex = idx;
+      return;
+    }
+    const review = this.store.getReviewResult();
+    if (!review || !this.store.isReviewMode()) {
+      this.lastPlayedViewIndex = idx;
+      return;
+    }
+    const revMove = review.moves[idx];
+    if (!revMove) {
+      this.lastPlayedViewIndex = idx;
+      return;
+    }
+    this.lastPlayedViewIndex = idx;
+    if (revMove.class === 'stellar') {
+      solarAudio.playStellar();
+    } else if (revMove.san?.includes('#')) {
+      solarAudio.playCheckmate();
+    } else if (revMove.san?.includes('+')) {
+      solarAudio.playCheck();
+    } else if (revMove.san?.includes('x') || revMove.move?.captured) {
+      solarAudio.playCapture();
+    } else {
+      solarAudio.playMove();
+    }
+  }
+
   private initEvents(): void {
     this.container.querySelector('#hist-first')?.addEventListener('click', () => {
+      this.playReviewMoveSound(-1);
       this.store.setViewIndex(-1);
     });
     this.container.querySelector('#hist-prev')?.addEventListener('click', () => {
@@ -60,15 +92,18 @@ export class HistoryUI {
       const historyLen = this.store.getLiveState().history.length;
       if (historyLen === 0) return;
       const target = current === null ? historyLen - 2 : current - 1;
+      this.playReviewMoveSound(target);
       this.store.setViewIndex(target);
     });
     this.container.querySelector('#hist-next')?.addEventListener('click', () => {
       const current = this.store.getViewIndex();
       if (current !== null) {
+        this.playReviewMoveSound(current + 1);
         this.store.setViewIndex(current + 1);
       }
     });
     this.container.querySelector('#hist-last')?.addEventListener('click', () => {
+      this.playReviewMoveSound(null);
       this.store.setViewIndex(null);
     });
 
@@ -88,17 +123,21 @@ export class HistoryUI {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const target = current === null ? historyLen - 2 : current - 1;
+        this.playReviewMoveSound(target);
         this.store.setViewIndex(target);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         if (current !== null) {
+          this.playReviewMoveSound(current + 1);
           this.store.setViewIndex(current + 1);
         }
       } else if (e.key === 'Home') {
         e.preventDefault();
+        this.playReviewMoveSound(-1);
         this.store.setViewIndex(-1);
       } else if (e.key === 'End') {
         e.preventDefault();
+        this.playReviewMoveSound(null);
         this.store.setViewIndex(null);
       }
     });
@@ -132,6 +171,7 @@ export class HistoryUI {
     for (let i = startIdx; i >= 0; i--) {
       const m = review.moves[i];
       if (m && this.isMistake(m.class)) {
+        this.playReviewMoveSound(i);
         this.store.setViewIndex(i);
         return;
       }
@@ -148,6 +188,7 @@ export class HistoryUI {
     for (let i = startIdx; i < historyLen; i++) {
       const m = review.moves[i];
       if (m && this.isMistake(m.class)) {
+        this.playReviewMoveSound(i);
         this.store.setViewIndex(i);
         return;
       }
@@ -160,6 +201,12 @@ export class HistoryUI {
     const viewIndex = this.store.getViewIndex();
     const review = this.store.getReviewResult();
     const isReview = Boolean(this.store.isReviewMode() && review);
+
+    if (isReview && viewIndex !== null && viewIndex !== this.lastPlayedViewIndex) {
+      this.playReviewMoveSound(viewIndex);
+    } else if (!isReview) {
+      this.lastPlayedViewIndex = null;
+    }
 
     this.listEl.innerHTML = '';
     this.listEl.classList.toggle('review-moves-list', isReview);
@@ -298,7 +345,10 @@ export class HistoryUI {
       }
 
       if (viewIndex === i) whiteSpan.classList.add('active');
-      whiteSpan.addEventListener('click', () => this.store.setViewIndex(i));
+      whiteSpan.addEventListener('click', () => {
+        this.playReviewMoveSound(i);
+        this.store.setViewIndex(i);
+      });
       row.appendChild(whiteSpan);
 
       if (blackSan) {
@@ -323,7 +373,10 @@ export class HistoryUI {
         }
 
         if (viewIndex === i + 1) blackSpan.classList.add('active');
-        blackSpan.addEventListener('click', () => this.store.setViewIndex(i + 1));
+        blackSpan.addEventListener('click', () => {
+          this.playReviewMoveSound(i + 1);
+          this.store.setViewIndex(i + 1);
+        });
         row.appendChild(blackSpan);
       }
 

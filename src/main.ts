@@ -1,4 +1,5 @@
 import './ui/styles.css';
+import './audio/solar-audio';
 import { APP_NAME } from './config';
 import { t } from './i18n';
 import { HashRouter, type AppRoute } from './router';

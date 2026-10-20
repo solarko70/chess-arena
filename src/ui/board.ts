@@ -1,6 +1,7 @@
 import { ChessStore } from '../state/store'
 import { getPieceSvg } from './pieces'
 import { getMoveClassMeta } from '@/analysis'
+import { solarAudio } from '@/audio/solar-audio'
 import type { PieceType, Square } from '@/core'
 
 export class ChessBoardUI {
@@ -13,6 +14,7 @@ export class ChessBoardUI {
   private evalBarTextEl: HTMLElement
   private arrowLayerEl: SVGElement
   private badgeLayerEl: HTMLElement
+  private lastHistoryLength = 0
 
   // Drag state
   private isDragging = false
@@ -24,6 +26,7 @@ export class ChessBoardUI {
   constructor(container: HTMLElement, store: ChessStore) {
     this.container = container
     this.store = store
+    this.lastHistoryLength = this.store.getLiveState().history.length
 
     this.container.innerHTML = `
       <div class="board-area">
@@ -70,6 +73,30 @@ export class ChessBoardUI {
   }
 
   private render(): void {
+    const liveState = this.store.getLiveState()
+    const historyLen = liveState.history.length
+    const isReview = this.store.isReviewMode()
+    const isViewingHistory = this.store.isViewingHistory()
+
+    if (!isReview && !isViewingHistory) {
+      if (historyLen === this.lastHistoryLength + 1 && historyLen > 0) {
+        const lastMv = liveState.history[historyLen - 1]
+        const gameResult = this.store.getLiveGameResult()
+        const check = this.store.isInCheck()
+
+        if (gameResult.type === 'checkmate') {
+          solarAudio.playCheckmate()
+        } else if (check) {
+          solarAudio.playCheck()
+        } else if (lastMv?.captured) {
+          solarAudio.playCapture()
+        } else {
+          solarAudio.playMove()
+        }
+      }
+    }
+    this.lastHistoryLength = historyLen
+
     const state = this.store.getState()
     const { width, height, pieces } = state.board
     const flipped = this.store.isFlipped()
