@@ -713,8 +713,8 @@ export class ChessStore {
 
   selectSquare(sq: Square | null): void {
     if (this.isReviewing) return;
-    if (this.timedOutLoser !== null || this.resignedPlayer !== null) return;
     if (!this.isReviewModeActive) {
+      if (this.timedOutLoser !== null || this.resignedPlayer !== null) return;
       if (this.isViewingHistory()) return;
       if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
         return;
@@ -986,8 +986,8 @@ export class ChessStore {
 
   getValidDestinationsFor(sq: Square): Square[] {
     if (this.isReviewing) return [];
-    if (this.timedOutLoser !== null || this.resignedPlayer !== null) return [];
     if (!this.isReviewModeActive) {
+      if (this.timedOutLoser !== null || this.resignedPlayer !== null) return [];
       if (this.isViewingHistory()) return [];
       if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
         return [];
@@ -1611,9 +1611,11 @@ export class ChessStore {
   }
 
   playBestMoveVariation(rootPly: number, bestMove: Move, bestSan?: string): VariationNode | null {
-    this.exitVariationToMainLine();
-    this.setViewIndex(rootPly);
-    const stateBefore = this.getState();
+    this.activeVariationId = null;
+    this.viewIndex = rootPly;
+    this.selectedSquare = null;
+    this.pendingPromotion = null;
+    const stateBefore = this.getStateAtPly(rootPly);
     const legalMoves = this.ruleSet.generateLegalMoves
       ? this.ruleSet.generateLegalMoves(stateBefore)
       : this.ruleSet.generateMoves(stateBefore);

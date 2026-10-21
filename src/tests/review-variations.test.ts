@@ -6,6 +6,19 @@ import { ReviewPanelUI } from '@/ui/reviewpanel';
 import type { GameReviewResult } from '@/analysis';
 import type { Move } from '@/core';
 
+if (typeof globalThis.PointerEvent === 'undefined') {
+  class MockPointerEvent extends MouseEvent {
+    pointerId: number;
+    pointerType: string;
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 1;
+      this.pointerType = params.pointerType ?? 'mouse';
+    }
+  }
+  globalThis.PointerEvent = MockPointerEvent as unknown as typeof globalThis.PointerEvent;
+}
+
 function createMockReview(): GameReviewResult {
   return {
     engineName: 'MockEngine',
@@ -281,5 +294,105 @@ describe('Stage 6a: Review Variations & Best Move button', () => {
     expect(nextBtn).toBeTruthy();
     nextBtn.click();
     expect(store.getActiveVariationNode()?.id).toBe(var2?.id);
+  });
+
+  it('Выполнение хода кликом (click-to-move) на доске в разборе партии создает ответвление', () => {
+    store.setViewIndex(0); // after 1. e4, black's turn
+    expect(store.getViewIndex()).toBe(0);
+
+    const sq10 = boardContainer.querySelector('[data-square="10"]') as HTMLElement;
+    expect(sq10).toBeTruthy();
+    // First click: select c7 (square 10)
+    sq10.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100 }));
+    expect(store.getSelectedSquare()).toBe(10);
+
+    const sq26 = boardContainer.querySelector('[data-square="26"]') as HTMLElement;
+    expect(sq26).toBeTruthy();
+    // Second click: destination c5 (square 26)
+    sq26.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 200 }));
+
+    // Move is made, creating variation
+    const activeVar = store.getActiveVariationNode();
+    expect(activeVar).toBeTruthy();
+    expect(activeVar?.san).toBe('c5');
+    expect(activeVar?.move.from).toBe(10);
+    expect(activeVar?.move.to).toBe(26);
+  });
+
+  it('Drag & Drop на доске в разборе партии успешно совершает ход и создает ветку вариации', () => {
+    store.setViewIndex(0);
+
+    const sq10 = boardContainer.querySelector('[data-square="10"]') as HTMLElement;
+    const sq26 = boardContainer.querySelector('[data-square="26"]') as HTMLElement;
+    expect(sq10).toBeTruthy();
+    expect(sq26).toBeTruthy();
+
+    // Start drag on square 10
+    sq10.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100 }));
+    expect(store.getSelectedSquare()).toBe(10);
+
+    // Mock elementFromPoint to return square 26
+    const origElementFromPoint = document.elementFromPoint;
+    try {
+      document.elementFromPoint = () => sq26;
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 200 }));
+    } finally {
+      document.elementFromPoint = origElementFromPoint;
+    }
+
+    const activeVar = store.getActiveVariationNode();
+    expect(activeVar).toBeTruthy();
+    expect(activeVar?.san).toBe('c5');
+    expect(activeVar?.move.from).toBe(10);
+    expect(activeVar?.move.to).toBe(26);
+  });
+
+  it('Разбор партии с окончанием по таймауту/сдаче не блокирует выбор фигур и ходы вариаций', () => {
+    // Simulate game over by timeout and resignation
+    (store as unknown as { timedOutLoser: string | null }).timedOutLoser = 'white';
+    (store as unknown as { resignedPlayer: string | null }).resignedPlayer = 'black';
+
+    store.setViewIndex(0);
+
+    // Selecting square must not be blocked
+    store.selectSquare(10);
+    expect(store.getSelectedSquare()).toBe(10);
+
+    // Valid destinations must not be empty
+    const dests = store.getValidDestinationsFor(10);
+    expect(dests).toContain(26);
+
+    // Move must succeed in review mode
+    const success = store.makeMove(10, 26);
+    expect(success).toBe(true);
+    expect(store.getActiveVariationNode()?.san).toBe('c5');
+  });
+
+  it('Кнопка "Лучший ход" применяет анимацию скольжения .piece-sliding к фигуре на доске', () => {
+    // Navigate to move 4 (2... Ke7 blunder, viewIndex = 3)
+    store.setViewIndex(3);
+
+    const bestMoveBtn = reviewNavContainer.querySelector('#review-best-move-btn') as HTMLButtonElement;
+    expect(bestMoveBtn).toBeTruthy();
+
+    bestMoveBtn.click();
+
+    // Best move was 2... Nc6 (from 1 to 18)
+    const activeVar = store.getActiveVariationNode();
+    expect(activeVar).toBeTruthy();
+    expect(activeVar?.san).toBe('Nc6');
+    expect(activeVar?.move.to).toBe(18);
+
+    // Piece wrapper on square 18 must receive .piece-sliding class
+    const targetSq = boardContainer.querySelector('[data-square="18"]') as HTMLElement;
+    expect(targetSq).toBeTruthy();
+    const pieceWrapper = targetSq.querySelector('.piece-wrapper');
+    expect(pieceWrapper).toBeTruthy();
+    expect(pieceWrapper?.classList.contains('piece-sliding')).toBe(true);
+
+    // Quality badge must be mounted
+    const badge = boardContainer.querySelector('.board-move-badge.badge-best');
+    expect(badge).toBeTruthy();
+    expect(badge?.getAttribute('data-square')).toBe('18');
   });
 });

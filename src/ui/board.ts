@@ -19,6 +19,7 @@ export class ChessBoardUI {
 
   // Review move sliding and wings
   private lastAnimatedViewIndex: number | null = null
+  private lastAnimatedVariationId: string | null = null
   private lastSlideTime = 0
   private isReviewModeWasActive = false
   private currentWingsMountEl: HTMLElement | null = null
@@ -227,9 +228,11 @@ export class ChessBoardUI {
     const isReview = this.store.isReviewMode()
     const viewIndex = this.store.getViewIndex()
     const review = this.store.getReviewResult()
+    const activeVar = this.store.getActiveVariationNode()
 
-    if (!isReview || !review || !review.moves || review.moves.length === 0) {
+    if (!isReview) {
       this.lastAnimatedViewIndex = null
+      this.lastAnimatedVariationId = null
       this.isReviewModeWasActive = false
       return
     }
@@ -238,6 +241,34 @@ export class ChessBoardUI {
     if (!this.isReviewModeWasActive) {
       this.isReviewModeWasActive = true
       this.lastAnimatedViewIndex = viewIndex
+      this.lastAnimatedVariationId = activeVar ? activeVar.id : null
+      return
+    }
+
+    // Check if active variation changed or was played
+    if (activeVar) {
+      if (activeVar.id !== this.lastAnimatedVariationId) {
+        const prevVarId = this.lastAnimatedVariationId
+        this.lastAnimatedVariationId = activeVar.id
+
+        if (prevVarId) {
+          const prevVar = this.store.findVariationNode(prevVarId)
+          if (prevVar && prevVar.parentId === activeVar.id) {
+            // Step backward 1 move in variation
+            this.animatePieceSlide(prevVar.move.to, prevVar.move.from, flipped, width, height)
+            return
+          }
+        }
+        // Step forward or new variation
+        this.animatePieceSlide(activeVar.move.from, activeVar.move.to, flipped, width, height)
+      }
+      return
+    } else {
+      this.lastAnimatedVariationId = null
+    }
+
+    if (!review || !review.moves || review.moves.length === 0) {
+      this.lastAnimatedViewIndex = null
       return
     }
 
@@ -688,7 +719,12 @@ export class ChessBoardUI {
 
   private processStartAt(target: HTMLElement, clientX: number, clientY: number): boolean {
     if (this.store.getPendingPromotion()) return false
-    if (!this.store.isPlayerTurn() || this.store.isAIThinking()) return false
+    const isReview = this.store.isReviewMode()
+    if (isReview) {
+      if (this.store.isReviewInProgress()) return false
+    } else {
+      if (!this.store.isPlayerTurn() || this.store.isAIThinking()) return false
+    }
     if (!target || !target.dataset.square) return false
 
     const sq = parseInt(target.dataset.square, 10)
@@ -750,55 +786,85 @@ export class ChessBoardUI {
     this.floatingPieceEl.style.top = `${clientY}px`
   }
 
-  private finishDragAt(elemBelow: Element | null): void {
+  private finishDragAt(elemBelow: Element | null, clientX?: number, clientY?: number): void {
     if (!this.isDragging) return
 
+    const fromSq = this.dragFromSquare
     this.isDragging = false
+    this.dragFromSquare = null
+
     if (this.floatingPieceEl) {
       this.floatingPieceEl.remove()
       this.floatingPieceEl = null
     }
 
     // Restore dimmed piece
-    const fromEl = this.boardEl.querySelector(
-      `[data-square="${this.dragFromSquare}"] .piece-wrapper`
-    )
-    if (fromEl) {
-      fromEl.classList.remove('dragging')
+    if (fromSq !== null) {
+      const fromEl = this.boardEl.querySelector(
+        `[data-square="${fromSq}"] .piece-wrapper`
+      )
+      if (fromEl) {
+        fromEl.classList.remove('dragging')
+      }
     }
 
     // Determine target square under drop position
-    const targetSqEl = elemBelow?.closest('.chess-square') as HTMLElement | null
+    let targetSqEl = elemBelow?.closest('.chess-square') as HTMLElement | null
 
-    if (targetSqEl && targetSqEl.dataset.square && this.dragFromSquare !== null) {
+    // Geometric coordinate fallback if elementFromPoint didn't find a chess-square
+    if (!targetSqEl && clientX !== undefined && clientY !== undefined) {
+      const rect = this.boardEl.getBoundingClientRect()
+      if (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      ) {
+        const state = this.store.getState()
+        const { width, height } = state.board
+        const flipped = this.store.isFlipped()
+        const col = Math.floor(((clientX - rect.left) / rect.width) * width)
+        const row = Math.floor(((clientY - rect.top) / rect.height) * height)
+        const clampedCol = Math.max(0, Math.min(width - 1, col))
+        const clampedRow = Math.max(0, Math.min(height - 1, row))
+        const toX = flipped ? width - 1 - clampedCol : clampedCol
+        const toY = flipped ? height - 1 - clampedRow : clampedRow
+        const toSq = toY * width + toX
+        targetSqEl = this.boardEl.querySelector(`[data-square="${toSq}"]`) as HTMLElement | null
+      }
+    }
+
+    if (targetSqEl && targetSqEl.dataset.square && fromSq !== null) {
       const toSq = parseInt(targetSqEl.dataset.square, 10)
-      if (toSq !== this.dragFromSquare) {
-        const validDests = this.store.getValidDestinationsFor(this.dragFromSquare)
+      if (toSq !== fromSq) {
+        const validDests = this.store.getValidDestinationsFor(fromSq)
         if (validDests.includes(toSq)) {
-          this.store.makeMove(this.dragFromSquare, toSq)
-          this.dragFromSquare = null
+          this.store.makeMove(fromSq, toSq)
           return
         }
       }
     }
-
-    this.dragFromSquare = null
   }
 
   private cancelDrag(): void {
     if (!this.isDragging) return
+    const fromSq = this.dragFromSquare
     this.isDragging = false
+    this.dragFromSquare = null
     if (this.floatingPieceEl) {
       this.floatingPieceEl.remove()
       this.floatingPieceEl = null
     }
-    const fromEl = this.boardEl.querySelector(
-      `[data-square="${this.dragFromSquare}"] .piece-wrapper`
-    )
-    if (fromEl) {
-      fromEl.classList.remove('dragging')
+    if (fromSq !== null) {
+      const fromEl = this.boardEl.querySelector(
+        `[data-square="${fromSq}"] .piece-wrapper`
+      )
+      if (fromEl) {
+        fromEl.classList.remove('dragging')
+      }
     }
-    this.dragFromSquare = null
   }
 
   private handlePointerDown(e: PointerEvent): void {
@@ -835,9 +901,27 @@ export class ChessBoardUI {
     ) {
       return
     }
+    if (e.pointerId !== undefined) {
+      try {
+        const target = e.target as HTMLElement | null
+        if (target && target.hasPointerCapture && target.hasPointerCapture(e.pointerId)) {
+          target.releasePointerCapture(e.pointerId)
+        }
+      } catch {
+        // Ignore synthetic or unsupported pointer capture errors
+      }
+    }
     if (!this.isDragging) return
-    const elemBelow = document.elementFromPoint(e.clientX, e.clientY)
-    this.finishDragAt(elemBelow)
+    let elemBelow: Element | null = null
+    if (this.floatingPieceEl) {
+      this.floatingPieceEl.style.display = 'none'
+    }
+    try {
+      elemBelow = document.elementFromPoint(e.clientX, e.clientY)
+    } catch {
+      // Ignore
+    }
+    this.finishDragAt(elemBelow, e.clientX, e.clientY)
   }
 
   private handleTouchStart(e: TouchEvent): void {
@@ -875,8 +959,16 @@ export class ChessBoardUI {
 
     const touch = e.changedTouches[0] ?? e.touches[0]
     if (touch) {
-      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY)
-      this.finishDragAt(elemBelow)
+      if (this.floatingPieceEl) {
+        this.floatingPieceEl.style.display = 'none'
+      }
+      let elemBelow: Element | null = null
+      try {
+        elemBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+      } catch {
+        // Ignore
+      }
+      this.finishDragAt(elemBelow, touch.clientX, touch.clientY)
     } else {
       this.cancelDrag()
     }
