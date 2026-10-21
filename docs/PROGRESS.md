@@ -574,3 +574,29 @@
   - Verified `npm run build` (production build clean).
   - Verified `npm test` (35 test files passed, 376 tests passed, watchdog clean).
 
+## Stage 6a-3: Premove Mechanics (chess.com style) (Completed)
+- [x] Premove State Model (`src/state/store.ts`):
+  - Defined `Premove` interface (`from: Square`, `to: Square`, `promotion?: PieceType`).
+  - Added `pendingPremove` storage with `getPremove()`, `setPremove(premove)`, `clearPremove()`, and `executePremove()`.
+  - Automated premove cleanup on game reset, undo, FEN/PGN loading, review mode entry, and historical ply navigation.
+- [x] Speculative Premove Input & Cancellation (`src/ui/board.ts`):
+  - Permitted input during opponent's/bot's turn (`!isPlayerTurn() || isAIThinking()`) when clicking/dragging player's own pieces.
+  - Full support for both click-to-move and drag-and-drop speculative destination selection.
+  - Automatic pawn promotion defaulting to `'queen'` when premoving to the back rank.
+  - Right-click (`contextmenu`) on the board immediately cancels any active premove (`preventDefault`, `clearPremove()`).
+  - Left-clicking on an empty square or selecting a different piece safely resets/replaces previous premoves.
+- [x] Solar Cosmic Premove Styling (`src/ui/styles.css`):
+  - Created `.chess-square.square-premove-from` and `.chess-square.square-premove-to` classes.
+  - Styled with bright celestial cyan neon outline (`box-shadow: inset 0 0 0 3px rgba(56, 189, 248, 0.85)`) and soft radial glow, visually distinct from standard yellow last-move highlights.
+- [x] Instant 0ms Execution on Opponent's Move (`src/ui/board.ts`, `src/state/store.ts`):
+  - Upon opponent's/bot's move arrival and turn transition, immediately validates premove legality in the newly formed position.
+  - If legal: executes instantly with 0ms delay, plays corresponding procedural sound (`playMove`, `playCapture`, `playCheck`, or `playCheckmate`), and clears premove.
+  - If illegal: cleanly and silently discards premove without errors or sounds, allowing standard player input.
+- [x] Unit Tests & Verification (`src/tests/premove.test.ts`):
+  - Created 6 unit & integration tests covering state persistence, visual CSS classes, contextmenu/direct cancellation, legal execution, illegal discard, and drag-and-drop auto-queen.
+  - All test titles $\le 100$ characters; 100% of existing tests intact.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (production build clean).
+  - Verified `npm test` (36 test files passed, 382 tests passed, watchdog clean).
+
+
