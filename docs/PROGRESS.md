@@ -524,5 +524,34 @@
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 364 tests passed, watchdog clean).
 
+## Stage 6a: Interactive Variations, On-the-fly Move Analysis & Best Move Button (Completed)
+- [x] Interactive Variations / Sub-lines in Game Review (`src/state/store.ts`, `src/ui/board.ts`):
+  - Removed board input lock during review mode: legal moves and destinations are computed on the currently viewed position (`this.getState()`).
+  - Main-line continuation detection: playing the same move as in the main game advances `viewIndex` directly without creating redundant branches.
+  - Alternative moves create variation branch nodes (`VariationNode`) with `rootPly`, `ply`, `move`, `san`, `fen`, `state`, and `children`.
+  - Full support for chained moves within variations and nested sub-variations.
+  - Methods `setActiveVariationNode()`, `exitVariationToMainLine()`, `clearVariations()`, `findVariationNode()`, `getVariationPath()`.
+- [x] On-the-fly Stockfish Engine Analysis (`src/state/store.ts`, `src/ui/board.ts`):
+  - Evaluates alternative variation moves at depth 14–16 using Stockfish (`getOrCreateReviewEngine()`).
+  - Classifies moves with `classifyMove()` (`stellar`, `superb`, `best`, `excellent`, `good`, `inaccuracy`, `mistake`, `blunder`, `missed`).
+  - Renders move classification badge on the target board square, updates evaluation bar, and plays chess sounds (`move`, `capture`, `check`, `checkmate`, `stellar`).
+- [x] Display Variations in History Table (`src/ui/history.ts`, `src/ui/styles.css`):
+  - Chess.com style nested `.history-variation` block underneath branching move row with muted styling, 0.85em font, and parentheses `( ... )`.
+  - Clickable move tokens (`.variation-move`) with active variation move highlighted in gold with glow.
+  - Move feedback card displays verdict title, description, SAN, best move, eval, and loss percentage.
+  - "Вернуться в партию" button (`.btn-return-mainline`) restores focus to the main line.
+  - Full keyboard (`ArrowLeft`, `ArrowRight`, `Home`, `End`) and navigation buttons traversal through variation tree.
+- [x] "Лучший ход" (Best Move) Button in Review Navigation (`src/ui/reviewpanel.ts`, `src/ui/styles.css`):
+  - Mounted inside `.review-board-nav` spanning full width (`grid-column: 1 / -1`) with gold star SVG icon and label.
+  - Shows toast notification «Этот ход уже лучший» if current position was already best/stellar/superb.
+  - If current move was sub-optimal or blunder, automatically plays the engine's recommended best move as a variation branch with `'best'` class and badge.
+- [x] Unit Tests & Verification (`src/tests/review-variations.test.ts`):
+  - Created 6 unit & integration tests covering variation creation, main line advancement, best move button, toast notifications, return to main line, and sequential navigation.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (35 test files passed, 370 tests passed, watchdog clean).
+
+
 
 

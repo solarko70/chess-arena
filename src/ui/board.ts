@@ -1,6 +1,6 @@
 import { ChessStore } from '../state/store'
 import { getPieceSvg } from './pieces'
-import { getMoveClassMeta } from '@/analysis'
+import { getMoveClassMeta, winChance } from '@/analysis'
 import { solarAudio } from '@/audio/solar-audio'
 import type { PieceType, Square } from '@/core'
 
@@ -15,6 +15,7 @@ export class ChessBoardUI {
   private arrowLayerEl: SVGElement
   private badgeLayerEl: HTMLElement
   private lastHistoryLength = 0
+  private lastVariationId: string | null = null
 
   // Review move sliding and wings
   private lastAnimatedViewIndex: number | null = null
@@ -100,6 +101,24 @@ export class ChessBoardUI {
         } else {
           solarAudio.playMove()
         }
+      }
+    } else if (isReview) {
+      const activeVar = this.store.getActiveVariationNode()
+      if (activeVar && activeVar.id !== this.lastVariationId) {
+        this.lastVariationId = activeVar.id
+        if (activeVar.class === 'stellar') {
+          solarAudio.playStellar()
+        } else if (activeVar.san.includes('#')) {
+          solarAudio.playCheckmate()
+        } else if (activeVar.san.includes('+')) {
+          solarAudio.playCheck()
+        } else if (activeVar.san.includes('x') || activeVar.move.captured) {
+          solarAudio.playCapture()
+        } else {
+          solarAudio.playMove()
+        }
+      } else if (!activeVar) {
+        this.lastVariationId = null
       }
     }
     this.lastHistoryLength = historyLen
@@ -429,6 +448,45 @@ export class ChessBoardUI {
     if (!this.badgeLayerEl) return
     this.badgeLayerEl.innerHTML = ''
 
+    const activeVar = this.store.getActiveVariationNode()
+    if (activeVar) {
+      const toSquare = activeVar.move.to
+      const moveClass = activeVar.class ?? 'best'
+      const meta = getMoveClassMeta(moveClass)
+
+      const { width, height } = this.store.getState().board
+      const toX = toSquare % width
+      const toY = Math.floor(toSquare / width)
+
+      const col = flipped ? width - 1 - toX : toX
+      const row = flipped ? height - 1 - toY : toY
+
+      const leftPct = (col / width) * 100
+      const topPct = (row / height) * 100
+      const widthPct = 100 / width
+      const heightPct = 100 / height
+
+      const slotEl = document.createElement('div')
+      slotEl.className = 'board-badge-slot'
+      slotEl.style.position = 'absolute'
+      slotEl.style.left = `${leftPct}%`
+      slotEl.style.top = `${topPct}%`
+      slotEl.style.width = `${widthPct}%`
+      slotEl.style.height = `${heightPct}%`
+      slotEl.style.pointerEvents = 'none'
+
+      const badgeEl = document.createElement('div')
+      badgeEl.className = `board-move-badge badge-${moveClass}`
+      badgeEl.dataset.class = moveClass
+      badgeEl.dataset.square = toSquare.toString()
+      badgeEl.title = meta.nameRu
+      badgeEl.innerHTML = meta.svg
+
+      slotEl.appendChild(badgeEl)
+      this.badgeLayerEl.appendChild(slotEl)
+      return
+    }
+
     const review = this.store.getReviewResult()
     if (!review || !review.moves || review.moves.length === 0) {
       return
@@ -497,8 +555,22 @@ export class ChessBoardUI {
   }
 
   private renderEvalBar(flipped: boolean): void {
-    const review = this.store.getReviewResult()
     const isReviewActive = this.store.isReviewMode()
+    const activeVar = this.store.getActiveVariationNode()
+    if (isReviewActive && activeVar && activeVar.score) {
+      this.evalBarWrapperEl.style.display = 'flex'
+      const whiteChance = Math.max(0, Math.min(100, winChance(activeVar.score)))
+      const fillHeight = flipped ? 100 - whiteChance : whiteChance
+      this.evalBarFillEl.style.height = `${fillHeight}%`
+      if (activeVar.score.type === 'mate') {
+        this.evalBarTextEl.textContent = 'Мат'
+      } else {
+        this.evalBarTextEl.textContent = `${Math.round(whiteChance)}%`
+      }
+      return
+    }
+
+    const review = this.store.getReviewResult()
     if (!isReviewActive || !review || !review.evalHistory || review.evalHistory.length === 0) {
       this.evalBarWrapperEl.style.display = 'none'
       return
@@ -531,19 +603,17 @@ export class ChessBoardUI {
     if (!this.arrowLayerEl) return
     this.arrowLayerEl.innerHTML = ''
 
+    const activeVar = this.store.getActiveVariationNode()
     const review = this.store.getReviewResult()
-    if (!review) return
-
     const viewIndex = this.store.getViewIndex()
-    if (viewIndex === null || viewIndex < 0 || viewIndex >= review.moves.length) {
-      return
-    }
 
-    const reviewedMove = review.moves[viewIndex]
-    if (!reviewedMove || !reviewedMove.bestMove) return
+    let bestMove = activeVar?.bestMove ?? null
+    if (!bestMove && review && viewIndex !== null && viewIndex >= 0 && viewIndex < review.moves.length) {
+      bestMove = review.moves[viewIndex]?.bestMove ?? null
+    }
+    if (!bestMove) return
 
     const { width, height } = this.store.getState().board
-    const bestMove = reviewedMove.bestMove
 
     const sqW = 800 / width
     const sqH = 800 / height

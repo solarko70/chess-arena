@@ -52,6 +52,9 @@ export class ReviewPanelUI {
   private navPrevBtn: HTMLButtonElement | null = null;
   private navNextBtn: HTMLButtonElement | null = null;
   private navLastBtn: HTMLButtonElement | null = null;
+  private bestMoveBtn: HTMLButtonElement | null = null;
+  private bestMoveToast: HTMLElement | null = null;
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   // DOM elements
   private cancelBtn!: HTMLButtonElement;
@@ -206,18 +209,39 @@ export class ReviewPanelUI {
       <button type="button" class="solar-card review-nav-btn" id="review-nav-last" title="В конец (End)" aria-label="В конец (End)">
         ${LAST_NAV_ICON}
       </button>
+      <button type="button" class="solar-card review-best-move-btn" id="review-best-move-btn" title="Показать и сделать лучший ход" aria-label="Показать и сделать лучший ход">
+        <svg class="best-move-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+        <span>Лучший ход</span>
+      </button>
+      <div class="review-best-move-toast" id="review-best-move-toast" style="display: none;">Этот ход уже лучший</div>
     `;
 
     this.navFirstBtn = this.navContainer.querySelector('#review-nav-first') as HTMLButtonElement;
     this.navPrevBtn = this.navContainer.querySelector('#review-nav-prev') as HTMLButtonElement;
     this.navNextBtn = this.navContainer.querySelector('#review-nav-next') as HTMLButtonElement;
     this.navLastBtn = this.navContainer.querySelector('#review-nav-last') as HTMLButtonElement;
+    this.bestMoveBtn = this.navContainer.querySelector('#review-best-move-btn') as HTMLButtonElement;
+    this.bestMoveToast = this.navContainer.querySelector('#review-best-move-toast') as HTMLElement;
 
     this.navFirstBtn?.addEventListener('click', () => {
+      if (this.store.getActiveVariationNode()) {
+        this.store.exitVariationToMainLine();
+      }
       this.store.setViewIndex(-1);
     });
 
     this.navPrevBtn?.addEventListener('click', () => {
+      const activeVar = this.store.getActiveVariationNode();
+      if (activeVar) {
+        if (activeVar.parentId) {
+          this.store.setActiveVariationNode(activeVar.parentId);
+        } else {
+          this.store.exitVariationToMainLine();
+        }
+        return;
+      }
       const historyLen = this.store.getLiveState().history.length;
       if (historyLen === 0) return;
       const current = this.store.getViewIndex();
@@ -226,6 +250,13 @@ export class ReviewPanelUI {
     });
 
     this.navNextBtn?.addEventListener('click', () => {
+      const activeVar = this.store.getActiveVariationNode();
+      if (activeVar) {
+        if (activeVar.children.length > 0) {
+          this.store.setActiveVariationNode(activeVar.children[0].id);
+        }
+        return;
+      }
       const historyLen = this.store.getLiveState().history.length;
       if (historyLen === 0) return;
       const current = this.store.getViewIndex();
@@ -240,7 +271,14 @@ export class ReviewPanelUI {
     });
 
     this.navLastBtn?.addEventListener('click', () => {
+      if (this.store.getActiveVariationNode()) {
+        this.store.exitVariationToMainLine();
+      }
       this.store.setViewIndex(null);
+    });
+
+    this.bestMoveBtn?.addEventListener('click', () => {
+      void this.handleBestMoveClick();
     });
 
     this.updateNavButtons();
@@ -250,6 +288,16 @@ export class ReviewPanelUI {
     if (!this.navFirstBtn || !this.navPrevBtn || !this.navNextBtn || !this.navLastBtn) {
       return;
     }
+
+    const activeVar = this.store.getActiveVariationNode();
+    if (activeVar) {
+      this.navFirstBtn.disabled = false;
+      this.navPrevBtn.disabled = false;
+      this.navNextBtn.disabled = activeVar.children.length === 0;
+      this.navLastBtn.disabled = activeVar.children.length === 0;
+      return;
+    }
+
     const historyLen = this.store.getLiveState().history.length;
     const viewIndex = this.store.getViewIndex();
 
@@ -260,6 +308,72 @@ export class ReviewPanelUI {
     this.navPrevBtn.disabled = isAtStart;
     this.navNextBtn.disabled = isAtEnd;
     this.navLastBtn.disabled = isAtEnd;
+  }
+
+  public async handleBestMoveClick(): Promise<void> {
+    const isReview = this.store.isReviewMode();
+    if (!isReview) return;
+
+    const review = this.store.getReviewResult();
+    const activeVar = this.store.getActiveVariationNode();
+    const viewIndex = this.store.getViewIndex();
+
+    if (activeVar) {
+      if (activeVar.class === 'best' || activeVar.class === 'stellar' || activeVar.class === 'superb') {
+        this.showBestMoveToast('Этот ход уже лучший');
+        return;
+      }
+      if (activeVar.bestMove) {
+        this.store.playBestMoveVariation(activeVar.rootPly, activeVar.bestMove, activeVar.bestSan);
+        return;
+      }
+    }
+
+    const historyLen = this.store.getLiveState().history.length;
+    const currentIdx = viewIndex === null ? historyLen - 1 : viewIndex;
+    if (currentIdx < 0) {
+      return;
+    }
+
+    if (review && review.moves && review.moves[currentIdx]) {
+      const reviewedMove = review.moves[currentIdx];
+      if (reviewedMove.class === 'best' || reviewedMove.class === 'stellar' || reviewedMove.class === 'superb') {
+        this.showBestMoveToast('Этот ход уже лучший');
+        return;
+      }
+      if (reviewedMove.bestMove) {
+        const rootPly = currentIdx - 1;
+        this.store.playBestMoveVariation(rootPly, reviewedMove.bestMove, reviewedMove.bestSan ?? undefined);
+        return;
+      }
+    }
+
+    // Fallback: analyze position before currentIdx
+    try {
+      const rootPly = currentIdx - 1;
+      const stateBefore = this.store.getStateAtPly(rootPly);
+      const engine = this.store.getOrCreateReviewEngine();
+      const res = await engine.analyze(stateBefore, { depth: 14, multiPV: 2 });
+      if (res.bestMove) {
+        this.store.playBestMoveVariation(rootPly, res.bestMove);
+      }
+    } catch {
+      // Ignore analysis errors
+    }
+  }
+
+  private showBestMoveToast(message: string): void {
+    if (!this.bestMoveToast) return;
+    this.bestMoveToast.textContent = message;
+    this.bestMoveToast.style.display = 'block';
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
+    this.toastTimer = setTimeout(() => {
+      if (this.bestMoveToast) {
+        this.bestMoveToast.style.display = 'none';
+      }
+    }, 2000);
   }
 
   private initEvents(): void {

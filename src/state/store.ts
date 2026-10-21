@@ -7,8 +7,23 @@ import type {
   PieceType,
   Color,
 } from '@/core';
-import { classicalRuleSet, parseFEN, parsePGN, serializeFEN, exportPGN } from '@/core';
-import { LEVELS, LEVEL_ORDER, type LevelId, type WorkerRequest, type WorkerResponse } from '@/ai';
+import {
+  classicalRuleSet,
+  parseFEN,
+  parsePGN,
+  serializeFEN,
+  exportPGN,
+  moveToSAN,
+  isCheckmate,
+} from '@/core';
+import {
+  LEVELS,
+  LEVEL_ORDER,
+  type LevelId,
+  type WorkerRequest,
+  type WorkerResponse,
+  type Score,
+} from '@/ai';
 import {
   runGameReview,
   SUMMARY_DEPTH,
@@ -18,7 +33,31 @@ import {
   type ReviewRunResult,
   type ReviewWorkerLike,
   type AnalysisEngine,
+  type MoveClass,
+  classifyMove,
+  isSameMove,
+  povWinChance,
+  moveAccuracy,
+  createEngine,
 } from '@/analysis';
+
+export interface VariationNode {
+  id: string;
+  parentId: string | null;
+  rootPly: number;
+  ply: number;
+  move: Move;
+  san: string;
+  fen: string;
+  state: GameState;
+  class?: MoveClass;
+  score?: Score;
+  bestMove?: Move | null;
+  bestSan?: string;
+  loss?: number;
+  accuracy?: number;
+  children: VariationNode[];
+}
 
 export type TimeControlMode = 'none' | 'bullet-1-0' | 'blitz-3-2' | 'blitz-5-0' | 'rapid-10-0' | 'rapid-15-10';
 export type GameMode = 'pvp' | 'ai';
@@ -111,6 +150,9 @@ export class ChessStore {
   private reviewError: string | null = null;
   private notifyDepth: number = 0;
   private notifyDirty: boolean = false;
+  private variations: VariationNode[] = [];
+  private activeVariationId: string | null = null;
+  private activeEngine: AnalysisEngine | null = null;
 
   constructor(ruleSet: RuleSet = classicalRuleSet) {
     this.ruleSet = ruleSet;
@@ -118,11 +160,24 @@ export class ChessStore {
   }
 
   getState(): GameState {
+    if (this.activeVariationId !== null) {
+      const node = this.findVariationNode(this.activeVariationId);
+      if (node) {
+        return node.state;
+      }
+    }
     if (this.viewIndex === null) {
       return this.state;
     }
+    return this.getStateAtPly(this.viewIndex);
+  }
+
+  getStateAtPly(ply: number): GameState {
+    if (ply < 0) {
+      return this.ruleSet.getInitialState();
+    }
     let tempState = this.ruleSet.getInitialState();
-    for (let i = 0; i <= this.viewIndex && i < this.state.history.length; i++) {
+    for (let i = 0; i <= ply && i < this.state.history.length; i++) {
       tempState = this.ruleSet.applyMove(tempState, this.state.history[i]);
     }
     return tempState;
@@ -137,6 +192,7 @@ export class ChessStore {
   }
 
   setViewIndex(index: number | null): void {
+    this.activeVariationId = null;
     if (index === null) {
       this.viewIndex = null;
     } else {
@@ -198,7 +254,8 @@ export class ChessStore {
   }
 
   isPlayerTurn(): boolean {
-    if (this.isReviewModeActive || this.isReviewing) return false;
+    if (this.isReviewing) return false;
+    if (this.isReviewModeActive) return true;
     if (this.timedOutLoser !== null) return false;
     if (this.gameMode === 'pvp') return true;
     return !this.aiThinking && this.state.turn === this.playerColor;
@@ -620,6 +677,12 @@ export class ChessStore {
     this.timedOutLoser = null;
     this.resignedPlayer = null;
     this.hasActiveGame = true;
+    this.variations = [];
+    this.activeVariationId = null;
+    if (this.activeEngine) {
+      this.activeEngine.dispose();
+      this.activeEngine = null;
+    }
     if (this.reviewAbortController) {
       this.reviewAbortController.abort();
       this.reviewAbortController = null;
@@ -649,11 +712,13 @@ export class ChessStore {
   }
 
   selectSquare(sq: Square | null): void {
-    if (this.isReviewModeActive || this.isReviewing) return;
-    if (this.isViewingHistory()) return;
+    if (this.isReviewing) return;
     if (this.timedOutLoser !== null || this.resignedPlayer !== null) return;
-    if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
-      return;
+    if (!this.isReviewModeActive) {
+      if (this.isViewingHistory()) return;
+      if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
+        return;
+      }
     }
     this.selectedSquare = sq;
     this.notify();
@@ -665,8 +730,11 @@ export class ChessStore {
   }
 
   makeMove(from: Square, to: Square, promoPiece?: PieceType): boolean {
-    if (this.isReviewModeActive || this.isReviewing) {
+    if (this.isReviewing) {
       return false;
+    }
+    if (this.isReviewModeActive) {
+      return this.makeReviewMove(from, to, promoPiece);
     }
     if (this.timedOutLoser !== null || this.resignedPlayer !== null) {
       return false;
@@ -917,17 +985,25 @@ export class ChessStore {
   }
 
   getValidDestinationsFor(sq: Square): Square[] {
-    if (this.isReviewModeActive || this.isReviewing) return [];
-    if (this.isViewingHistory()) return [];
+    if (this.isReviewing) return [];
     if (this.timedOutLoser !== null || this.resignedPlayer !== null) return [];
-    if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
-      return [];
+    if (!this.isReviewModeActive) {
+      if (this.isViewingHistory()) return [];
+      if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
+        return [];
+      }
     }
     const moves = this.getLegalMoves();
     return moves.filter((m) => m.from === sq).map((m) => m.to);
   }
 
   getLastMove(): Move | null {
+    if (this.activeVariationId !== null) {
+      const node = this.findVariationNode(this.activeVariationId);
+      if (node) {
+        return node.move;
+      }
+    }
     const st = this.getState();
     if (st.history.length === 0) return null;
     return st.history[st.history.length - 1];
@@ -961,6 +1037,7 @@ export class ChessStore {
     if (this.isReviewModeActive === active) return;
     this.isReviewModeActive = active;
     if (!active) {
+      this.exitVariationToMainLine();
       this.syncClock();
       if (!this.isViewingHistory()) {
         this.maybeTriggerAIMove();
@@ -1268,6 +1345,323 @@ export class ChessStore {
       whitePieces,
       blackPieces,
     };
+  }
+
+  // ── Variations & Review Moves ──────────────────────────────────────────────
+
+  getVariations(): readonly VariationNode[] {
+    return this.variations;
+  }
+
+  getActiveVariationNodeId(): string | null {
+    return this.activeVariationId;
+  }
+
+  getActiveVariationNode(): VariationNode | null {
+    if (this.activeVariationId === null) return null;
+    return this.findVariationNode(this.activeVariationId);
+  }
+
+  setActiveVariationNode(id: string | null): void {
+    if (this.activeVariationId === id) return;
+    this.activeVariationId = id;
+    this.selectedSquare = null;
+    this.pendingPromotion = null;
+    this.notify();
+  }
+
+  exitVariationToMainLine(): void {
+    if (this.activeVariationId === null) return;
+    const node = this.findVariationNode(this.activeVariationId);
+    this.activeVariationId = null;
+    this.selectedSquare = null;
+    this.pendingPromotion = null;
+    if (node) {
+      this.setViewIndex(node.rootPly);
+    } else {
+      this.notify();
+    }
+  }
+
+  clearVariations(): void {
+    this.variations = [];
+    this.activeVariationId = null;
+    this.notify();
+  }
+
+  findVariationNode(id: string): VariationNode | null {
+    const search = (nodes: VariationNode[]): VariationNode | null => {
+      for (const node of nodes) {
+        if (node.id === id) return node;
+        const found = search(node.children);
+        if (found) return found;
+      }
+      return null;
+    };
+    return search(this.variations);
+  }
+
+  getVariationPath(id: string): VariationNode[] {
+    const path: VariationNode[] = [];
+    const search = (nodes: VariationNode[]): boolean => {
+      for (const node of nodes) {
+        path.push(node);
+        if (node.id === id) return true;
+        if (search(node.children)) return true;
+        path.pop();
+      }
+      return false;
+    };
+    search(this.variations);
+    return path;
+  }
+
+  getOrCreateReviewEngine(): AnalysisEngine {
+    if (this.reviewEngine) return this.reviewEngine;
+    if (!this.activeEngine) {
+      this.activeEngine = createEngine(this.state);
+    }
+    return this.activeEngine;
+  }
+
+  makeReviewMove(from: Square, to: Square, promoPiece?: PieceType): boolean {
+    const currentState = this.getState();
+    const legalMoves = this.ruleSet.generateLegalMoves
+      ? this.ruleSet.generateLegalMoves(currentState)
+      : this.ruleSet.generateMoves(currentState);
+    const candidateMoves = legalMoves.filter((m) => m.from === from && m.to === to);
+
+    if (candidateMoves.length === 0) {
+      this.selectedSquare = null;
+      this.notify();
+      return false;
+    }
+
+    const needsPromotion = candidateMoves.some((m) => m.promotion !== undefined);
+    if (needsPromotion && !promoPiece) {
+      this.pendingPromotion = { from, to };
+      this.notify();
+      return true;
+    }
+
+    const chosenMove = needsPromotion
+      ? candidateMoves.find((m) => m.promotion === promoPiece)
+      : candidateMoves[0];
+
+    if (!chosenMove) {
+      this.selectedSquare = null;
+      this.pendingPromotion = null;
+      this.notify();
+      return false;
+    }
+
+    // If currently in main line (no active variation), check if chosenMove matches the next main line move
+    if (this.activeVariationId === null) {
+      const currentPly = this.viewIndex === null ? this.state.history.length - 1 : this.viewIndex;
+      const nextPly = currentPly + 1;
+      if (nextPly < this.state.history.length) {
+        const nextMainMove = this.state.history[nextPly];
+        if (
+          chosenMove.from === nextMainMove.from &&
+          chosenMove.to === nextMainMove.to &&
+          chosenMove.promotion === nextMainMove.promotion
+        ) {
+          this.selectedSquare = null;
+          this.pendingPromotion = null;
+          this.setViewIndex(nextPly);
+          return true;
+        }
+      }
+    }
+
+    // Branching off or continuing a variation
+    const currentActive = this.getActiveVariationNode();
+    let rootPly: number;
+    let parentId: string | null = null;
+    let ply: number;
+
+    if (currentActive) {
+      parentId = currentActive.id;
+      rootPly = currentActive.rootPly;
+      ply = currentActive.ply + 1;
+
+      // Check if child already exists with this move
+      const existingChild = currentActive.children.find(
+        (c) =>
+          c.move.from === chosenMove.from &&
+          c.move.to === chosenMove.to &&
+          c.move.promotion === chosenMove.promotion,
+      );
+      if (existingChild) {
+        this.activeVariationId = existingChild.id;
+        this.selectedSquare = null;
+        this.pendingPromotion = null;
+        this.notify();
+        return true;
+      }
+    } else {
+      rootPly = this.viewIndex === null ? this.state.history.length - 1 : this.viewIndex;
+      ply = rootPly + 1;
+
+      // Check if top-level variation for this rootPly with chosenMove already exists
+      const existingRoot = this.variations.find(
+        (v) =>
+          v.rootPly === rootPly &&
+          v.move.from === chosenMove.from &&
+          v.move.to === chosenMove.to &&
+          v.move.promotion === chosenMove.promotion,
+      );
+      if (existingRoot) {
+        this.activeVariationId = existingRoot.id;
+        this.selectedSquare = null;
+        this.pendingPromotion = null;
+        this.notify();
+        return true;
+      }
+    }
+
+    const newState = this.ruleSet.applyMove(currentState, chosenMove);
+    const san = moveToSAN(currentState, chosenMove);
+    const node: VariationNode = {
+      id: `var-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      parentId,
+      rootPly,
+      ply,
+      move: chosenMove,
+      san,
+      fen: serializeFEN(newState),
+      state: newState,
+      children: [],
+    };
+
+    if (currentActive) {
+      currentActive.children.push(node);
+    } else {
+      this.variations.push(node);
+    }
+
+    this.activeVariationId = node.id;
+    this.selectedSquare = null;
+    this.pendingPromotion = null;
+    this.notify();
+
+    // Asynchronously analyze this variation move with Stockfish/engine
+    void this.analyzeVariationNode(node, currentState);
+    return true;
+  }
+
+  async analyzeVariationNode(node: VariationNode, stateBefore: GameState): Promise<void> {
+    try {
+      const engine = this.getOrCreateReviewEngine();
+      const moverColor = stateBefore.turn;
+
+      let evalBefore: Score = { type: 'cp', value: 0 };
+      let bestMoveBefore: Move | null = null;
+
+      if (node.parentId === null && this.reviewResult) {
+        const nextPly = node.rootPly + 1;
+        if (nextPly < this.reviewResult.moves.length) {
+          const rev = this.reviewResult.moves[nextPly];
+          evalBefore = rev.evalBefore;
+          bestMoveBefore = rev.bestMove;
+        } else if (node.rootPly >= 0 && node.rootPly < this.reviewResult.moves.length) {
+          evalBefore = this.reviewResult.moves[node.rootPly].evalAfter;
+        }
+      }
+
+      if (!bestMoveBefore) {
+        const resBefore = await engine.analyze(stateBefore, { depth: 14, multiPV: 2 });
+        evalBefore = resBefore.score;
+        bestMoveBefore = resBefore.bestMove;
+      }
+
+      const resAfter = await engine.analyze(node.state, { depth: 14, multiPV: 2 });
+      node.score = resAfter.score;
+      node.bestMove = resAfter.bestMove;
+      if (resAfter.bestMove) {
+        node.bestSan = moveToSAN(node.state, resAfter.bestMove);
+      }
+
+      const matchedBest = bestMoveBefore ? isSameMove(node.move, bestMoveBefore) : false;
+      const isCheckmateMove = isCheckmate(node.state);
+      const winBefore = povWinChance(evalBefore, moverColor);
+      const winAfter = povWinChance(node.score, moverColor);
+      const loss = Math.max(0, winBefore - winAfter);
+
+      const classification = classifyMove({
+        winBefore,
+        winAfter,
+        matchedBestMove: matchedBest,
+        isCheckmateMove,
+        evalBefore,
+        evalAfter: node.score,
+        moverColor,
+      });
+
+      node.class = classification.moveClass;
+      node.loss = loss;
+      node.accuracy = moveAccuracy(loss);
+      this.notify();
+    } catch {
+      if (!node.class) {
+        node.class = 'best';
+        this.notify();
+      }
+    }
+  }
+
+  playBestMoveVariation(rootPly: number, bestMove: Move, bestSan?: string): VariationNode | null {
+    this.exitVariationToMainLine();
+    this.setViewIndex(rootPly);
+    const stateBefore = this.getState();
+    const legalMoves = this.ruleSet.generateLegalMoves
+      ? this.ruleSet.generateLegalMoves(stateBefore)
+      : this.ruleSet.generateMoves(stateBefore);
+
+    const matchedLegal = legalMoves.find(
+      (m) =>
+        m.from === bestMove.from &&
+        m.to === bestMove.to &&
+        m.promotion === bestMove.promotion,
+    );
+    if (!matchedLegal) return null;
+
+    const stateAfter = this.ruleSet.applyMove(stateBefore, matchedLegal);
+    const san = bestSan ?? moveToSAN(stateBefore, matchedLegal);
+
+    const existing = this.variations.find(
+      (v) =>
+        v.rootPly === rootPly &&
+        v.move.from === matchedLegal.from &&
+        v.move.to === matchedLegal.to &&
+        v.move.promotion === matchedLegal.promotion,
+    );
+    if (existing) {
+      existing.class = existing.class ?? 'best';
+      this.activeVariationId = existing.id;
+      this.notify();
+      return existing;
+    }
+
+    const node: VariationNode = {
+      id: `var-best-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      parentId: null,
+      rootPly,
+      ply: rootPly + 1,
+      move: matchedLegal,
+      san,
+      fen: serializeFEN(stateAfter),
+      state: stateAfter,
+      class: 'best',
+      children: [],
+    };
+
+    this.variations.push(node);
+    this.activeVariationId = node.id;
+    this.notify();
+
+    void this.analyzeVariationNode(node, stateBefore);
+    return node;
   }
 }
 

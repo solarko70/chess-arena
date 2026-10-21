@@ -1,4 +1,4 @@
-import { ChessStore } from '@/state/store';
+import { ChessStore, type VariationNode } from '@/state/store';
 import { moveToSAN, classicalRuleSet } from '@/core';
 import { scoreToCp, getMoveClassMeta, identifyOpening } from '@/analysis';
 import { solarAudio } from '@/audio/solar-audio';
@@ -83,29 +83,59 @@ export class HistoryUI {
   }
 
   private initEvents(): void {
-    this.container.querySelector('#hist-first')?.addEventListener('click', () => {
+    const handleFirst = () => {
+      if (this.store.getActiveVariationNode()) {
+        this.store.exitVariationToMainLine();
+      }
       this.playReviewMoveSound(-1);
       this.store.setViewIndex(-1);
-    });
-    this.container.querySelector('#hist-prev')?.addEventListener('click', () => {
+    };
+
+    const handlePrev = () => {
+      const activeVar = this.store.getActiveVariationNode();
+      if (activeVar) {
+        if (activeVar.parentId) {
+          this.store.setActiveVariationNode(activeVar.parentId);
+        } else {
+          this.store.exitVariationToMainLine();
+        }
+        return;
+      }
       const current = this.store.getViewIndex();
       const historyLen = this.store.getLiveState().history.length;
       if (historyLen === 0) return;
       const target = current === null ? historyLen - 2 : current - 1;
       this.playReviewMoveSound(target);
       this.store.setViewIndex(target);
-    });
-    this.container.querySelector('#hist-next')?.addEventListener('click', () => {
+    };
+
+    const handleNext = () => {
+      const activeVar = this.store.getActiveVariationNode();
+      if (activeVar) {
+        if (activeVar.children.length > 0) {
+          this.store.setActiveVariationNode(activeVar.children[0].id);
+        }
+        return;
+      }
       const current = this.store.getViewIndex();
       if (current !== null) {
         this.playReviewMoveSound(current + 1);
         this.store.setViewIndex(current + 1);
       }
-    });
-    this.container.querySelector('#hist-last')?.addEventListener('click', () => {
+    };
+
+    const handleLast = () => {
+      if (this.store.getActiveVariationNode()) {
+        this.store.exitVariationToMainLine();
+      }
       this.playReviewMoveSound(null);
       this.store.setViewIndex(null);
-    });
+    };
+
+    this.container.querySelector('#hist-first')?.addEventListener('click', handleFirst);
+    this.container.querySelector('#hist-prev')?.addEventListener('click', handlePrev);
+    this.container.querySelector('#hist-next')?.addEventListener('click', handleNext);
+    this.container.querySelector('#hist-last')?.addEventListener('click', handleLast);
 
     this.prevMistakeBtn?.addEventListener('click', () => {
       this.goToPrevMistake();
@@ -117,28 +147,20 @@ export class HistoryUI {
     window.addEventListener('keydown', (e) => {
       if (['input', 'textarea'].includes((e.target as HTMLElement)?.tagName?.toLowerCase())) return;
       const historyLen = this.store.getLiveState().history.length;
-      if (historyLen === 0) return;
+      if (historyLen === 0 && !this.store.getActiveVariationNode()) return;
 
-      const current = this.store.getViewIndex();
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        const target = current === null ? historyLen - 2 : current - 1;
-        this.playReviewMoveSound(target);
-        this.store.setViewIndex(target);
+        handlePrev();
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        if (current !== null) {
-          this.playReviewMoveSound(current + 1);
-          this.store.setViewIndex(current + 1);
-        }
+        handleNext();
       } else if (e.key === 'Home') {
         e.preventDefault();
-        this.playReviewMoveSound(-1);
-        this.store.setViewIndex(-1);
+        handleFirst();
       } else if (e.key === 'End') {
         e.preventDefault();
-        this.playReviewMoveSound(null);
-        this.store.setViewIndex(null);
+        handleLast();
       }
     });
   }
@@ -235,7 +257,55 @@ export class HistoryUI {
     }
 
     // Render detail panel for selected move if review exists
-    if (viewIndex !== null && viewIndex >= 0 && review && review.moves[viewIndex]) {
+    const activeVar = this.store.getActiveVariationNode();
+    if (activeVar) {
+      this.detailEl.style.display = 'flex';
+      const moveClass = activeVar.class ?? 'best';
+      const meta = getMoveClassMeta(moveClass);
+      const evalFormatted = activeVar.score
+        ? (activeVar.score.type === 'mate'
+            ? `Мат ${activeVar.score.value > 0 ? '+' : ''}${activeVar.score.value}`
+            : `${(scoreToCp(activeVar.score) / 100).toFixed(2)}`)
+        : '—';
+      const bestSan = activeVar.bestSan || '—';
+      const lossText = activeVar.loss !== undefined && activeVar.loss > 0 ? `-${activeVar.loss.toFixed(1)}%` : '0%';
+      const verdictTitle = this.getFeedbackVerdictTitle(moveClass, meta.nameRu);
+      const verdictDesc = this.getFeedbackDescription(moveClass);
+      const descHtml = verdictDesc
+        ? `<span class="feedback-card-desc">${verdictDesc}</span>`
+        : '';
+
+      this.detailEl.innerHTML = `
+        <div class="feedback-card-header">
+          <span class="move-class-badge class-row-badge feedback-card-badge badge-${moveClass}" data-class="${moveClass}" title="${meta.nameRu}">
+            ${meta.svg}
+          </span>
+          <div class="feedback-card-verdict-wrap">
+            <span class="feedback-card-verdict">${verdictTitle}</span>
+            ${descHtml}
+            <span class="detail-badge badge-${moveClass}" data-class="${moveClass}" style="display: none;">${meta.nameRu.toLowerCase()}</span>
+          </div>
+        </div>
+        <div class="feedback-card-details">
+          <div class="feedback-detail-item">
+            <span class="feedback-label">Ход (вариант):</span>
+            <span class="feedback-value"><strong>${activeVar.san}</strong></span>
+          </div>
+          <div class="feedback-detail-item detail-best">
+            <span class="feedback-label">Лучший ход:</span>
+            <span class="feedback-value"><strong>${bestSan}</strong></span>
+          </div>
+          <div class="feedback-detail-item detail-eval">
+            <span class="feedback-label">Оценка:</span>
+            <span class="feedback-value"><strong>${evalFormatted}</strong></span>
+          </div>
+          <div class="feedback-detail-item feedback-loss-item">
+            <span class="feedback-label">Потеря шансов:</span>
+            <span class="feedback-value feedback-loss"><strong>${lossText}</strong></span>
+          </div>
+        </div>
+      `;
+    } else if (viewIndex !== null && viewIndex >= 0 && review && review.moves[viewIndex]) {
       const m = review.moves[viewIndex];
       this.detailEl.style.display = 'flex';
       const evalFormatted = m.evalAfter.type === 'mate'
@@ -344,7 +414,7 @@ export class HistoryUI {
         whiteSpan.appendChild(badge);
       }
 
-      if (viewIndex === i) whiteSpan.classList.add('active');
+      if (!activeVar && viewIndex === i) whiteSpan.classList.add('active');
       whiteSpan.addEventListener('click', () => {
         this.playReviewMoveSound(i);
         this.store.setViewIndex(i);
@@ -372,7 +442,7 @@ export class HistoryUI {
           blackSpan.appendChild(badge);
         }
 
-        if (viewIndex === i + 1) blackSpan.classList.add('active');
+        if (!activeVar && viewIndex === i + 1) blackSpan.classList.add('active');
         blackSpan.addEventListener('click', () => {
           this.playReviewMoveSound(i + 1);
           this.store.setViewIndex(i + 1);
@@ -381,9 +451,28 @@ export class HistoryUI {
       }
 
       this.listEl.appendChild(row);
+
+      // Render variations branching from this row
+      const rowIdx = Math.floor(i / 2);
+      const variations = this.store.getVariations();
+      for (const v of variations) {
+        if (Math.max(0, Math.floor(v.rootPly / 2)) === rowIdx) {
+          this.renderVariationBranch(v, this.listEl);
+        }
+      }
     }
 
-    const activeEl = this.listEl.querySelector('.history-move.active') as HTMLElement | null;
+    if (sans.length === 0) {
+      const variations = this.store.getVariations();
+      for (const v of variations) {
+        if (v.rootPly === -1) {
+          this.renderVariationBranch(v, this.listEl);
+        }
+      }
+    }
+
+    const activeEl = (this.listEl.querySelector('.variation-move.active') ??
+      this.listEl.querySelector('.history-move.active')) as HTMLElement | null;
     if (activeEl) {
       const activeRow = (activeEl.closest('.history-row') as HTMLElement | null) ?? activeEl;
       const container = this.listEl;
@@ -401,5 +490,96 @@ export class HistoryUI {
     } else {
       this.listEl.scrollTop = this.listEl.scrollHeight;
     }
+  }
+
+  private renderVariationBranch(node: VariationNode, container: HTMLElement): void {
+    const varEl = document.createElement('div');
+    varEl.className = 'history-variation';
+
+    const bracketOpen = document.createElement('span');
+    bracketOpen.className = 'variation-bracket';
+    bracketOpen.textContent = '(';
+    varEl.appendChild(bracketOpen);
+
+    const movesWrap = document.createElement('span');
+    movesWrap.className = 'variation-moves-wrap';
+
+    const renderNodeSequence = (curr: VariationNode) => {
+      const span = document.createElement('span');
+      const isActive = this.store.getActiveVariationNodeId() === curr.id;
+      span.className = `variation-move${isActive ? ' active' : ''}`;
+      span.dataset.variationId = curr.id;
+
+      const moveNumber = Math.floor(curr.ply / 2) + 1;
+      const isBlack = curr.ply % 2 === 1;
+      let label = curr.san;
+      if (curr.parentId === null) {
+        label = isBlack ? `${moveNumber}... ${curr.san}` : `${moveNumber}. ${curr.san}`;
+      } else {
+        const parentNode = this.store.findVariationNode(curr.parentId);
+        if (parentNode && !isBlack) {
+          label = `${moveNumber}. ${curr.san}`;
+        }
+      }
+
+      span.textContent = label;
+
+      if (curr.class) {
+        const meta = getMoveClassMeta(curr.class);
+        const badge = document.createElement('span');
+        badge.className = `move-class-badge review-move-badge badge-${curr.class}`;
+        badge.dataset.class = curr.class;
+        badge.title = meta.nameRu;
+        badge.innerHTML = meta.svg;
+        span.appendChild(badge);
+      }
+
+      span.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.store.setActiveVariationNode(curr.id);
+      });
+
+      movesWrap.appendChild(span);
+
+      if (curr.children.length === 1) {
+        renderNodeSequence(curr.children[0]);
+      } else if (curr.children.length > 1) {
+        renderNodeSequence(curr.children[0]);
+        for (let c = 1; c < curr.children.length; c++) {
+          const subBracketOpen = document.createElement('span');
+          subBracketOpen.className = 'variation-bracket';
+          subBracketOpen.textContent = '(';
+          movesWrap.appendChild(subBracketOpen);
+
+          renderNodeSequence(curr.children[c]);
+
+          const subBracketClose = document.createElement('span');
+          subBracketClose.className = 'variation-bracket';
+          subBracketClose.textContent = ')';
+          movesWrap.appendChild(subBracketClose);
+        }
+      }
+    };
+
+    renderNodeSequence(node);
+    varEl.appendChild(movesWrap);
+
+    const bracketClose = document.createElement('span');
+    bracketClose.className = 'variation-bracket';
+    bracketClose.textContent = ')';
+    varEl.appendChild(bracketClose);
+
+    const returnBtn = document.createElement('button');
+    returnBtn.type = 'button';
+    returnBtn.className = 'btn-return-mainline solar-btn-ghost';
+    returnBtn.textContent = 'Вернуться в партию';
+    returnBtn.title = 'Вернуться в основную партию';
+    returnBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.store.exitVariationToMainLine();
+    });
+    varEl.appendChild(returnBtn);
+
+    container.appendChild(varEl);
   }
 }
