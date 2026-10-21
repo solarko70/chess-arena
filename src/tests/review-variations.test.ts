@@ -256,17 +256,19 @@ describe('Stage 6a: Review Variations & Best Move button', () => {
 
     expect(store.getActiveVariationNode()).toBeNull();
     expect(store.getViewIndex()).toBe(0);
+    // Verify .history-variation is completely removed from DOM
+    expect(historyContainer.querySelector('.history-variation')).toBeNull();
 
-    // Re-enter variation by clicking on it
-    const varMove = historyContainer.querySelector('.variation-move') as HTMLElement;
-    expect(varMove).toBeTruthy();
-    varMove.click();
+    // Re-play variation 1... c5
+    store.makeMove(10, 26);
     expect(store.getActiveVariationNode()).toBeTruthy();
+    expect(historyContainer.querySelector('.history-variation')).toBeTruthy();
 
     // Press ArrowLeft at root of variation -> exits to main line
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
     expect(store.getActiveVariationNode()).toBeNull();
     expect(store.getViewIndex()).toBe(0);
+    expect(historyContainer.querySelector('.history-variation')).toBeNull();
   });
 
   it('Стрелки навигации и клавиатура корректно перемещают фокус по последовательности ходов в ответвлении', () => {
@@ -394,5 +396,69 @@ describe('Stage 6a: Review Variations & Best Move button', () => {
     const badge = boardContainer.querySelector('.board-move-badge.badge-best');
     expect(badge).toBeTruthy();
     expect(badge?.getAttribute('data-square')).toBe('18');
+  });
+
+  it('Переключение viewIndex на другой ход основной партии очищает блок вариаций из DOM', () => {
+    store.setViewIndex(0);
+    // Play variation 1... c5
+    store.makeMove(10, 26);
+    expect(store.getActiveVariationNode()).toBeTruthy();
+    expect(historyContainer.querySelector('.history-variation')).toBeTruthy();
+
+    // Switch viewIndex to next main line move (1... e5, index 1)
+    store.setViewIndex(1);
+
+    expect(store.getActiveVariationNode()).toBeNull();
+    expect(store.getVariations().length).toBe(0);
+    expect(historyContainer.querySelector('.history-variation')).toBeNull();
+  });
+
+  it('Кнопка "Лучший ход" внутри вариации рассчитывает и разыгрывает лучший ответный ход', async () => {
+    store.setViewIndex(0); // after 1. e4
+    // Black plays variation 1... c5 (from 10 to 26)
+    store.makeMove(10, 26);
+    const var1 = store.getActiveVariationNode();
+    expect(var1).toBeTruthy();
+    expect(var1?.san).toBe('c5');
+
+    // Mock engine to recommend 2. Nf3 (from 62 to 45) for White in this Sicilian position
+    const engine = store.getOrCreateReviewEngine();
+    const origAnalyze = engine.analyze.bind(engine);
+    engine.analyze = (async () => ({
+      engineName: 'MockStockfish',
+      score: { type: 'cp', value: 40 },
+      bestMove: { from: 62, to: 45 } as Move,
+      pv: [{ from: 62, to: 45 } as Move],
+      depth: 14,
+      nodes: 1000,
+      timeMs: 10,
+      lines: [],
+    })) as unknown as typeof engine.analyze;
+
+    const bestMoveBtn = reviewNavContainer.querySelector('#review-best-move-btn') as HTMLButtonElement;
+    expect(bestMoveBtn).toBeTruthy();
+
+    try {
+      await reviewUI.handleBestMoveClick();
+
+      // Should create child variation node 2. Nf3
+      const var2 = store.getActiveVariationNode();
+      expect(var2).toBeTruthy();
+      expect(var2?.parentId).toBe(var1?.id);
+      expect(var2?.san).toBe('Nf3');
+      expect(var2?.class).toBe('best');
+
+      // Check piece on square 45 has sliding class and badge is mounted
+      const targetSq = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+      expect(targetSq).toBeTruthy();
+      const pieceWrapper = targetSq.querySelector('.piece-wrapper');
+      expect(pieceWrapper?.classList.contains('piece-sliding')).toBe(true);
+
+      const badge = boardContainer.querySelector('.board-move-badge.badge-best');
+      expect(badge).toBeTruthy();
+      expect(badge?.getAttribute('data-square')).toBe('45');
+    } finally {
+      engine.analyze = origAnalyze;
+    }
   });
 });

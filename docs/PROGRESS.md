@@ -552,33 +552,25 @@
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (35 test files passed, 370 tests passed, watchdog clean).
 
-## Stage 6a-1: Move Execution Fix & Best Move Sliding Kinematics in Review (Completed)
-- [x] Unblocking Move Execution in Review Variations Mode (`src/state/store.ts`, `src/ui/board.ts`):
-  - Fixed terminal game guards in `ChessStore`: moved `timedOutLoser !== null || resignedPlayer !== null` checks inside `if (!this.isReviewModeActive) { ... }` in both `selectSquare()` and `getValidDestinationsFor()`.
-  - Review mode now unconditionally allows selecting pieces and viewing valid destination squares regardless of whether the finished game concluded via clock timeout, resignation, checkmate, or stalemate.
-  - In `ChessBoardUI.processStartAt()`: explicitly allowed input when `this.store.isReviewMode() && !this.store.isReviewInProgress()`, eliminating any interference from AI thinking state of the prior game.
-- [x] Robust Drag & Drop and Pointer Handling on Board (`src/ui/board.ts`):
-  - Safely released pointer capture in `handlePointerUp` to prevent pointer events being intercepted or swallowed by the originating square.
-  - Temporarily hid `floatingPieceEl` before executing `document.elementFromPoint(clientX, clientY)` to avoid the floating piece element masking the drop target square.
-  - Implemented geometric coordinate fallback in `finishDragAt`: if `elementFromPoint` does not return a `.chess-square` (e.g. dropped on borders, grid gaps, or in synthetic/headless environments), target square is mathematically resolved from `this.boardEl.getBoundingClientRect()` and `board.{width, height}`.
-  - Preserved seamless click-to-move support in review mode alongside drag & drop.
-- [x] Smooth Piece Sliding Kinematics for Variations & "Лучший ход" (`src/ui/board.ts`, `src/state/store.ts`):
-  - Integrated variation move transitions into `handleReviewMoveKinematics`: tracked `lastAnimatedVariationId` to detect variation node creation or navigation.
-  - When `#review-best-move-btn` or a variation move is executed, calls `animatePieceSlide(from, to, flipped, width, height)` applying the FLIP kinematic sequence with `.piece-wrapper.piece-sliding` (170ms cubic-bezier(0.2, 0.8, 0.2, 1)).
-  - Forward variation steps slide from `from` to `to`, while backward variation navigation slides from `to` back to `from`.
-  - In `playBestMoveVariation`: streamlined state transition to emit a single notification, preventing intermediate position flickers.
+## Stage 6a-2: Variation Tree Cleanup on Main Line Return & Context-Aware Best Move (Completed)
+- [x] Complete Variation Tree & DOM Cleanup on Main Line Return (`src/state/store.ts`, `src/ui/history.ts`):
+  - In `ChessStore.setViewIndex(index)`: automatically resets `this.variations = []` and `this.activeVariationId = null` so switching moves in the main line completely cleans variation branches.
+  - In `ChessStore.exitVariationToMainLine()`: clears variation tree via `this.clearVariations()` and navigates back to `targetPly`.
+  - In `HistoryUI.renderMoveList()`: variations (`.history-variation`) are strictly rendered only while `activeVar` is non-null, completely removing `.history-variation` from the DOM when returning to the main line.
+  - Updated return button with required classes: `.btn-return-mainline`, `.return-btn`, `.back-to-main-btn`, `.solar-btn-ghost`.
+  - Clicking any move in the history table or navigating mistakes ("Пред. ошибка" / "След. ошибка") exits active variations cleanly before changing the move.
+- [x] Context-Aware "Лучший ход" (Best Move) Inside Variations (`src/ui/reviewpanel.ts`, `src/state/store.ts`, `src/ui/styles.css`):
+  - Inside variation branches (`activeVar !== null`), clicking `#review-best-move-btn` queries Stockfish/ReviewEngine for `currentState` at depth 14 with `multiPV: 2`.
+  - Appends the recommended move as a child step of the current variation (`parentId: activeVar.id`) with class `'best'`.
+  - Plays procedural move sound and activates smooth piece sliding kinematics (`.piece-wrapper.piece-sliding`, 160–180ms ease-out) with quality badge and arrow.
+  - Prevents click spam during engine calculation by setting `bestMoveBtn.disabled = true`, adding `.loading` class, rotating spinner animation, and temporary label «Анализ...».
+  - Maintained single `@media (prefers-reduced-motion: reduce)` media query block in `src/ui/styles.css` for motion safety.
 - [x] Unit Tests & Verification (`src/tests/review-variations.test.ts`):
-  - Added 4 comprehensive tests (total 10 tests in `src/tests/review-variations.test.ts`):
-    1. Click-to-move execution on the board in review mode commits a variation.
-    2. Drag & Drop on the board in review mode commits a variation with square updates.
-    3. Game ending by timeout/resignation does not block piece selection and moves in review mode.
-    4. "Лучший ход" button triggers smooth piece sliding animation with `.piece-sliding` class and mounts the quality badge.
-  - Polyfilled JSDOM `PointerEvent` safely for synthetic pointer testing.
-  - All test names $\le 100$ characters; no existing tests modified or removed.
+  - Added 2 new tests in `src/tests/review-variations.test.ts` (12 tests total):
+    1. Switching `viewIndex` to another main line move clears variations from the DOM.
+    2. "Лучший ход" inside a variation calculates and plays the best response move.
+  - All test titles $\le 100$ characters; preserved 100% of existing tests.
   - Verified `npm run lint` (0 errors, 0 warnings).
   - Verified `npm run build` (production build clean).
-  - Verified `npm test` (35 test files passed, 374 tests passed, watchdog clean).
-
-
-
+  - Verified `npm test` (35 test files passed, 376 tests passed, watchdog clean).
 

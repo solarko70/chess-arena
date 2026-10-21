@@ -184,6 +184,9 @@ export class HistoryUI {
   }
 
   private goToPrevMistake(): void {
+    if (this.store.getActiveVariationNode()) {
+      this.store.exitVariationToMainLine();
+    }
     const review = this.store.getReviewResult();
     if (!review) return;
     const current = this.store.getViewIndex();
@@ -201,6 +204,9 @@ export class HistoryUI {
   }
 
   private goToNextMistake(): void {
+    if (this.store.getActiveVariationNode()) {
+      this.store.exitVariationToMainLine();
+    }
     const review = this.store.getReviewResult();
     if (!review) return;
     const current = this.store.getViewIndex();
@@ -416,6 +422,9 @@ export class HistoryUI {
 
       if (!activeVar && viewIndex === i) whiteSpan.classList.add('active');
       whiteSpan.addEventListener('click', () => {
+        if (this.store.getActiveVariationNode()) {
+          this.store.exitVariationToMainLine();
+        }
         this.playReviewMoveSound(i);
         this.store.setViewIndex(i);
       });
@@ -444,6 +453,9 @@ export class HistoryUI {
 
         if (!activeVar && viewIndex === i + 1) blackSpan.classList.add('active');
         blackSpan.addEventListener('click', () => {
+          if (this.store.getActiveVariationNode()) {
+            this.store.exitVariationToMainLine();
+          }
           this.playReviewMoveSound(i + 1);
           this.store.setViewIndex(i + 1);
         });
@@ -452,17 +464,19 @@ export class HistoryUI {
 
       this.listEl.appendChild(row);
 
-      // Render variations branching from this row
-      const rowIdx = Math.floor(i / 2);
-      const variations = this.store.getVariations();
-      for (const v of variations) {
-        if (Math.max(0, Math.floor(v.rootPly / 2)) === rowIdx) {
-          this.renderVariationBranch(v, this.listEl);
+      // Render variations branching from this row (only when active variation exists)
+      if (activeVar) {
+        const rowIdx = Math.floor(i / 2);
+        const variations = this.store.getVariations();
+        for (const v of variations) {
+          if (Math.max(0, Math.floor(v.rootPly / 2)) === rowIdx) {
+            this.renderVariationBranch(v, this.listEl);
+          }
         }
       }
     }
 
-    if (sans.length === 0) {
+    if (sans.length === 0 && activeVar) {
       const variations = this.store.getVariations();
       for (const v of variations) {
         if (v.rootPly === -1) {
@@ -571,7 +585,7 @@ export class HistoryUI {
 
     const returnBtn = document.createElement('button');
     returnBtn.type = 'button';
-    returnBtn.className = 'btn-return-mainline solar-btn-ghost';
+    returnBtn.className = 'btn-return-mainline return-btn back-to-main-btn solar-btn-ghost';
     returnBtn.textContent = 'Вернуться в партию';
     returnBtn.title = 'Вернуться в основную партию';
     returnBtn.addEventListener('click', (e) => {

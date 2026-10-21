@@ -4539,6 +4539,27 @@ body.bg-anim-off .solar-background * {
   transform: translateY(0);
 }
 
+.review-best-move-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.review-best-move-btn.loading svg.best-move-icon {
+  animation: solarSpin 1s linear infinite;
+}
+
+@keyframes solarSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .review-best-move-btn svg.best-move-icon {
   width: 18px;
   height: 18px;
@@ -5942,7 +5963,8 @@ body.review-active .sound-toggle-btn {
   .stellar-wing-right,
   .stellar-wings-flutter,
   .stellar-crown,
-  .stellar-crown-float {
+  .stellar-crown-float,
+  .review-best-move-btn.loading svg.best-move-icon {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;

@@ -193,6 +193,7 @@ export class ChessStore {
 
   setViewIndex(index: number | null): void {
     this.activeVariationId = null;
+    this.variations = [];
     if (index === null) {
       this.viewIndex = null;
     } else {
@@ -1371,16 +1372,11 @@ export class ChessStore {
   }
 
   exitVariationToMainLine(): void {
-    if (this.activeVariationId === null) return;
-    const node = this.findVariationNode(this.activeVariationId);
-    this.activeVariationId = null;
-    this.selectedSquare = null;
-    this.pendingPromotion = null;
-    if (node) {
-      this.setViewIndex(node.rootPly);
-    } else {
-      this.notify();
-    }
+    if (this.activeVariationId === null && this.variations.length === 0) return;
+    const node = this.activeVariationId ? this.findVariationNode(this.activeVariationId) : null;
+    const targetPly = node ? node.rootPly : this.viewIndex;
+    this.clearVariations();
+    this.setViewIndex(targetPly);
   }
 
   clearVariations(): void {
@@ -1610,12 +1606,31 @@ export class ChessStore {
     }
   }
 
-  playBestMoveVariation(rootPly: number, bestMove: Move, bestSan?: string): VariationNode | null {
-    this.activeVariationId = null;
-    this.viewIndex = rootPly;
+  playBestMoveVariation(
+    rootPly: number,
+    bestMove: Move,
+    bestSan?: string,
+    parentId: string | null = null,
+  ): VariationNode | null {
+    let parentNode: VariationNode | null = null;
+    let stateBefore: GameState;
+    let ply: number;
+
+    if (parentId !== null) {
+      parentNode = this.findVariationNode(parentId);
+      if (!parentNode) return null;
+      stateBefore = parentNode.state;
+      ply = parentNode.ply + 1;
+    } else {
+      this.activeVariationId = null;
+      this.viewIndex = rootPly;
+      stateBefore = this.getStateAtPly(rootPly);
+      ply = rootPly + 1;
+    }
+
     this.selectedSquare = null;
     this.pendingPromotion = null;
-    const stateBefore = this.getStateAtPly(rootPly);
+
     const legalMoves = this.ruleSet.generateLegalMoves
       ? this.ruleSet.generateLegalMoves(stateBefore)
       : this.ruleSet.generateMoves(stateBefore);
@@ -1631,25 +1646,40 @@ export class ChessStore {
     const stateAfter = this.ruleSet.applyMove(stateBefore, matchedLegal);
     const san = bestSan ?? moveToSAN(stateBefore, matchedLegal);
 
-    const existing = this.variations.find(
-      (v) =>
-        v.rootPly === rootPly &&
-        v.move.from === matchedLegal.from &&
-        v.move.to === matchedLegal.to &&
-        v.move.promotion === matchedLegal.promotion,
-    );
-    if (existing) {
-      existing.class = existing.class ?? 'best';
-      this.activeVariationId = existing.id;
-      this.notify();
-      return existing;
+    if (parentNode) {
+      const existing = parentNode.children.find(
+        (c) =>
+          c.move.from === matchedLegal.from &&
+          c.move.to === matchedLegal.to &&
+          c.move.promotion === matchedLegal.promotion,
+      );
+      if (existing) {
+        existing.class = existing.class ?? 'best';
+        this.activeVariationId = existing.id;
+        this.notify();
+        return existing;
+      }
+    } else {
+      const existing = this.variations.find(
+        (v) =>
+          v.rootPly === rootPly &&
+          v.move.from === matchedLegal.from &&
+          v.move.to === matchedLegal.to &&
+          v.move.promotion === matchedLegal.promotion,
+      );
+      if (existing) {
+        existing.class = existing.class ?? 'best';
+        this.activeVariationId = existing.id;
+        this.notify();
+        return existing;
+      }
     }
 
     const node: VariationNode = {
       id: `var-best-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      parentId: null,
+      parentId,
       rootPly,
-      ply: rootPly + 1,
+      ply,
       move: matchedLegal,
       san,
       fen: serializeFEN(stateAfter),
@@ -1658,7 +1688,12 @@ export class ChessStore {
       children: [],
     };
 
-    this.variations.push(node);
+    if (parentNode) {
+      parentNode.children.push(node);
+    } else {
+      this.variations.push(node);
+    }
+
     this.activeVariationId = node.id;
     this.notify();
 

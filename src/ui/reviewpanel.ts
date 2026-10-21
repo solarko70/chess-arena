@@ -55,6 +55,7 @@ export class ReviewPanelUI {
   private bestMoveBtn: HTMLButtonElement | null = null;
   private bestMoveToast: HTMLElement | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  private isBestMoveLoading = false;
 
   // DOM elements
   private cancelBtn!: HTMLButtonElement;
@@ -254,6 +255,8 @@ export class ReviewPanelUI {
       if (activeVar) {
         if (activeVar.children.length > 0) {
           this.store.setActiveVariationNode(activeVar.children[0].id);
+        } else {
+          this.store.exitVariationToMainLine();
         }
         return;
       }
@@ -313,22 +316,54 @@ export class ReviewPanelUI {
   public async handleBestMoveClick(): Promise<void> {
     const isReview = this.store.isReviewMode();
     if (!isReview) return;
+    if (this.isBestMoveLoading) return;
 
     const review = this.store.getReviewResult();
     const activeVar = this.store.getActiveVariationNode();
     const viewIndex = this.store.getViewIndex();
 
+    // ── Case 1: Inside a variation branch ───────────────────────────────────
     if (activeVar) {
-      if (activeVar.class === 'best' || activeVar.class === 'stellar' || activeVar.class === 'superb') {
-        this.showBestMoveToast('Этот ход уже лучший');
+      const currentState = this.store.getState();
+      const gameResult = this.store.getGameResult();
+      if (gameResult.type !== 'ongoing') {
+        this.showBestMoveToast('Партия завершена');
         return;
       }
-      if (activeVar.bestMove) {
-        this.store.playBestMoveVariation(activeVar.rootPly, activeVar.bestMove, activeVar.bestSan);
-        return;
+
+      this.isBestMoveLoading = true;
+      if (this.bestMoveBtn) {
+        this.bestMoveBtn.disabled = true;
+        this.bestMoveBtn.classList.add('loading');
+        const span = this.bestMoveBtn.querySelector('span');
+        if (span) span.textContent = 'Анализ...';
       }
+
+      try {
+        const engine = this.store.getOrCreateReviewEngine();
+        const res = await engine.analyze(currentState, { depth: 14, multiPV: 2 });
+        const bestMove = res.bestMove;
+
+        if (bestMove) {
+          this.store.playBestMoveVariation(activeVar.rootPly, bestMove, undefined, activeVar.id);
+        } else {
+          this.showBestMoveToast('Нет доступных ходов');
+        }
+      } catch {
+        this.showBestMoveToast('Ошибка анализа хода');
+      } finally {
+        this.isBestMoveLoading = false;
+        if (this.bestMoveBtn) {
+          this.bestMoveBtn.disabled = false;
+          this.bestMoveBtn.classList.remove('loading');
+          const span = this.bestMoveBtn.querySelector('span');
+          if (span) span.textContent = 'Лучший ход';
+        }
+      }
+      return;
     }
 
+    // ── Case 2: In main line ────────────────────────────────────────────────
     const historyLen = this.store.getLiveState().history.length;
     const currentIdx = viewIndex === null ? historyLen - 1 : viewIndex;
     if (currentIdx < 0) {
@@ -343,22 +378,37 @@ export class ReviewPanelUI {
       }
       if (reviewedMove.bestMove) {
         const rootPly = currentIdx - 1;
-        this.store.playBestMoveVariation(rootPly, reviewedMove.bestMove, reviewedMove.bestSan ?? undefined);
+        this.store.playBestMoveVariation(rootPly, reviewedMove.bestMove, reviewedMove.bestSan ?? undefined, null);
         return;
       }
     }
 
     // Fallback: analyze position before currentIdx
+    this.isBestMoveLoading = true;
+    if (this.bestMoveBtn) {
+      this.bestMoveBtn.disabled = true;
+      this.bestMoveBtn.classList.add('loading');
+      const span = this.bestMoveBtn.querySelector('span');
+      if (span) span.textContent = 'Анализ...';
+    }
     try {
       const rootPly = currentIdx - 1;
       const stateBefore = this.store.getStateAtPly(rootPly);
       const engine = this.store.getOrCreateReviewEngine();
       const res = await engine.analyze(stateBefore, { depth: 14, multiPV: 2 });
       if (res.bestMove) {
-        this.store.playBestMoveVariation(rootPly, res.bestMove);
+        this.store.playBestMoveVariation(rootPly, res.bestMove, undefined, null);
       }
     } catch {
       // Ignore analysis errors
+    } finally {
+      this.isBestMoveLoading = false;
+      if (this.bestMoveBtn) {
+        this.bestMoveBtn.disabled = false;
+        this.bestMoveBtn.classList.remove('loading');
+        const span = this.bestMoveBtn.querySelector('span');
+        if (span) span.textContent = 'Лучший ход';
+      }
     }
   }
 
