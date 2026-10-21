@@ -200,6 +200,40 @@ export class SolarAudio {
   }
 
   /**
+   * Ultra-short, delicate airy hover micro-tick for UI buttons:
+   * Pure sine wave pulse at 1040Hz (in 950-1100Hz range),
+   * ultra-short duration (0.022s) with instant exponential decay to 0.0001,
+   * gentle peak volume (0.03, within 0.025-0.035 limit).
+   * Safe return if muted or context not unlocked.
+   */
+  public playButtonHover(): void {
+    if (this.isMutedState) return;
+    if (!this.ctx || this.ctx.state !== 'running') return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const duration = 0.022;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1040, now);
+
+      gain.gain.setValueAtTime(0.03, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    } catch {
+      // Safe fallback on Web Audio API errors
+    }
+  }
+
+  /**
    * Procedural cosmic black hole background ambient (Cosmic Drone):
    * Sets isAmbientRequested = true. If AudioContext is already running, launches drone immediately.
    * If AudioContext is not created or suspended, drone will be started upon first user unlock gesture.
@@ -692,6 +726,10 @@ export function playStellar(): void {
 
 export function playButtonClick(): void {
   solarAudio.playButtonClick();
+}
+
+export function playButtonHover(): void {
+  solarAudio.playButtonHover();
 }
 
 export function startMenuAmbient(): void {

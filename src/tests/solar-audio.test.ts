@@ -8,6 +8,7 @@ import {
   playCheckmate,
   playStellar,
   playButtonClick,
+  playButtonHover,
   startMenuAmbient,
   stopMenuAmbient,
   toggleMute,
@@ -430,6 +431,7 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
 
   it('standalone audio methods playButtonClick, startMenuAmbient, stopMenuAmbient run safely', () => {
     expect(typeof playButtonClick).toBe('function');
+    expect(typeof playButtonHover).toBe('function');
     expect(typeof startMenuAmbient).toBe('function');
     expect(typeof stopMenuAmbient).toBe('function');
     expect(typeof toggleMute).toBe('function');
@@ -437,6 +439,7 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
     expect(typeof isMuted).toBe('function');
 
     expect(() => playButtonClick()).not.toThrow();
+    expect(() => playButtonHover()).not.toThrow();
     expect(() => startMenuAmbient()).not.toThrow();
     expect(() => stopMenuAmbient()).not.toThrow();
   });
@@ -1033,6 +1036,120 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
 
     setIntervalSpy.mockRestore();
     vi.useRealTimers();
+  });
+
+  it('playButtonHover runs safely in jsdom and synthesizes short sine micro-pulse', () => {
+    const createdOscillators: Array<{
+      type: string;
+      frequency: { setValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const createdGains: Array<{
+      gain: {
+        setValueAtTime: ReturnType<typeof vi.fn>;
+        exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
+      };
+      connect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const mockCtx = {
+      currentTime: 10,
+      state: 'running',
+      createOscillator: vi.fn().mockImplementation(() => {
+        const osc = {
+          type: 'sine',
+          frequency: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+          start: vi.fn(),
+          stop: vi.fn(),
+        };
+        createdOscillators.push(osc);
+        return osc;
+      }),
+      createGain: vi.fn().mockImplementation(() => {
+        const gain = {
+          gain: {
+            setValueAtTime: vi.fn(),
+            exponentialRampToValueAtTime: vi.fn(),
+          },
+          connect: vi.fn(),
+        };
+        createdGains.push(gain);
+        return gain;
+      }),
+      destination: {},
+    };
+
+    solarAudio.setContextForTesting(mockCtx as unknown as AudioContext);
+    solarAudio.setMuted(false);
+
+    solarAudio.playButtonHover();
+
+    expect(createdOscillators.length).toBe(1);
+    expect(createdOscillators[0].type).toBe('sine');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(1040, 10);
+
+    expect(createdGains.length).toBe(1);
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.03, 10);
+    expect(createdGains[0].gain.exponentialRampToValueAtTime).toHaveBeenCalledWith(0.0001, 10.022);
+
+    expect(createdOscillators[0].start).toHaveBeenCalledWith(10);
+    expect(createdOscillators[0].stop).toHaveBeenCalledWith(10.022);
+
+    // Muted -> no sound
+    solarAudio.setMuted(true);
+    solarAudio.playButtonHover();
+    expect(createdOscillators.length).toBe(1);
+
+    // Suspended context -> no sound
+    solarAudio.setMuted(false);
+    mockCtx.state = 'suspended';
+    solarAudio.playButtonHover();
+    expect(createdOscillators.length).toBe(1);
+  });
+
+  it('hovering interactive buttons triggers playButtonHover with throttling, board squares ignored', () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    initApp();
+    const hoverSpy = vi.spyOn(solarAudio, 'playButtonHover');
+
+    const menuBtn = document.getElementById('btn-play-local') as HTMLButtonElement | null;
+    expect(menuBtn).not.toBeNull();
+
+    let nowTime = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => nowTime);
+
+    // 1. Hover on menu button triggers hover sound
+    menuBtn?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(hoverSpy).toHaveBeenCalledTimes(1);
+
+    // 2. Immediate spam hover (< 45ms) is throttled and ignored
+    nowTime += 20;
+    menuBtn?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(hoverSpy).toHaveBeenCalledTimes(1);
+
+    // 3. Hover after 50ms (> 45ms) triggers sound
+    nowTime += 50;
+    menuBtn?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(hoverSpy).toHaveBeenCalledTimes(2);
+
+    // 4. Hovering a chess board square never triggers hover sound
+    const boardMock = document.createElement('div');
+    boardMock.id = 'board-mount';
+    const squareMock = document.createElement('div');
+    squareMock.className = 'board-square';
+    boardMock.appendChild(squareMock);
+    document.body.appendChild(boardMock);
+
+    nowTime += 100;
+    squareMock.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(hoverSpy).toHaveBeenCalledTimes(2);
+
+    boardMock.remove();
+    getRouter()?.destroy();
   });
 });
 

@@ -2,6 +2,7 @@ import './ui/styles.css';
 import {
   solarAudio,
   playButtonClick,
+  playButtonHover,
   startMenuAmbient,
   stopMenuAmbient,
 } from './audio/solar-audio';
@@ -1026,9 +1027,45 @@ export function initApp(): void {
       playButtonClick();
     }
   };
+
+  // Subtle button hover sound feedback with throttling (~45ms)
+  let lastHoverTime = 0;
+  const handleButtonHoverSound = (e: MouseEvent): void => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+
+    // Do NOT play hover sound on chess board squares, pieces, or board coordinates
+    if (target.closest('#board-mount, .board-square, .chess-piece, .square-overlay, .piece-wrapper')) return;
+
+    // Do NOT play hover sound on move navigation or history moves
+    const isMoveNav = target.closest(
+      '.review-nav-btn, .review-btn, .history-row, .card-class-row, .board-arrow-btn, .key-moment-item, .history-nav, .history-move, [data-nav], [data-move-idx], [data-move-index]'
+    );
+    if (isMoveNav) return;
+
+    const btn = target.closest(
+      'button:not(.promo-btn), .btn-menu, .menu-btn, .btn-action, .review-tab-btn, .setup-time-card, .setup-level-card, .setup-color-card, #sound-btn, #theme-btn, .btn-back, .btn-close'
+    );
+    if (!btn) return;
+
+    // Avoid duplicate triggers when moving between child elements of the same button
+    const related = e.relatedTarget as HTMLElement | null;
+    if (related && btn.contains(related)) return;
+
+    const now = performance.now();
+    if (now - lastHoverTime < 45) return;
+    lastHoverTime = now;
+
+    playButtonHover();
+  };
+
   document.addEventListener('click', handleButtonClickSound);
+  document.addEventListener('mouseover', handleButtonHoverSound, { passive: true });
+  document.addEventListener('mouseenter', handleButtonHoverSound, { capture: true, passive: true });
   clickCleanup = () => {
     document.removeEventListener('click', handleButtonClickSound);
+    document.removeEventListener('mouseover', handleButtonHoverSound);
+    document.removeEventListener('mouseenter', handleButtonHoverSound, true);
   };
 }
 

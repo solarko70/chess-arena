@@ -369,6 +369,11 @@ export class ChessBoardUI {
             <stop offset="0%" stop-color="#fef08a" />
             <stop offset="100%" stop-color="#c026d3" />
           </linearGradient>
+          <linearGradient id="solar-crown-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fffbeb" />
+            <stop offset="35%" stop-color="#fde68a" />
+            <stop offset="100%" stop-color="#f59e0b" />
+          </linearGradient>
         </defs>
         <g class="stellar-wings-group">
           <!-- Left Angelic Wing -->
@@ -381,6 +386,15 @@ export class ChessBoardUI {
             <path class="wing-feather-main" d="M 55 35 C 59 24, 70 12, 84 3 L 104 -2 C 96 7, 90 13, 87 18 L 101 18 C 93 22, 87 26, 84 30 L 95 31 C 88 34, 83 37, 80 40 L 88 43 C 82 45, 77 47, 74 49 L 78 52 C 70 50, 62 44, 55 35 Z" fill="url(#solar-wing-gradient)" stroke="none" />
             <path class="wing-feather-soft" d="M 56 34 C 62 25, 71 16, 82 9 L 94 7 C 88 13, 82 19, 79 24 L 89 25 C 83 29, 78 33, 76 37 L 82 39 C 76 42, 69 43, 64 41 C 59 39, 57 36, 56 34 Z" fill="url(#solar-wing-gradient)" opacity="0.6" stroke="none" />
           </g>
+        </g>
+        <!-- Floating Solar Crown (Stage 5b-5) -->
+        <g class="stellar-crown stellar-crown-float" aria-hidden="true">
+          <path class="crown-body" d="M 38 14 L 38 6 L 43 10 L 46 3 L 49 8 L 50 0 L 51 8 L 54 3 L 57 10 L 62 6 L 62 14 Q 50 16 38 14 Z" fill="url(#solar-crown-gold)" stroke="none" />
+          <path class="crown-sparkle" d="M 50 -3 L 51 -1 L 53 0 L 51 1 L 50 3 L 49 1 L 47 0 L 49 -1 Z" fill="#fffbeb" />
+          <circle cx="46" cy="3" r="1" fill="#fffbeb" />
+          <circle cx="54" cy="3" r="1" fill="#fffbeb" />
+          <circle cx="38" cy="6" r="0.8" fill="#fde68a" />
+          <circle cx="62" cy="6" r="0.8" fill="#fde68a" />
         </g>
       </svg>
     `.trim()

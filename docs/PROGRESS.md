@@ -502,4 +502,27 @@
   - Verified `npm run build` (built bundle with exit code 0).
   - Verified `npm test` (34 test files passed, 361 tests passed, watchdog clean).
 
+## Stage 5b-5: Hover UI Sound & Floating Solar Crown for Stellar Moves (Completed)
+- [x] Delicate Tactile Hover Sound (`src/audio/solar-audio.ts`, `src/main.ts`):
+  - Implemented `playButtonHover()` in `SolarAudio`: airy sine wave micro-tick at 1040 Hz (950–1100 Hz range), ultra-short 0.022s duration (0.018–0.025s range) with instant exponential decay, soft peak volume 0.03 (0.025–0.035 range).
+  - Early-return safety when muted or AudioContext is not running.
+  - Connected delegated `mouseover` and capturing `mouseenter` listener across interactive UI buttons (`.menu-btn`, `.btn-menu`, `.btn-action`, `.review-tab-btn`, setup cards, sound/theme toggles, dialog buttons).
+  - Anti-spam throttling: 45ms throttle interval between hover triggers.
+  - Strictly excluded chess board squares, piece wrappers, and move navigation rows from hover sounds.
+- [x] Floating Cosmic Solar Crown for Stellar Moves (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Added pure SVG 5-pointed solar crown `<g class="stellar-crown stellar-crown-float" aria-hidden="true">` inside `stellar-wings-mount`.
+  - Geometric vectors: sharpened royal crown rays (`.crown-body`), sparkling 4-point star on the center peak (`.crown-sparkle`), and jewel accents.
+  - Styled with bright solar gold gradient (`#solar-crown-gold`: `#fffbeb` -> `#fde68a` -> `#f59e0b`) and glowing amber drop shadow `filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.8))`.
+  - Floating and rotation kinematics (`@keyframes stellarCrownFloat`): 2.4s animation synchronized with angel wings (0% entrance twist, 15% reveal, 45% float right, 75% rise left, 100% ascension and dissolve).
+  - Automatically cleaned up together with wings after 2500ms or on next move navigation.
+  - Full support for `prefers-reduced-motion: reduce`.
+- [x] Unit Tests & Verification (`src/tests/solar-audio.test.ts`, `src/tests/stellar-wings-anim.test.ts`):
+  - In `src/tests/solar-audio.test.ts`: verified `playButtonHover()` synthesis, mute/suspended safety, UI button hover triggering with 45ms throttling, and chessboard exclusion.
+  - In `src/tests/stellar-wings-anim.test.ts`: verified presence of `.stellar-crown`, `.stellar-crown-float`, gold gradient fill, and CSS animation keyframe rules.
+  - All test titles $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (built bundle with exit code 0).
+  - Verified `npm test` (34 test files passed, 364 tests passed, watchdog clean).
+
+
 

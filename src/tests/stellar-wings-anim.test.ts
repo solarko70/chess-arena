@@ -306,5 +306,42 @@ describe('Solar Wings and Piece Kinematics (Stage 5a-2)', () => {
     expect(piece).not.toBeNull();
     expect(piece.classList.contains('piece-sliding')).toBe(false);
   });
+
+  it('содержит парящую золотую корону .stellar-crown с анимацией для звёздного хода', () => {
+    const mockReview = createMockReviewWithStellar();
+    store.makeMove(store.coordsToSquare(4, 6), store.coordsToSquare(4, 4));
+    store.makeMove(store.coordsToSquare(4, 1), store.coordsToSquare(4, 3));
+    store.makeMove(store.coordsToSquare(6, 7), store.coordsToSquare(5, 5));
+
+    store.setReviewResult(mockReview);
+    store.setReviewMode(true);
+    store.setViewIndex(2);
+
+    const wingsMount = boardContainer.querySelector('.stellar-wings-mount') as HTMLElement;
+    expect(wingsMount).not.toBeNull();
+
+    const crown = wingsMount.querySelector('.stellar-crown') as SVGElement;
+    expect(crown).not.toBeNull();
+    expect(crown.classList.contains('stellar-crown-float')).toBe(true);
+    expect(crown.getAttribute('aria-hidden')).toBe('true');
+
+    const crownBody = crown.querySelector('.crown-body');
+    expect(crownBody).not.toBeNull();
+    expect(crownBody?.getAttribute('fill')).toBe('url(#solar-crown-gold)');
+
+    const sparkle = crown.querySelector('.crown-sparkle');
+    expect(sparkle).not.toBeNull();
+
+    // Check CSS animation rules in styles.css
+    const cssPath = path.resolve(__dirname, '../ui/styles.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+    expect(cssContent).toContain('.stellar-crown');
+    expect(cssContent).toContain('.stellar-crown-float');
+    expect(cssContent).toContain('@keyframes stellarCrownFloat');
+    expect(cssContent).toContain('rotate(-16deg)');
+    expect(cssContent).toContain('rotate(8deg)');
+    expect(cssContent).toContain('rotate(-4deg)');
+    expect(cssContent).toContain('translateY(-14px)');
+  });
 });
 
