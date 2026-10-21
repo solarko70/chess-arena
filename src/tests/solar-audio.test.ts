@@ -9,6 +9,7 @@ import {
   playStellar,
   playButtonClick,
   playButtonHover,
+  playPremove,
   startMenuAmbient,
   stopMenuAmbient,
   toggleMute,
@@ -1150,6 +1151,107 @@ describe('Stage 5b: Ambient Cosmic Drone, Button Click and Mute Toggle', () => {
 
     boardMock.remove();
     getRouter()?.destroy();
+  });
+
+  it('playPremove synthesizes two-component impulse with bandpass filter', () => {
+    const createdOscillators: Array<{
+      type: string;
+      frequency: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const createdFilters: Array<{
+      type: string;
+      frequency: { setValueAtTime: ReturnType<typeof vi.fn> };
+      Q: { setValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const createdGains: Array<{
+      gain: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> };
+      connect: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    const mockCtx = {
+      currentTime: 10,
+      state: 'running',
+      createOscillator: vi.fn(() => {
+        const osc = {
+          type: 'sine',
+          frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+          connect: vi.fn(),
+          start: vi.fn(),
+          stop: vi.fn(),
+        };
+        createdOscillators.push(osc);
+        return osc;
+      }),
+      createBiquadFilter: vi.fn(() => {
+        const filter = {
+          type: 'lowpass',
+          frequency: { setValueAtTime: vi.fn() },
+          Q: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        };
+        createdFilters.push(filter);
+        return filter;
+      }),
+      createGain: vi.fn(() => {
+        const gain = {
+          gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        };
+        createdGains.push(gain);
+        return gain;
+      }),
+      destination: {},
+    } as unknown as AudioContext;
+
+    solarAudio.setContextForTesting(mockCtx);
+    solarAudio.setMuted(false);
+
+    expect(typeof playPremove).toBe('function');
+    playPremove();
+
+    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(2);
+    expect(mockCtx.createBiquadFilter).toHaveBeenCalledTimes(1);
+    expect(mockCtx.createGain).toHaveBeenCalledTimes(1);
+
+    expect(createdOscillators[0].type).toBe('sine');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(740, 10);
+    expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(420, 10.04);
+
+    expect(createdOscillators[1].type).toBe('triangle');
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(740, 10);
+    expect(createdOscillators[1].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(420, 10.04);
+
+    expect(createdFilters[0].type).toBe('bandpass');
+    expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(580, 10);
+    expect(createdFilters[0].Q.setValueAtTime).toHaveBeenCalledWith(1.5, 10);
+
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.09, 10);
+  });
+
+  it('when muted, playPremove does not synthesize sound', () => {
+    const mockCtx = {
+      currentTime: 10,
+      state: 'running',
+      createOscillator: vi.fn(),
+      createBiquadFilter: vi.fn(),
+      createGain: vi.fn(),
+      destination: {},
+    } as unknown as AudioContext;
+
+    solarAudio.setContextForTesting(mockCtx);
+    solarAudio.setMuted(true);
+
+    solarAudio.playPremove();
+
+    expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    expect(mockCtx.createBiquadFilter).not.toHaveBeenCalled();
+    expect(mockCtx.createGain).not.toHaveBeenCalled();
   });
 });
 

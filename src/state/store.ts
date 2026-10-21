@@ -159,7 +159,7 @@ export class ChessStore {
   private variations: VariationNode[] = [];
   private activeVariationId: string | null = null;
   private activeEngine: AnalysisEngine | null = null;
-  private pendingPremove: Premove | null = null;
+  private premoveQueue: Premove[] = [];
 
   constructor(ruleSet: RuleSet = classicalRuleSet) {
     this.ruleSet = ruleSet;
@@ -724,29 +724,50 @@ export class ChessStore {
   }
 
   getPremove(): Premove | null {
-    return this.pendingPremove;
+    return this.premoveQueue[0] ?? null;
+  }
+
+  getPremoves(): Premove[] {
+    return [...this.premoveQueue];
   }
 
   setPremove(premove: Premove | null): void {
-    this.pendingPremove = premove;
+    if (!premove) {
+      this.clearPremoves();
+      return;
+    }
+    this.premoveQueue = [premove];
+    this.notify();
+  }
+
+  addPremove(premove: Premove): void {
+    this.premoveQueue.push(premove);
+    this.notify();
+  }
+
+  clearPremoves(): void {
+    if (this.premoveQueue.length === 0) return;
+    this.premoveQueue = [];
     this.notify();
   }
 
   clearPremove(): void {
-    if (this.pendingPremove === null) return;
-    this.pendingPremove = null;
-    this.notify();
+    this.clearPremoves();
   }
 
-  executePremove(): boolean {
-    if (!this.pendingPremove) return false;
+  executeNextPremove(): boolean {
+    if (this.premoveQueue.length === 0) return false;
     if (this.isGameOver() || this.isReviewModeActive || this.isReviewing || this.isViewingHistory()) {
-      this.clearPremove();
+      this.clearPremoves();
       return false;
     }
-    const pm = this.pendingPremove;
+    const pm = this.premoveQueue[0];
     const piece = this.state.board.pieces[pm.from];
-    if (!piece || piece.color !== this.state.turn) {
+    if (!piece) {
+      this.clearPremoves();
+      return false;
+    }
+    if (piece.color !== this.state.turn) {
       return false;
     }
     if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
@@ -759,11 +780,17 @@ export class ChessStore {
         m.to === pm.to &&
         (pm.promotion ? m.promotion === pm.promotion : true),
     );
-    this.clearPremove();
     if (matched) {
+      this.premoveQueue.shift();
       return this.makeMove(matched.from, matched.to, matched.promotion);
     }
+    // Illegal move: clear entire queue
+    this.clearPremoves();
     return false;
+  }
+
+  executePremove(): boolean {
+    return this.executeNextPremove();
   }
 
   selectSquare(sq: Square | null): void {
@@ -877,11 +904,17 @@ export class ChessStore {
     this.lastError = null;
     this.notify();
     if (this.isGameOver()) {
-      this.clearPremove();
+      this.clearPremoves();
       this.maybeTriggerAutoReview();
     } else {
-      if (this.pendingPremove && this.isPlayerTurn() && !this.aiThinking) {
-        this.executePremove();
+      const nextPm = this.getPremove();
+      const pmPiece = nextPm ? this.state.board.pieces[nextPm.from] : null;
+      if (pmPiece && pmPiece.color === this.state.turn) {
+        const isAiBlocked =
+          this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor);
+        if (!isAiBlocked) {
+          this.executeNextPremove();
+        }
       }
       this.maybeTriggerAIMove();
     }

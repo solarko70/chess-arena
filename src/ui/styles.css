@@ -547,7 +547,8 @@ body.review-active #app {
 }
 
 /* Destination dot */
-.dest-hint {
+.dest-hint,
+.move-hint-dot {
   position: absolute;
   width: 28%;
   height: 28%;

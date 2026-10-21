@@ -599,4 +599,28 @@
   - Verified `npm run build` (production build clean).
   - Verified `npm test` (36 test files passed, 382 tests passed, watchdog clean).
 
+## Stage 6a-4: Multi-Premove Queue, Opponent Turn Move Hints & Procedural playPremove (Completed)
+- [x] Multi-Premove Queue Architecture (`src/state/store.ts`):
+  - Replaced single premove storage with sequential queue `premoveQueue: Premove[] = []`.
+  - Added queue management methods: `getPremoves(): Premove[]`, `addPremove(p: Premove): void`, `clearPremoves(): void`, `executeNextPremove(): boolean`.
+  - Maintained full backwards compatibility with `getPremove()`, `setPremove()`, `clearPremove()`, and `executePremove()`.
+  - Sequential execution: on player's turn arrival, pops and validates first premove (`premoveQueue.shift()`); if legal, executes immediately while remaining premoves stay queued for upcoming turns. If illegal, cleanly discards the entire queue.
+- [x] Opponent Turn Move Hint Dots (`src/ui/board.ts`, `src/ui/styles.css`):
+  - When picking up or clicking a piece during opponent's turn, dynamically calculates geometrically accessible pseudo-legal squares via `generatePseudoLegal`.
+  - Renders standard hint dots with classes `.move-hint-dot`, `.dest-hint`, `.square-hint`, and `.dest-capture-ring`.
+  - Cleanly clears hint dots upon premove commit, drag drop, square deselection, or board cancellation.
+- [x] Visual Multi-Premove Styling (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Added support for highlighting all `(from -> to)` pairs simultaneously in `updatePremoveClasses()` and `render()`.
+  - Right-click (`contextmenu`) on the board and clicking outside the board cleans up the entire queue and all square highlights without false triggers during board rerenders.
+- [x] Procedural Premove Audio Engine (`src/audio/solar-audio.ts`):
+  - Implemented `playPremove()` method in `SolarAudio` and standalone export: two-component synthesis (sine + triangle) dropping 740Hz -> 420Hz in 0.04s, bandpass resonance at 580Hz ($Q=1.5$), delicate volume ~0.09.
+  - Automatically triggered whenever a premove is queued in `addPremove` and `setPremove`.
+- [x] Comprehensive Testing & Verification (`src/tests/solar-audio.test.ts`, `src/tests/premove.test.ts`):
+  - Added 2 tests in `src/tests/solar-audio.test.ts` verifying `playPremove` audio synthesis graph and mute behavior (22 tests passing).
+  - Added 5 new tests in `src/tests/premove.test.ts` covering multi-premove queuing, sequential multi-turn execution, hint dots display on drag/click, outside click queue clearance, and `playPremove` audio invocation (11 tests passing).
+  - All test names $\le 100$ characters; 100% test pass rate across all suites.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (production build clean).
+  - Verified `npm test` (36 test files passed, 389 tests passed, watchdog clean).
+
 

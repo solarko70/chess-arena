@@ -441,6 +441,55 @@ export class SolarAudio {
   }
 
   /**
+   * Procedural premove registration micro-impulse:
+   * Two-component impulse (sine + triangle) dropping 740Hz -> 420Hz in 0.04s,
+   * passed through a bandpass filter (center 580Hz, Q=1.5), with delicate volume ~0.09.
+   */
+  public playPremove(): void {
+    if (this.isMutedState) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const duration = 0.04;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(580, now);
+      filter.Q.setValueAtTime(1.5, now);
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      // Component 1: Sine wave dropping 740Hz -> 420Hz
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(740, now);
+      osc1.frequency.exponentialRampToValueAtTime(420, now + duration);
+      osc1.connect(filter);
+
+      // Component 2: Triangle wave dropping 740Hz -> 420Hz
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(740, now);
+      osc2.frequency.exponentialRampToValueAtTime(420, now + duration);
+      osc2.connect(filter);
+
+      osc1.start(now);
+      osc1.stop(now + duration);
+      osc2.start(now);
+      osc2.stop(now + duration);
+    } catch {
+      // Safe fallback on Web Audio API errors
+    }
+  }
+
+  /**
    * Soft move click: fast frequency drop 240Hz -> 90Hz in 0.05s via GainNode and OscillatorNode.
    */
   public playMove(): void {
@@ -730,6 +779,10 @@ export function playButtonClick(): void {
 
 export function playButtonHover(): void {
   solarAudio.playButtonHover();
+}
+
+export function playPremove(): void {
+  solarAudio.playPremove();
 }
 
 export function startMenuAmbient(): void {

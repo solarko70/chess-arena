@@ -2,7 +2,7 @@ import { ChessStore, type Premove } from '../state/store'
 import { getPieceSvg } from './pieces'
 import { getMoveClassMeta, winChance } from '@/analysis'
 import { solarAudio } from '@/audio/solar-audio'
-import type { Piece, PieceType, Square } from '@/core'
+import { generatePseudoLegal, type Piece, type PieceType, type Square } from '@/core'
 
 export class ChessBoardUI {
   private container: HTMLElement
@@ -71,15 +71,38 @@ export class ChessBoardUI {
   }
 
   private initEvents(): void {
+    let pointerDownOnBoard = false
+
     // Pointer down on board
-    this.boardEl.addEventListener('pointerdown', (e) => this.handlePointerDown(e))
+    this.boardEl.addEventListener('pointerdown', (e) => {
+      pointerDownOnBoard = true
+      this.handlePointerDown(e)
+    })
     window.addEventListener('pointermove', (e) => this.handlePointerMove(e))
     window.addEventListener('pointerup', (e) => this.handlePointerUp(e))
 
-    // Right-click (contextmenu) cancels any active premove
+    // Global pointer down cancels premove queue when clicking outside the board
+    window.addEventListener('pointerdown', (e) => {
+      if (pointerDownOnBoard) {
+        pointerDownOnBoard = false
+        return
+      }
+      const target = e.target
+      const path = typeof e.composedPath === 'function' ? e.composedPath() : []
+      if (path.includes(this.boardEl)) {
+        return
+      }
+      if (target instanceof Node && !this.boardEl.contains(target)) {
+        if (this.store.getPremoves().length > 0 || this.premoveSelectedSq !== null) {
+          this.clearPremoves()
+        }
+      }
+    })
+
+    // Right-click (contextmenu) cancels any active premove queue
     this.boardEl.addEventListener('contextmenu', (e) => {
       e.preventDefault()
-      this.clearPremove()
+      this.clearPremoves()
     })
 
     // Touch events for mobile touch devices
@@ -93,15 +116,71 @@ export class ChessBoardUI {
     return this.store.getPremove()
   }
 
+  public getPremoves(): Premove[] {
+    return this.store.getPremoves()
+  }
+
   public setPremove(premove: Premove | null): void {
-    this.store.setPremove(premove)
+    if (premove) {
+      this.store.setPremove(premove)
+      solarAudio.playPremove()
+    } else {
+      this.clearPremoves()
+    }
+    this.updatePremoveClasses()
+  }
+
+  public addPremove(premove: Premove): void {
+    this.store.addPremove(premove)
+    solarAudio.playPremove()
+    this.updatePremoveClasses()
+  }
+
+  public clearPremoves(): void {
+    this.premoveSelectedSq = null
+    this.clearPremoveHintDots()
+    this.store.clearPremoves()
     this.updatePremoveClasses()
   }
 
   public clearPremove(): void {
-    this.premoveSelectedSq = null
-    this.store.clearPremove()
-    this.updatePremoveClasses()
+    this.clearPremoves()
+  }
+
+  private renderPremoveHintDots(fromSq: Square): void {
+    this.clearPremoveHintDots()
+    const state = this.store.getState()
+    const piece = state.board.pieces[fromSq]
+    if (!piece) return
+
+    const tempState = {
+      ...state,
+      turn: piece.color,
+    }
+
+    try {
+      const pseudoMoves = generatePseudoLegal(tempState).filter((m) => m.from === fromSq)
+      const destSquares = Array.from(new Set(pseudoMoves.map((m) => m.to)))
+
+      for (const destSq of destSquares) {
+        const targetSqEl = this.boardEl.querySelector(`[data-square="${destSq}"]`)
+        if (targetSqEl && !targetSqEl.querySelector('.dest-hint, .dest-capture-ring, .move-hint-dot')) {
+          const targetPiece = state.board.pieces[destSq]
+          const hint = document.createElement('div')
+          hint.className = targetPiece
+            ? 'dest-capture-ring square-hint premove-hint'
+            : 'dest-hint move-hint-dot square-hint premove-hint'
+          targetSqEl.appendChild(hint)
+        }
+      }
+    } catch {
+      // Safe fallback if move generator encounters unexpected board state
+    }
+  }
+
+  private clearPremoveHintDots(): void {
+    const hints = this.boardEl.querySelectorAll('.premove-hint')
+    hints.forEach((el) => el.remove())
   }
 
   private updatePremoveClasses(): void {
@@ -109,12 +188,13 @@ export class ChessBoardUI {
     prevSquares.forEach((el) => {
       el.classList.remove('square-premove-from', 'square-premove-to')
     })
-    const premove = this.store.getPremove()
-    if (!premove) return
-    const fromEl = this.boardEl.querySelector(`[data-square="${premove.from}"]`)
-    const toEl = this.boardEl.querySelector(`[data-square="${premove.to}"]`)
-    fromEl?.classList.add('square-premove-from')
-    toEl?.classList.add('square-premove-to')
+    const premoves = this.store.getPremoves()
+    for (const pm of premoves) {
+      const fromEl = this.boardEl.querySelector(`[data-square="${pm.from}"]`)
+      const toEl = this.boardEl.querySelector(`[data-square="${pm.to}"]`)
+      fromEl?.classList.add('square-premove-from')
+      toEl?.classList.add('square-premove-to')
+    }
   }
 
   private render(): void {
@@ -161,27 +241,17 @@ export class ChessBoardUI {
     this.lastHistoryLength = historyLen
 
     // Check and execute pending premove when its turn arrives
-    const premove = this.store.getPremove()
-    if (premove && !isReview && !isViewingHistory && !this.store.isGameOver()) {
-      const pmPiece = liveState.board.pieces[premove.from]
+    const nextPm = this.store.getPremove()
+    if (nextPm && !isReview && !isViewingHistory && !this.store.isGameOver()) {
+      const pmPiece = liveState.board.pieces[nextPm.from]
       const isMyTurn = pmPiece && pmPiece.color === liveState.turn
       const isAiBlocked =
         this.store.getGameMode() === 'ai' &&
         (this.store.isAIThinking() || liveState.turn !== this.store.getPlayerColor())
 
       if (isMyTurn && !isAiBlocked) {
-        const legalMoves = this.store.getLegalMoves()
-        const matched = legalMoves.find(
-          (m) =>
-            m.from === premove.from &&
-            m.to === premove.to &&
-            (premove.promotion ? m.promotion === premove.promotion : true),
-        )
-        this.clearPremove()
-        if (matched) {
-          this.store.makeMove(matched.from, matched.to, matched.promotion)
-          return
-        }
+        const executed = this.store.executeNextPremove()
+        if (executed) return
       }
     }
 
@@ -204,6 +274,7 @@ export class ChessBoardUI {
     const lastMove = this.store.getLastMove()
     const inCheck = this.store.isInCheck()
     const kingSq = inCheck ? this.store.getKingSquare() : null
+    const premoves = this.store.getPremoves()
 
     // Set board CSS grid variable
     this.boardEl.style.setProperty('--board-width', width.toString())
@@ -224,8 +295,8 @@ export class ChessBoardUI {
         const isLastMove = lastMove ? lastMove.from === sq || lastMove.to === sq : false
         const isKingInCheck = kingSq === sq
         const isDest = validDests.includes(sq)
-        const isPremoveFrom = premove ? premove.from === sq : false
-        const isPremoveTo = premove ? premove.to === sq : false
+        const isPremoveFrom = premoves.some((pm) => pm.from === sq)
+        const isPremoveTo = premoves.some((pm) => pm.to === sq)
 
         const sqEl = document.createElement('div')
         sqEl.className = `chess-square ${isLight ? 'light' : 'dark'}`
@@ -818,8 +889,8 @@ export class ChessBoardUI {
       }
 
       // 3. If clicking empty space or enemy piece while a premove is pending, reset it
-      if (this.store.getPremove() !== null && (!piece || piece.color !== turn)) {
-        this.clearPremove()
+      if (this.store.getPremoves().length > 0 && (!piece || piece.color !== turn)) {
+        this.clearPremoves()
       }
     }
 
@@ -898,14 +969,16 @@ export class ChessBoardUI {
     if (this.premoveSelectedSq !== null) {
       // Clicking on the exact same square -> deselect
       if (this.premoveSelectedSq === sq) {
-        this.clearPremove()
+        this.premoveSelectedSq = null
+        this.clearPremoveHintDots()
         return true
       }
 
       // Clicking on another piece of player's color -> switch selection to it
       if (piece && piece.color === myColor) {
-        this.clearPremove()
+        this.clearPremoveHintDots()
         this.premoveSelectedSq = sq
+        this.renderPremoveHintDots(sq)
         this.isDragging = true
         this.dragFromSquare = sq
         this.isPremoveDrag = true
@@ -939,15 +1012,16 @@ export class ChessBoardUI {
       }
 
       this.premoveSelectedSq = null
-      this.setPremove({ from: fromSq, to: sq, promotion: promo })
+      this.clearPremoveHintDots()
+      this.addPremove({ from: fromSq, to: sq, promotion: promo })
       return true
     }
 
     // No piece currently selected for premove:
-    // If clicking on a piece of player's color -> start premove selection/drag
+    // If clicking on a piece of player's color -> start premove selection/drag & render hint dots
     if (piece && piece.color === myColor) {
-      this.clearPremove()
       this.premoveSelectedSq = sq
+      this.renderPremoveHintDots(sq)
       this.isDragging = true
       this.dragFromSquare = sq
       this.isPremoveDrag = true
@@ -967,8 +1041,8 @@ export class ChessBoardUI {
       document.body.appendChild(this.floatingPieceEl)
       return true
     } else {
-      // Left click on empty square or enemy piece resets any active premove
-      this.clearPremove()
+      // Left click on empty square or enemy piece resets all active premoves
+      this.clearPremoves()
       return false
     }
   }
@@ -1045,7 +1119,8 @@ export class ChessBoardUI {
             }
           }
           this.premoveSelectedSq = null
-          this.setPremove({ from: fromSq, to: toSq, promotion: promo })
+          this.clearPremoveHintDots()
+          this.addPremove({ from: fromSq, to: toSq, promotion: promo })
           return
         }
       }
@@ -1067,6 +1142,7 @@ export class ChessBoardUI {
   private cancelDrag(): void {
     if (!this.isDragging) return
     this.isPremoveDrag = false
+    this.clearPremoveHintDots()
     const fromSq = this.dragFromSquare
     this.isDragging = false
     this.dragFromSquare = null

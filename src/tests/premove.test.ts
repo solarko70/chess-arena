@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ChessStore } from '@/state/store';
 import { ChessBoardUI } from '@/ui/board';
 import { parseFEN } from '@/core';
+import { solarAudio } from '@/audio/solar-audio';
 
 if (typeof globalThis.PointerEvent === 'undefined') {
   class MockPointerEvent extends MouseEvent {
@@ -205,6 +206,141 @@ describe('Stage 6a-3: Premove Mechanics (chess.com style)', () => {
     expect(store.getPremove()).toBeNull();
     expect(boardContainer.querySelector('.square-premove-from')).toBeNull();
     expect(boardContainer.querySelector('.square-premove-to')).toBeNull();
+  });
+
+  it('очередь из нескольких премувов сохраняется и подсвечивает все клетки на доске', () => {
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    // Add first premove: 2. Nf3 (62 -> 45)
+    boardUI.addPremove({ from: 62, to: 45 });
+    // Add second premove: 3. d4 (51 -> 35)
+    boardUI.addPremove({ from: 51, to: 35 });
+
+    const queue = store.getPremoves();
+    expect(queue.length).toBe(2);
+    expect(queue[0].from).toBe(62);
+    expect(queue[0].to).toBe(45);
+    expect(queue[1].from).toBe(51);
+    expect(queue[1].to).toBe(35);
+
+    // All from and to squares must be highlighted
+    const sq62 = boardContainer.querySelector('[data-square="62"]');
+    const sq45 = boardContainer.querySelector('[data-square="45"]');
+    const sq51 = boardContainer.querySelector('[data-square="51"]');
+    const sq35 = boardContainer.querySelector('[data-square="35"]');
+
+    expect(sq62?.classList.contains('square-premove-from')).toBe(true);
+    expect(sq45?.classList.contains('square-premove-to')).toBe(true);
+    expect(sq51?.classList.contains('square-premove-from')).toBe(true);
+    expect(sq35?.classList.contains('square-premove-to')).toBe(true);
+  });
+
+  it('последовательное исполнение очереди премувов в ответ на очередные ходы соперника', () => {
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    // Queue 2 premoves: 2. Nf3 (62 -> 45) and 3. d4 (51 -> 35)
+    boardUI.addPremove({ from: 62, to: 45 });
+    boardUI.addPremove({ from: 51, to: 35 });
+    expect(store.getPremoves().length).toBe(2);
+
+    // Black plays 1... e5 (12 -> 28)
+    store.makeMove(12, 28);
+
+    // First premove 2. Nf3 executed immediately!
+    let history = store.getLiveState().history;
+    expect(history.length).toBe(3);
+    expect(history[2].from).toBe(62);
+    expect(history[2].to).toBe(45);
+
+    // Second premove 3. d4 remains in queue
+    expect(store.getPremoves().length).toBe(1);
+    expect(store.getPremoves()[0].from).toBe(51);
+    expect(store.getPremoves()[0].to).toBe(35);
+
+    // Black plays 2... Nc6 (1 -> 18)
+    store.makeMove(1, 18);
+
+    // Second premove 3. d4 executed immediately!
+    history = store.getLiveState().history;
+    expect(history.length).toBe(5);
+    expect(history[4].from).toBe(51);
+    expect(history[4].to).toBe(35);
+
+    // Queue is empty and highlights are cleared
+    expect(store.getPremoves().length).toBe(0);
+    expect(boardContainer.querySelector('.square-premove-from')).toBeNull();
+    expect(boardContainer.querySelector('.square-premove-to')).toBeNull();
+  });
+
+  it('взятие фигуры в чужой ход отображает точки ходов и скрывает их после фиксации', () => {
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    // White Knight on g1 (square 62): start drag or click
+    const sq62 = boardContainer.querySelector('[data-square="62"]') as HTMLElement;
+    expect(sq62).toBeTruthy();
+    sq62.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100 }));
+
+    // Hint dots should appear on geometrically accessible squares (e.g. f3 sq 45 and h3 sq 47)
+    const sq45 = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+    const sq47 = boardContainer.querySelector('[data-square="47"]') as HTMLElement;
+    expect(sq45.querySelector('.dest-hint, .move-hint-dot, .square-hint')).not.toBeNull();
+    expect(sq47.querySelector('.dest-hint, .move-hint-dot, .square-hint')).not.toBeNull();
+
+    // Finish click on square 45
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 100 }));
+    sq45.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 200 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 200 }));
+
+    // Hint dots must be removed once premove is registered
+    expect(boardContainer.querySelectorAll('.premove-hint').length).toBe(0);
+    expect(store.getPremoves().length).toBe(1);
+    expect(store.getPremoves()[0].from).toBe(62);
+    expect(store.getPremoves()[0].to).toBe(45);
+  });
+
+  it('клик вне доски или ПКМ сбрасывает всю очередь премувов и снимает подсветку', () => {
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    boardUI.addPremove({ from: 62, to: 45 });
+    boardUI.addPremove({ from: 51, to: 35 });
+    expect(store.getPremoves().length).toBe(2);
+    expect(boardContainer.querySelectorAll('.square-premove-from').length).toBe(2);
+
+    // Clicking outside the board
+    const outsideEl = document.createElement('div');
+    document.body.appendChild(outsideEl);
+    outsideEl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 999, clientY: 999 }));
+
+    expect(store.getPremoves().length).toBe(0);
+    expect(boardContainer.querySelector('.square-premove-from')).toBeNull();
+    expect(boardContainer.querySelector('.square-premove-to')).toBeNull();
+    outsideEl.remove();
+
+    // Re-queue and test right-click (contextmenu)
+    boardUI.addPremove({ from: 62, to: 45 });
+    boardUI.addPremove({ from: 51, to: 35 });
+    expect(store.getPremoves().length).toBe(2);
+
+    const chessBoard = boardContainer.querySelector('.chess-board') as HTMLElement;
+    chessBoard.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+    expect(store.getPremoves().length).toBe(0);
+    expect(boardContainer.querySelector('.square-premove-from')).toBeNull();
+    expect(boardContainer.querySelector('.square-premove-to')).toBeNull();
+  });
+
+  it('фиксация премува вызывает процедурный звук solarAudio.playPremove', () => {
+    const playSpy = vi.spyOn(solarAudio, 'playPremove');
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    boardUI.addPremove({ from: 62, to: 45 });
+    expect(playSpy).toHaveBeenCalled();
+    playSpy.mockRestore();
   });
 });
 
