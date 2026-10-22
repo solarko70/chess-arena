@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AnalysisBoardUI, mountAnalysisBoard } from '@/ui/analysis-board';
-import { serializeFEN } from '@/core';
+import { serializeFEN, type Move } from '@/core';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 if (typeof globalThis.PointerEvent === 'undefined') {
   class MockPointerEvent extends MouseEvent {
@@ -42,6 +44,64 @@ describe('Stage 6b: Analysis Board & Board Editor', () => {
 
     const fenInput = container.querySelector('#analysis-fen-input') as HTMLInputElement;
     expect(fenInput.value).toContain('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  });
+
+  it('монтирует расширенную сетку с доской, полосой оценки и четырьмя карточками инструментов', () => {
+    const workspace = container.querySelector('.analysis-container')!;
+    const layout = workspace.querySelector('.analysis-layout')!;
+    expect(workspace.classList.contains('analysis-screen-inner')).toBe(true);
+    expect(layout.querySelector(':scope > .analysis-board-col #analysis-board-mount')).not.toBeNull();
+    const sidebar = layout.querySelector(':scope > .analysis-sidebar')!;
+    expect(sidebar.classList.contains('analysis-side-panel')).toBe(true);
+    expect(sidebar.querySelectorAll(':scope > .analysis-section')).toHaveLength(4);
+    expect(workspace.querySelector('.board-area > .eval-bar-wrapper')).not.toBeNull();
+    expect(workspace.querySelector('.board-area > .board-container')).not.toBeNull();
+    expect(sidebar.querySelector('textarea')?.getAttribute('rows')).toBe('4');
+  });
+
+  it('монтирует статичный декоративный фон обсерватории с сеткой и двумя туманностями', () => {
+    const scene = container.querySelector('.analysis-bg-scene')!;
+    expect(scene.parentElement).toBe(container);
+    expect(container.querySelectorAll('.analysis-bg-scene')).toHaveLength(1);
+    expect(scene.getAttribute('aria-hidden')).toBe('true');
+    expect(scene.getAttribute('focusable')).toBe('false');
+    expect(scene.querySelectorAll('radialGradient')).toHaveLength(2);
+    expect(scene.querySelector('.analysis-bg-grid')?.getAttribute('opacity')).toBe('0.2');
+    expect(scene.querySelector('filter, animate, animateTransform, canvas, [tabindex]')).toBeNull();
+    for (const ellipse of scene.querySelectorAll('ellipse[fill]')) {
+      const reference = ellipse.getAttribute('fill')!.match(/^url\(#(.+)\)$/)![1];
+      expect(scene.querySelector(`[id="${reference}"]`)).not.toBeNull();
+    }
+    const markup = scene.outerHTML;
+    const previousTheme = document.documentElement.getAttribute('data-theme');
+    try {
+      document.documentElement.setAttribute('data-theme', 'light');
+      expect(scene.outerHTML).toBe(markup);
+    } finally {
+      if (previousTheme === null) document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', previousTheme);
+    }
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const rule = css.match(/\.analysis-bg-scene\s*\{([^}]+)\}/)![1];
+    expect(rule).toContain('pointer-events: none');
+    expect(rule).toContain('z-index: var(--z-saturn)');
+    expect(rule).not.toMatch(/animation\s*:|filter\s*:|shadow\s*:/);
+  });
+
+  it('ограничивает размеры рабочей зоны и задаёт равную высоту доски и полосы оценки', () => {
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/body:has\(#screen-analysis\.active\) #app\s*\{\s*max-width: none/);
+    expect(css).toMatch(/\.analysis-screen-inner\s*\{[^}]*max-width: min\(1500px, 94vw\)/);
+    expect(css).toContain('--solar-analysis-board-size: clamp(480px, 44vw, 640px)');
+    expect(css).toMatch(/\.analysis-board-mount \.board-container\s*\{[^}]*height: var\(--solar-analysis-board-size\)/);
+    expect(css).toMatch(/\.analysis-board-mount \.eval-bar-wrapper\s*\{[^}]*height: 100%/);
+    expect(css).toMatch(/@media \(max-width: 1000px\)\s*\{\s*\.analysis-layout\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
+    const dark = css.match(/:root\s*\{([^}]+)\}/)![1];
+    const light = css.match(/\[data-theme='light'\]\s*\{([^}]+)\}/)![1];
+    for (const name of ['bg-center', 'bg-edge', 'grid', 'panel', 'card', 'text']) {
+      const variable = new RegExp(`--solar-analysis-${name}:\\s*([^;]+);`);
+      expect(dark.match(variable)![1]).not.toBe(light.match(variable)![1]);
+    }
   });
 
   it('свободное выполнение ходов на доске анализа обновляет FEN, PGN и историю ходов', () => {
@@ -248,8 +308,124 @@ describe('Stage 6b: Analysis Board & Board Editor', () => {
   it('безопасный демонтаж экрана анализа и вызов dispose останавливает работу движка', () => {
     const engine = analysisUI.getEngine();
     const disposeSpy = vi.spyOn(engine, 'dispose');
+    const scene = container.querySelector('.analysis-bg-scene')!;
 
     analysisUI.destroy();
     expect(disposeSpy).toHaveBeenCalled();
+    expect(scene.isConnected).toBe(false);
+    expect(container.querySelector('.analysis-bg-scene')).toBeNull();
+  });
+
+  it('режим анализ отображает 3 строки MultiPV и скрывает бейджи качества на доске', async () => {
+    const engineNameEl = container.querySelector('#analysis-engine-name');
+    expect(engineNameEl?.textContent).toContain('Stockfish');
+
+    const multipvContainer = container.querySelector('#analysis-multipv-lines') as HTMLElement;
+    expect(multipvContainer).toBeTruthy();
+
+    const badgeLayer = container.querySelector('.board-badge-layer');
+    expect(badgeLayer).toBeTruthy();
+    expect(badgeLayer?.children.length).toBe(0);
+
+    const engine = analysisUI.getEngine();
+    const mvE4 = { from: 52, to: 36, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+    const mvD4 = { from: 51, to: 35, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+    const mvC4 = { from: 50, to: 34, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+    const mockLines = [
+      {
+        move: mvE4,
+        san: 'e4',
+        score: { type: 'cp' as const, value: 35 },
+        pv: [mvE4],
+        pvSan: ['e4', 'e5', 'Nf3'],
+      },
+      {
+        move: mvD4,
+        san: 'd4',
+        score: { type: 'cp' as const, value: 20 },
+        pv: [mvD4],
+        pvSan: ['d4', 'd5', 'c4'],
+      },
+      {
+        move: mvC4,
+        san: 'c4',
+        score: { type: 'cp' as const, value: 15 },
+        pv: [mvC4],
+        pvSan: ['c4', 'e5', 'Nc3'],
+      },
+    ];
+
+    const spy = vi.spyOn(engine, 'analyze').mockResolvedValue({
+      bestMove: mvE4,
+      score: { type: 'cp', value: 35 },
+      depth: 18,
+      nodes: 1000,
+      lines: mockLines,
+      pv: [mvE4],
+      timeMs: 50,
+      engineName: 'Stockfish 19 Lite WASM',
+    });
+
+    (analysisUI as unknown as { runLiveAnalysis: () => void }).runLiveAnalysis();
+    expect(spy).toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(container.querySelector('#analysis-engine-depth')?.textContent).toBe('depth=18');
+
+    const rows = multipvContainer.querySelectorAll('.analysis-multipv-row');
+    expect(rows.length).toBe(3);
+    expect(rows[0].querySelector('.eval-pill')?.textContent).toContain('+0.35');
+    expect(rows[1].querySelector('.eval-pill')?.textContent).toContain('+0.20');
+    expect(rows[2].querySelector('.eval-pill')?.textContent).toContain('+0.15');
+
+    (rows[1] as HTMLElement).click();
+    expect(analysisUI.getStore().getLiveState().history[0].from).toBe(51);
+  });
+
+  it('навигационная панель доски анализа имеет ширину 100% и 4 кнопки в grid-сетке', () => {
+    const nav = container.querySelector('.analysis-board-nav') as HTMLElement;
+    expect(nav).toBeTruthy();
+    const buttons = nav.querySelectorAll('.btn-board-nav');
+    expect(buttons.length).toBe(4);
+
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/\.analysis-board-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*1fr\)/);
+    expect(css).toMatch(/\.analysis-board-nav\s*\{[^}]*width:\s*100%/);
+    expect(css).toMatch(/\.btn-board-nav\s*\{[^}]*height:\s*44px/);
+  });
+
+  it('альтернативный ход в истории на доске анализа создаёт ветку вариации', () => {
+    const store = analysisUI.getStore();
+    store.makeMove(52, 36); // 1. e4
+    store.makeMove(12, 28); // 1... e5
+    store.makeMove(62, 45); // 2. Nf3
+    expect(store.getLiveState().history.length).toBe(3);
+
+    // Step back to after 1. e4 (ply 0)
+    store.setViewIndex(0);
+    expect(store.getViewIndex()).toBe(0);
+
+    // Play alternative move 1... c5 (10 -> 26) instead of 1... e5
+    store.makeMove(10, 26);
+
+    expect(store.getLiveState().history.length).toBe(3);
+    const variations = store.getVariations();
+    expect(variations.length).toBe(1);
+    expect(variations[0].san).toBe('c5');
+
+    const varEl = container.querySelector('.analysis-variation');
+    expect(varEl).toBeTruthy();
+    expect(varEl?.textContent).toContain('c5');
+
+    const e5Move = container.querySelector('.move-item[data-ply="1"]') as HTMLElement;
+    expect(e5Move).toBeTruthy();
+    e5Move.click();
+    expect(store.getActiveVariationNode()).toBeNull();
+    expect(store.getViewIndex()).toBe(1);
+
+    const c5Move = container.querySelector('.variation-move') as HTMLElement;
+    expect(c5Move).toBeTruthy();
+    c5Move.click();
+    expect(store.getActiveVariationNode()).not.toBeNull();
+    expect(store.getActiveVariationNode()?.san).toBe('c5');
   });
 });

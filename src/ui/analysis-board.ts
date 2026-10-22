@@ -1,4 +1,4 @@
-import { ChessStore } from '../state/store';
+import { ChessStore, type VariationNode } from '../state/store';
 import { ChessBoardUI } from './board';
 import { createEngine, type AnalysisEngine, type AnalysisEngineResult } from '@/analysis';
 import {
@@ -90,6 +90,7 @@ const NAV_LAST_ICON = `
 `;
 
 const PIECE_TYPES: PieceType[] = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
+let observatorySequence = 0;
 
 export interface AnalysisBoardOptions {
   onBackToMain?: () => void;
@@ -118,11 +119,12 @@ export class AnalysisBoardUI {
     this.container = container;
     this.onBackCallback = options.onBackToMain;
     this.store = new ChessStore();
+    this.store.setAllowVariations(true);
     this.engine = createEngine();
 
     this.renderSkeleton();
     const boardMount = this.container.querySelector('#analysis-board-mount') as HTMLElement;
-    this.boardUI = new ChessBoardUI(boardMount, this.store);
+    this.boardUI = new ChessBoardUI(boardMount, this.store, { hideBadges: true });
 
     this.initEvents();
     this.store.subscribe(() => {
@@ -133,8 +135,29 @@ export class AnalysisBoardUI {
   }
 
   private renderSkeleton(): void {
+    const sceneId = `analysis-observatory-${++observatorySequence}`;
     this.container.innerHTML = `
-      <div class="analysis-screen-inner">
+      <svg class="analysis-bg-scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+        <defs>
+          <radialGradient id="${sceneId}-cyan">
+            <stop stop-color="var(--solar-analysis-nebula-cyan)" stop-opacity="0.28"/>
+            <stop offset="1" stop-color="var(--solar-analysis-nebula-cyan)" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="${sceneId}-amber">
+            <stop stop-color="var(--solar-analysis-nebula-amber)" stop-opacity="0.24"/>
+            <stop offset="1" stop-color="var(--solar-analysis-nebula-amber)" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="150" cy="280" rx="530" ry="360" fill="url(#${sceneId}-cyan)"/>
+        <ellipse cx="1810" cy="850" rx="470" ry="330" fill="url(#${sceneId}-amber)"/>
+        <g class="analysis-bg-grid" fill="none" stroke="var(--solar-analysis-grid)" stroke-width="1" opacity="0.2" aria-hidden="true">
+          <path d="M0 220H1920 M0 540H1920 M0 860H1920 M240 0V1080 M960 0V1080 M1680 0V1080" vector-effect="non-scaling-stroke"/>
+          <ellipse cx="1570" cy="260" rx="640" ry="230" transform="rotate(-28 1570 260)" vector-effect="non-scaling-stroke"/>
+          <ellipse cx="1570" cy="260" rx="800" ry="340" transform="rotate(-28 1570 260)" vector-effect="non-scaling-stroke"/>
+        </g>
+        <path d="M90 140h0 M310 430h0 M170 740h0 M430 960h0 M1530 110h0 M1790 380h0 M1670 750h0 M1850 990h0" fill="none" stroke="var(--solar-analysis-star)" stroke-width="2" stroke-linecap="round" opacity="0.65"/>
+      </svg>
+      <div class="analysis-screen-inner analysis-container">
         <header class="analysis-topbar">
           <button class="btn-back-to-main" id="btn-analysis-back-to-main" aria-label="В главное меню">
             ${BACK_ICON}
@@ -177,18 +200,21 @@ export class AnalysisBoardUI {
           </div>
 
           <!-- Right Analysis Panel -->
-          <aside class="analysis-side-panel">
+          <aside class="analysis-side-panel analysis-sidebar">
             <!-- Engine Evaluation Section -->
             <section class="analysis-section analysis-engine-section">
               <div class="engine-section-header">
-                <span class="engine-name-badge" id="analysis-engine-name">Stockfish</span>
-                <span class="engine-depth-badge" id="analysis-engine-depth">Глубина: —</span>
+                <span class="engine-name-badge" id="analysis-engine-name">Stockfish 19 Lite WASM</span>
+                <span class="engine-depth-badge" id="analysis-engine-depth">depth=0</span>
               </div>
-              <div class="engine-eval-row">
+              <div class="analysis-multipv-lines" id="analysis-multipv-lines">
+                <div class="analysis-multipv-placeholder">Загрузка анализа Stockfish...</div>
+              </div>
+              <div class="engine-eval-row" style="display: none;">
                 <div class="engine-eval-numeric" id="analysis-eval-numeric">0.0</div>
                 <div class="engine-bestmove-info" id="analysis-bestmove-info">Анализ позиции...</div>
               </div>
-              <div class="engine-pv-line" id="analysis-pv-line"></div>
+              <div class="engine-pv-line" id="analysis-pv-line" style="display: none;"></div>
             </section>
 
             <!-- Move History Section -->
@@ -220,7 +246,7 @@ export class AnalysisBoardUI {
             <section class="analysis-section analysis-pgn-section">
               <div class="analysis-section-title">PGN партии</div>
               <div class="pgn-input-wrapper">
-                <textarea class="analysis-textarea-input" id="analysis-pgn-input" rows="3" spellcheck="false"></textarea>
+                <textarea class="analysis-textarea-input" id="analysis-pgn-input" rows="4" spellcheck="false"></textarea>
               </div>
               <div class="analysis-btn-row">
                 <button class="solar-btn-ghost btn-sm" id="btn-copy-pgn" title="Скопировать PGN">
@@ -242,7 +268,9 @@ export class AnalysisBoardUI {
           <div class="editor-modal">
             <header class="editor-header">
               <h2 class="editor-title">Редактор расстановки фигур</h2>
-              <button class="editor-close-btn" id="btn-editor-close" aria-label="Закрыть">✕</button>
+              <button class="editor-close-btn" id="btn-editor-close" aria-label="Закрыть">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+              </button>
             </header>
 
             <div class="editor-body">
@@ -436,15 +464,34 @@ export class AnalysisBoardUI {
   }
 
   public viewStart(): void {
+    this.store.setActiveVariationNode(null);
     this.store.setViewIndex(-1);
   }
 
   public viewPrev(): void {
+    const activeVar = this.store.getActiveVariationNode();
+    if (activeVar) {
+      if (activeVar.parentId) {
+        this.store.setActiveVariationNode(activeVar.parentId);
+      } else {
+        const rootPly = activeVar.rootPly;
+        this.store.setActiveVariationNode(null);
+        this.store.setViewIndex(rootPly);
+      }
+      return;
+    }
     const cur = this.store.getViewIndex() ?? this.store.getLiveState().history.length - 1;
     this.store.setViewIndex(Math.max(-1, cur - 1));
   }
 
   public viewNext(): void {
+    const activeVar = this.store.getActiveVariationNode();
+    if (activeVar) {
+      if (activeVar.children.length > 0) {
+        this.store.setActiveVariationNode(activeVar.children[0].id);
+      }
+      return;
+    }
     const cur = this.store.getViewIndex();
     if (cur !== null) {
       const maxIdx = this.store.getLiveState().history.length - 1;
@@ -457,6 +504,7 @@ export class AnalysisBoardUI {
   }
 
   public viewEnd(): void {
+    this.store.setActiveVariationNode(null);
     this.store.setViewIndex(null);
   }
 
@@ -518,13 +566,24 @@ export class AnalysisBoardUI {
     const container = this.container.querySelector('#analysis-moves-container');
     if (!container) return;
 
-    if (liveState.history.length === 0) {
+    const variations = this.store.getVariations();
+    if (liveState.history.length === 0 && variations.length === 0) {
       container.innerHTML = '<div class="analysis-moves-empty">Сделайте ход на доске для начала анализа</div>';
       return;
     }
 
-    let html = '<div class="analysis-moves-table">';
+    container.innerHTML = '';
+    const tableEl = document.createElement('div');
+    tableEl.className = 'analysis-moves-table';
+
     let tempState = this.store.getStateAtPly(-1);
+    const activeVarId = this.store.getActiveVariationNodeId();
+
+    // Render variations before move 1 (rootPly = -1)
+    const rootVarBefore = variations.filter((v) => v.rootPly === -1);
+    for (const v of rootVarBefore) {
+      this.renderVariationRow(v, tableEl, activeVarId);
+    }
 
     for (let i = 0; i < liveState.history.length; i += 2) {
       const moveNum = Math.floor(i / 2) + 1;
@@ -537,34 +596,119 @@ export class AnalysisBoardUI {
       const blackSan = blackMove ? moveToSAN(tempState, blackMove) : '';
       if (blackMove) tempState = this.store.getStateAtPly(i + 1);
 
-      const whiteActive = curPly === i ? 'active' : '';
-      const blackActive = curPly === i + 1 ? 'active' : '';
+      const isMainWhiteActive = activeVarId === null && curPly === i;
+      const isMainBlackActive = activeVarId === null && curPly === i + 1;
 
-      html += `
-        <div class="analysis-move-row">
-          <span class="move-num">${moveNum}.</span>
-          <span class="move-item ${whiteActive}" data-ply="${i}">${whiteSan}</span>
-          ${blackMove ? `<span class="move-item ${blackActive}" data-ply="${i + 1}">${blackSan}</span>` : '<span class="move-item empty"></span>'}
-        </div>
+      const rowEl = document.createElement('div');
+      rowEl.className = 'analysis-move-row';
+      rowEl.innerHTML = `
+        <span class="move-num">${moveNum}.</span>
+        <span class="move-item ${isMainWhiteActive ? 'active' : ''}" data-ply="${i}">${whiteSan}</span>
+        ${blackMove ? `<span class="move-item ${isMainBlackActive ? 'active' : ''}" data-ply="${i + 1}">${blackSan}</span>` : '<span class="move-item empty"></span>'}
       `;
+
+      rowEl.querySelectorAll('.move-item[data-ply]').forEach((el) => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const ply = parseInt(el.getAttribute('data-ply') ?? '0', 10);
+          this.store.setActiveVariationNode(null);
+          this.store.setViewIndex(ply);
+        });
+      });
+
+      tableEl.appendChild(rowEl);
+
+      // Render variations after white move (rootPly === i)
+      const varsAfterWhite = variations.filter((v) => v.rootPly === i);
+      for (const v of varsAfterWhite) {
+        this.renderVariationRow(v, tableEl, activeVarId);
+      }
+
+      // Render variations after black move (rootPly === i + 1)
+      if (blackMove) {
+        const varsAfterBlack = variations.filter((v) => v.rootPly === i + 1);
+        for (const v of varsAfterBlack) {
+          this.renderVariationRow(v, tableEl, activeVarId);
+        }
+      }
     }
 
-    html += '</div>';
-    container.innerHTML = html;
-
-    // Attach click listeners to plies
-    container.querySelectorAll('.move-item[data-ply]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const ply = parseInt(el.getAttribute('data-ply') ?? '0', 10);
-        this.store.setViewIndex(ply);
-      });
-    });
+    container.appendChild(tableEl);
 
     // Auto scroll active move into view
-    const activeEl = container.querySelector('.move-item.active') as HTMLElement | null;
+    const activeEl = container.querySelector('.move-item.active, .variation-move.active') as HTMLElement | null;
     if (activeEl && typeof activeEl.scrollIntoView === 'function') {
       activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
+  }
+
+  private renderVariationRow(rootNode: VariationNode, container: HTMLElement, activeVarId: string | null): void {
+    const varRow = document.createElement('div');
+    varRow.className = 'history-variation analysis-variation';
+
+    const bracketOpen = document.createElement('span');
+    bracketOpen.className = 'variation-bracket';
+    bracketOpen.textContent = '(';
+    varRow.appendChild(bracketOpen);
+
+    const movesWrap = document.createElement('span');
+    movesWrap.className = 'variation-moves-wrap';
+
+    const renderSequence = (curr: VariationNode) => {
+      const span = document.createElement('span');
+      const isActive = activeVarId === curr.id;
+      span.className = `variation-move${isActive ? ' active' : ''}`;
+      span.dataset.variationId = curr.id;
+
+      const moveNumber = Math.floor(curr.ply / 2) + 1;
+      const isBlack = curr.ply % 2 === 1;
+      let label = curr.san;
+      if (curr.parentId === null) {
+        label = isBlack ? `${moveNumber}... ${curr.san}` : `${moveNumber}. ${curr.san}`;
+      } else {
+        const parentNode = this.store.findVariationNode(curr.parentId);
+        if (parentNode && !isBlack) {
+          label = `${moveNumber}. ${curr.san}`;
+        }
+      }
+      span.textContent = label;
+
+      span.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.store.setActiveVariationNode(curr.id);
+      });
+
+      movesWrap.appendChild(span);
+
+      if (curr.children.length === 1) {
+        renderSequence(curr.children[0]);
+      } else if (curr.children.length > 1) {
+        renderSequence(curr.children[0]);
+        for (let c = 1; c < curr.children.length; c++) {
+          const subOpen = document.createElement('span');
+          subOpen.className = 'variation-bracket';
+          subOpen.textContent = '(';
+          movesWrap.appendChild(subOpen);
+
+          renderSequence(curr.children[c]);
+
+          const subClose = document.createElement('span');
+          subClose.className = 'variation-bracket';
+          subClose.textContent = ')';
+          movesWrap.appendChild(subClose);
+        }
+      }
+    };
+
+    renderSequence(rootNode);
+    varRow.appendChild(movesWrap);
+
+    const bracketClose = document.createElement('span');
+    bracketClose.className = 'variation-bracket';
+    bracketClose.textContent = ')';
+    varRow.appendChild(bracketClose);
+
+    container.appendChild(varRow);
   }
 
   private runLiveAnalysis(): void {
@@ -583,9 +727,10 @@ export class AnalysisBoardUI {
     const depthEl = this.container.querySelector('#analysis-engine-depth');
     const pvEl = this.container.querySelector('#analysis-pv-line');
     const engineNameEl = this.container.querySelector('#analysis-engine-name');
+    const multipvContainer = this.container.querySelector('#analysis-multipv-lines') as HTMLElement | null;
 
     if (engineNameEl) {
-      engineNameEl.textContent = this.engine.name || 'Stockfish';
+      engineNameEl.textContent = this.engine.name || 'Stockfish 19 Lite WASM';
     }
 
     // Terminal positions check
@@ -597,23 +742,39 @@ export class AnalysisBoardUI {
         this.boardUI.setExternalArrow(null);
         if (numericEl) numericEl.textContent = isWhiteMated ? '0-1' : '1-0';
         if (bestMoveEl) bestMoveEl.textContent = `Мат! ${isWhiteMated ? 'Чёрные победили' : 'Белые победили'}`;
-        if (depthEl) depthEl.textContent = 'Мат';
+        if (depthEl) depthEl.textContent = 'depth=0';
         if (pvEl) pvEl.textContent = '';
+        if (multipvContainer) {
+          multipvContainer.innerHTML = `
+            <div class="analysis-multipv-row terminal" data-line-index="1">
+              <span class="eval-pill ${isWhiteMated ? 'score-black' : 'score-white'}">${isWhiteMated ? '0-1' : '1-0'}</span>
+              <span class="multipv-pv-text">Мат! ${isWhiteMated ? 'Чёрные победили' : 'Белые победили'}</span>
+            </div>
+          `;
+        }
       } else {
         const drawScore = { type: 'cp' as const, value: 0 };
         this.boardUI.setExternalScore(drawScore);
         this.boardUI.setExternalArrow(null);
         if (numericEl) numericEl.textContent = '½-½';
         if (bestMoveEl) bestMoveEl.textContent = 'Ничья (Пат)';
-        if (depthEl) depthEl.textContent = 'Пат';
+        if (depthEl) depthEl.textContent = 'depth=0';
         if (pvEl) pvEl.textContent = '';
+        if (multipvContainer) {
+          multipvContainer.innerHTML = `
+            <div class="analysis-multipv-row terminal" data-line-index="1">
+              <span class="eval-pill score-equal">½-½</span>
+              <span class="multipv-pv-text">Ничья (Пат)</span>
+            </div>
+          `;
+        }
       }
       return;
     }
 
     if (numericEl) numericEl.textContent = '...';
     if (bestMoveEl) bestMoveEl.textContent = 'Анализ...';
-    if (depthEl) depthEl.textContent = 'Глубина: ...';
+    if (depthEl) depthEl.textContent = 'depth=...';
 
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
@@ -621,7 +782,7 @@ export class AnalysisBoardUI {
     this.engine
       .analyze(currentState, {
         depth: 18,
-        multiPV: 1,
+        multiPV: 3,
         signal,
       })
       .then((res: AnalysisEngineResult) => {
@@ -634,7 +795,7 @@ export class AnalysisBoardUI {
         }
 
         if (depthEl) {
-          depthEl.textContent = `Глубина: ${res.depth}`;
+          depthEl.textContent = `depth=${res.depth}`;
         }
 
         if (numericEl) {
@@ -650,8 +811,15 @@ export class AnalysisBoardUI {
 
         if (bestMoveEl) {
           if (res.bestMove) {
-            const san = moveToSAN(currentState, res.bestMove);
-            bestMoveEl.textContent = `Лучший ход: ${san}`;
+            let san = res.lines[0]?.san;
+            if (!san) {
+              try {
+                san = moveToSAN(currentState, res.bestMove);
+              } catch {
+                san = '';
+              }
+            }
+            bestMoveEl.textContent = san ? `Лучший ход: ${san}` : 'Оценка рассчитана';
           } else {
             bestMoveEl.textContent = 'Оценка рассчитана';
           }
@@ -665,10 +833,81 @@ export class AnalysisBoardUI {
             pvEl.textContent = '';
           }
         }
+
+        const linesEl = (this.container.querySelector('#analysis-multipv-lines') as HTMLElement | null) ?? multipvContainer;
+        if (linesEl) {
+          this.renderMultiPVLines(linesEl, currentState, res.lines);
+        }
       })
       .catch((err) => {
         if ((err as Error)?.name === 'AbortError') return;
       });
+  }
+
+  private renderMultiPVLines(container: HTMLElement, state: GameState, lines: AnalysisEngineResult['lines']): void {
+    if (!lines || lines.length === 0) {
+      container.innerHTML = '<div class="analysis-multipv-placeholder">Нет ходов для оценки</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    lines.slice(0, 3).forEach((line, idx) => {
+      const row = document.createElement('div');
+      row.className = 'analysis-multipv-row';
+      row.dataset.lineIndex = (idx + 1).toString();
+
+      let pillText = '0.00';
+      let pillClass = 'score-equal';
+      if (line.score.type === 'mate') {
+        const val = line.score.value;
+        pillText = val > 0 ? `M${Math.abs(val)}` : `-M${Math.abs(val)}`;
+        pillClass = val > 0 ? 'score-white' : 'score-black';
+      } else {
+        const cp = line.score.value / 100;
+        const sign = cp > 0 ? '+' : '';
+        pillText = `${sign}${cp.toFixed(2)}`;
+        pillClass = cp > 0.35 ? 'score-white' : cp < -0.35 ? 'score-black' : 'score-equal';
+      }
+
+      const pill = document.createElement('span');
+      pill.className = `eval-pill ${pillClass}`;
+      pill.textContent = pillText;
+      row.appendChild(pill);
+
+      const pvText = document.createElement('span');
+      pvText.className = 'multipv-pv-text';
+      pvText.textContent = this.formatPvString(state, line.pvSan);
+      row.appendChild(pvText);
+
+      row.addEventListener('click', () => {
+        if (line.move) {
+          this.store.makeMove(line.move.from, line.move.to, line.move.promotion);
+        }
+      });
+
+      container.appendChild(row);
+    });
+  }
+
+  private formatPvString(state: GameState, pvSan: string[]): string {
+    if (!pvSan || pvSan.length === 0) return '';
+    const startPly = state.history.length;
+    const tokens: string[] = [];
+    for (let i = 0; i < Math.min(pvSan.length, 7); i++) {
+      const currentPly = startPly + i;
+      const moveNum = Math.floor(currentPly / 2) + 1;
+      const isWhite = currentPly % 2 === 0;
+      if (isWhite) {
+        tokens.push(`${moveNum}. ${pvSan[i]}`);
+      } else {
+        if (i === 0) {
+          tokens.push(`${moveNum}... ${pvSan[i]}`);
+        } else {
+          tokens.push(pvSan[i]);
+        }
+      }
+    }
+    return tokens.join(' ');
   }
 
   private handleLoadFen(): void {

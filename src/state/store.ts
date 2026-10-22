@@ -158,6 +158,7 @@ export class ChessStore {
   private notifyDirty: boolean = false;
   private variations: VariationNode[] = [];
   private activeVariationId: string | null = null;
+  private allowVariations: boolean = false;
   private activeEngine: AnalysisEngine | null = null;
   private premoveQueue: Premove[] = [];
 
@@ -198,9 +199,19 @@ export class ChessStore {
     return this.viewIndex;
   }
 
+  isAllowVariations(): boolean {
+    return this.allowVariations;
+  }
+
+  setAllowVariations(allow: boolean): void {
+    this.allowVariations = allow;
+  }
+
   setViewIndex(index: number | null): void {
     this.activeVariationId = null;
-    this.variations = [];
+    if (!this.allowVariations) {
+      this.variations = [];
+    }
     if (index !== null) {
       this.clearPremove();
     }
@@ -266,7 +277,7 @@ export class ChessStore {
 
   isPlayerTurn(): boolean {
     if (this.isReviewing) return false;
-    if (this.isReviewModeActive) return true;
+    if (this.isReviewModeActive || this.allowVariations) return true;
     if (this.timedOutLoser !== null) return false;
     if (this.gameMode === 'pvp') return true;
     return !this.aiThinking && this.state.turn === this.playerColor;
@@ -795,7 +806,7 @@ export class ChessStore {
 
   selectSquare(sq: Square | null): void {
     if (this.isReviewing) return;
-    if (!this.isReviewModeActive) {
+    if (!this.isReviewModeActive && !this.allowVariations) {
       if (this.timedOutLoser !== null || this.resignedPlayer !== null) return;
       if (this.isViewingHistory()) return;
       if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {
@@ -816,6 +827,9 @@ export class ChessStore {
       return false;
     }
     if (this.isReviewModeActive) {
+      return this.makeReviewMove(from, to, promoPiece);
+    }
+    if (this.allowVariations && (this.isViewingHistory() || this.activeVariationId !== null)) {
       return this.makeReviewMove(from, to, promoPiece);
     }
     if (this.timedOutLoser !== null || this.resignedPlayer !== null) {
@@ -1080,7 +1094,7 @@ export class ChessStore {
 
   getValidDestinationsFor(sq: Square): Square[] {
     if (this.isReviewing) return [];
-    if (!this.isReviewModeActive) {
+    if (!this.isReviewModeActive && !this.allowVariations) {
       if (this.timedOutLoser !== null || this.resignedPlayer !== null) return [];
       if (this.isViewingHistory()) return [];
       if (this.gameMode === 'ai' && (this.aiThinking || this.state.turn !== this.playerColor)) {

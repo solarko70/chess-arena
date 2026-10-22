@@ -342,5 +342,62 @@ describe('Stage 6a-3: Premove Mechanics (chess.com style)', () => {
     expect(playSpy).toHaveBeenCalled();
     playSpy.mockRestore();
   });
+
+  it('при установке предхода фигура переносится на целевую клетку с подсветкой origin', () => {
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    const sq62 = boardContainer.querySelector('[data-square="62"]') as HTMLElement;
+    expect(sq62.querySelector('.piece-wrapper')).toBeTruthy();
+
+    boardUI.setPremove({ from: 62, to: 45 });
+
+    const fromEl = boardContainer.querySelector('[data-square="62"]') as HTMLElement;
+    expect(fromEl.classList.contains('square-premove-origin')).toBe(true);
+    expect(fromEl.classList.contains('square-premove-from')).toBe(true);
+    expect(fromEl.querySelector('.piece-wrapper')).toBeNull();
+
+    const toEl = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+    expect(toEl.classList.contains('square-premove-to')).toBe(true);
+    expect(toEl.querySelector('.piece-wrapper')).toBeTruthy();
+  });
+
+  it('геометрически невозможный ход фигуры отклоняется и не фиксируется в предход', () => {
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    boardUI.setPremove({ from: 36, to: 44 });
+
+    expect(store.getPremove()).toBeNull();
+    expect(store.getPremoves().length).toBe(0);
+    expect(boardContainer.querySelector('.square-premove-origin')).toBeNull();
+    expect(boardContainer.querySelector('.square-premove-to')).toBeNull();
+
+    const sq36 = boardContainer.querySelector('[data-square="36"]') as HTMLElement;
+    expect(sq36.querySelector('.piece-wrapper')).toBeTruthy();
+  });
+
+  it('отмена предхода правым кликом возвращает фигуру на исходную клетку', () => {
+    store.makeMove(52, 36); // 1. e4
+    expect(store.getState().turn).toBe('black');
+
+    boardUI.setPremove({ from: 62, to: 45 });
+    expect(store.getPremove()).toBeTruthy();
+
+    const sq62 = boardContainer.querySelector('[data-square="62"]') as HTMLElement;
+    const sq45 = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+    expect(sq62.querySelector('.piece-wrapper')).toBeNull();
+    expect(sq45.querySelector('.piece-wrapper')).toBeTruthy();
+
+    const chessBoard = boardContainer.querySelector('.chess-board') as HTMLElement;
+    chessBoard.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+    expect(store.getPremove()).toBeNull();
+    const updatedSq62 = boardContainer.querySelector('[data-square="62"]') as HTMLElement;
+    const updatedSq45 = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+    expect(updatedSq62.querySelector('.piece-wrapper')).toBeTruthy();
+    expect(updatedSq45.querySelector('.piece-wrapper')).toBeNull();
+    expect(updatedSq62.classList.contains('square-premove-origin')).toBe(false);
+  });
 });
 

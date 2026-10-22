@@ -5,6 +5,80 @@ import { solarAudio } from '@/audio/solar-audio'
 import { generatePseudoLegal, type Move, type Piece, type PieceType, type Square } from '@/core'
 import type { Score } from '@/ai'
 
+export interface ChessBoardUIOptions {
+  hideBadges?: boolean
+}
+
+export function isGeometricallyValidPremove(
+  fromSq: Square,
+  toSq: Square,
+  piece: Piece,
+  boardWidth = 8,
+  boardHeight = 8,
+): boolean {
+  if (fromSq === toSq) return false
+  if (fromSq < 0 || fromSq >= boardWidth * boardHeight) return false
+  if (toSq < 0 || toSq >= boardWidth * boardHeight) return false
+
+  const fromX = fromSq % boardWidth
+  const fromY = Math.floor(fromSq / boardWidth)
+  const toX = toSq % boardWidth
+  const toY = Math.floor(toSq / boardWidth)
+
+  const dx = Math.abs(toX - fromX)
+  const dy = Math.abs(toY - fromY)
+
+  switch (piece.type) {
+    case 'pawn': {
+      const forwardY = piece.color === 'white' ? fromY - toY : toY - fromY
+      if (forwardY <= 0 || forwardY > 2) return false
+
+      if (dx === 0) {
+        if (forwardY === 1) return true
+        if (forwardY === 2) {
+          const startRank = piece.color === 'white' ? boardHeight - 2 : 1
+          return fromY === startRank
+        }
+        return false
+      }
+
+      if (dx === 1 && forwardY === 1) {
+        return true
+      }
+
+      return false
+    }
+
+    case 'knight': {
+      return (dx === 1 && dy === 2) || (dx === 2 && dy === 1)
+    }
+
+    case 'bishop': {
+      return dx === dy && dx > 0
+    }
+
+    case 'rook': {
+      return (dx === 0 && dy > 0) || (dx > 0 && dy === 0)
+    }
+
+    case 'queen': {
+      return (dx === dy && dx > 0) || (dx === 0 && dy > 0) || (dx > 0 && dy === 0)
+    }
+
+    case 'king': {
+      if (dx <= 1 && dy <= 1) return true
+      if (dy === 0 && dx === 2) {
+        const homeRank = piece.color === 'white' ? boardHeight - 1 : 0
+        return fromY === homeRank
+      }
+      return false
+    }
+
+    default:
+      return false
+  }
+}
+
 export class ChessBoardUI {
   private container: HTMLElement
   private store: ChessStore
@@ -17,6 +91,7 @@ export class ChessBoardUI {
   private badgeLayerEl: HTMLElement
   private lastHistoryLength = 0
   private lastVariationId: string | null = null
+  private hideBadges = false
 
   // Review move sliding and wings
   private lastAnimatedViewIndex: number | null = null
@@ -39,9 +114,10 @@ export class ChessBoardUI {
   private externalArrow: Move | null = null
   private externalScore: Score | null = null
 
-  constructor(container: HTMLElement, store: ChessStore) {
+  constructor(container: HTMLElement, store: ChessStore, options: ChessBoardUIOptions = {}) {
     this.container = container
     this.store = store
+    this.hideBadges = options.hideBadges ?? false
     this.lastHistoryLength = this.store.getLiveState().history.length
 
     this.container.innerHTML = `
@@ -127,25 +203,35 @@ export class ChessBoardUI {
 
   public setPremove(premove: Premove | null): void {
     if (premove) {
+      const state = this.store.getState()
+      const piece = state.board.pieces[premove.from]
+      if (piece && !isGeometricallyValidPremove(premove.from, premove.to, piece, state.board.width, state.board.height)) {
+        return
+      }
       this.store.setPremove(premove)
       solarAudio.playPremove()
     } else {
       this.clearPremoves()
     }
-    this.updatePremoveClasses()
+    this.render()
   }
 
   public addPremove(premove: Premove): void {
+    const state = this.store.getState()
+    const piece = state.board.pieces[premove.from]
+    if (piece && !isGeometricallyValidPremove(premove.from, premove.to, piece, state.board.width, state.board.height)) {
+      return
+    }
     this.store.addPremove(premove)
     solarAudio.playPremove()
-    this.updatePremoveClasses()
+    this.render()
   }
 
   public clearPremoves(): void {
     this.premoveSelectedSq = null
     this.clearPremoveHintDots()
     this.store.clearPremoves()
-    this.updatePremoveClasses()
+    this.render()
   }
 
   public clearPremove(): void {
@@ -209,18 +295,8 @@ export class ChessBoardUI {
     hints.forEach((el) => el.remove())
   }
 
-  private updatePremoveClasses(): void {
-    const prevSquares = this.boardEl.querySelectorAll('.square-premove-from, .square-premove-to')
-    prevSquares.forEach((el) => {
-      el.classList.remove('square-premove-from', 'square-premove-to')
-    })
-    const premoves = this.store.getPremoves()
-    for (const pm of premoves) {
-      const fromEl = this.boardEl.querySelector(`[data-square="${pm.from}"]`)
-      const toEl = this.boardEl.querySelector(`[data-square="${pm.to}"]`)
-      fromEl?.classList.add('square-premove-from')
-      toEl?.classList.add('square-premove-to')
-    }
+  public updatePremoveClasses(): void {
+    this.render()
   }
 
   private render(): void {
@@ -296,7 +372,8 @@ export class ChessBoardUI {
     }
 
     const state = this.store.getState()
-    const { width, height, pieces } = state.board
+    const { width, height } = state.board
+    const pieces = [...state.board.pieces]
     const flipped = this.store.isFlipped()
     const selectedSq = this.store.getSelectedSquare()
     const pendingPromo = this.store.getPendingPromotion()
@@ -305,6 +382,15 @@ export class ChessBoardUI {
     const inCheck = this.store.isInCheck()
     const kingSq = inCheck ? this.store.getKingSquare() : null
     const premoves = this.store.getPremoves()
+
+    // Visually relocate pieces to destination squares for active premoves (chess.com physics)
+    for (const pm of premoves) {
+      const pieceToMove = pieces[pm.from]
+      if (pieceToMove) {
+        pieces[pm.to] = pm.promotion ? { ...pieceToMove, type: pm.promotion } : pieceToMove
+        pieces[pm.from] = null
+      }
+    }
 
     // Set board CSS grid variable
     this.boardEl.style.setProperty('--board-width', width.toString())
@@ -335,7 +421,7 @@ export class ChessBoardUI {
         if (isSelected) sqEl.classList.add('selected')
         if (isLastMove) sqEl.classList.add('last-move')
         if (isKingInCheck) sqEl.classList.add('in-check')
-        if (isPremoveFrom) sqEl.classList.add('square-premove-from')
+        if (isPremoveFrom) sqEl.classList.add('square-premove-from', 'square-premove-origin')
         if (isPremoveTo) sqEl.classList.add('square-premove-to')
 
         // Coordinate labels on edges
@@ -644,6 +730,7 @@ export class ChessBoardUI {
   private renderMoveBadge(flipped: boolean): void {
     if (!this.badgeLayerEl) return
     this.badgeLayerEl.innerHTML = ''
+    if (this.hideBadges) return
 
     const activeVar = this.store.getActiveVariationNode()
     if (activeVar) {
@@ -904,7 +991,7 @@ export class ChessBoardUI {
     const isReview = this.store.isReviewMode()
     if (isReview) {
       if (this.store.isReviewInProgress()) return false
-    } else if (this.store.isGameOver() || this.store.isViewingHistory()) {
+    } else if (this.store.isGameOver() || (!this.store.isAllowVariations() && this.store.isViewingHistory())) {
       return false
     }
     if (!target || !target.dataset.square) return false
@@ -1048,6 +1135,12 @@ export class ChessBoardUI {
       // Clicking on any other destination square -> commit premove from -> to
       const fromSq = this.premoveSelectedSq
       const fromPiece = pieces[fromSq]
+      if (fromPiece && !isGeometricallyValidPremove(fromSq, sq, fromPiece, width, height)) {
+        this.premoveSelectedSq = null
+        this.clearPremoveHintDots()
+        this.clearPremoves()
+        return false
+      }
       let promo: PieceType | undefined
       if (fromPiece && fromPiece.type === 'pawn') {
         const toY = Math.floor(sq / width)
@@ -1155,6 +1248,13 @@ export class ChessBoardUI {
         const toSq = parseInt(targetSqEl.dataset.square, 10)
         if (toSq !== fromSq) {
           const fromPiece = this.store.getState().board.pieces[fromSq]
+          const { width, height } = this.store.getState().board
+          if (fromPiece && !isGeometricallyValidPremove(fromSq, toSq, fromPiece, width, height)) {
+            this.premoveSelectedSq = null
+            this.clearPremoveHintDots()
+            this.render()
+            return
+          }
           let promo: PieceType | undefined
           if (fromPiece && fromPiece.type === 'pawn') {
             const { width, height } = this.store.getState().board

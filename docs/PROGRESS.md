@@ -623,7 +623,36 @@
   - Verified `npm run build` (production build clean).
   - Verified `npm test` (36 test files passed, 389 tests passed, watchdog clean).
 
-## Stage 6b: Full Analysis Board & Setup Position Editor (chess.com style) (Completed)
+## Stage 6b-3: Analysis Board (chess.com Style MultiPV & Variations) & Premove Overhaul (Completed)
+- [x] Full-width Analysis Board Navigation (`src/ui/analysis-board.ts`, `src/ui/styles.css`):
+  - Overhauled `.analysis-board-nav`: spans 100% chessboard width, CSS Grid `grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;`.
+  - Sleek buttons (`#btn-nav-start`, `#btn-nav-prev`, `#btn-nav-next`, `#btn-nav-end`): 44px height, touch/click target ergonomics, crisp minimalist SVG navigation arrows (`|<`, `<`, `>`, `>|`).
+  - History viewing updates nav button states (`disabled` when at start or latest ply).
+- [x] Variations / Sub-lines Tree in Analysis Mode (`src/state/store.ts`, `src/ui/analysis-board.ts`, `src/ui/board.ts`):
+  - Enabled variations mode in store via `setAllowVariations(true)` for the analysis screen.
+  - Making an alternative move from an earlier historical ply branches off into a variation (`VariationNode`) instead of erasing future moves.
+  - Move history table displays inline variation branches (`.analysis-variation`) with parenthesis brackets and clickable variation tokens (`.variation-move`).
+  - Clicking on a variation move or main line move immediately updates the board position and preserves the full analysis tree.
+  - Quality badges are explicitly hidden in analysis mode (`hideBadges: true`), matching chess.com analysis board aesthetics.
+- [x] Multi-line Stockfish Analysis (MultiPV = 3) (`src/ai/stockfish-engine.ts`, `src/ui/analysis-board.ts`, `src/ui/styles.css`):
+  - Configured engine analysis to send `setoption name MultiPV value 3` to Stockfish and parse all lines (`multipv 1`, `multipv 2`, `multipv 3`).
+  - Rendered engine header (`#analysis-engine-name`, `#analysis-engine-depth`).
+  - MultiPV container (`#analysis-multipv-lines`) displaying up to 3 evaluation rows (`.analysis-multipv-row`).
+  - High-contrast rectangular evaluation pill (`.eval-pill`) displaying signed centipawn score (`+0.35`, `-4.26`) or mate distance (`M2`, `-M1`), color-coded for White advantage (`.score-white`), Black advantage (`.score-black`), or equality (`.score-equal`).
+  - Formatted PV continuation string (`.multipv-pv-text`) showing move numbering and SAN tokens (e.g. `1. e4 e5 2. Nf3`).
+  - Clicking any of the 3 MultiPV candidate rows plays that move on the board.
+- [x] Premove Overhaul (chess.com Physics & Visual Relocation) (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Physical piece relocation: when a premove is committed, the piece visually moves to the destination square (`to`).
+  - Origin square highlight: the starting square (`from`) is highlighted with `.square-premove-from` and `.square-premove-origin` displaying a terracotta/ruby neon glow (`rgba(244, 63, 94, ...)`).
+  - Cancellation & illegal handling: right-click (`contextmenu`) or board click cleanly cancels active premoves, returning all pieces to their authoritative live squares.
+  - Strict geometric validation: introduced `isGeometricallyValidPremove` enforcing physical chess piece movement rules (pawns move forward 1-2 squares, capture diagonally 1 square forward; knights move in L-shape; bishops move diagonally; rooks orthogonally; queens both; kings move 1 square in any direction or castle 2 squares). Geometrically impossible moves (e.g. moving a pawn backward or king across the entire board) are immediately rejected.
+- [x] Comprehensive Testing & Verification (`src/tests/analysis-board.test.ts`, `src/tests/premove.test.ts`):
+  - Added 3 new tests in `src/tests/analysis-board.test.ts` covering MultiPV 3 display & hidden quality badges, 100% width grid nav bar with 4 buttons, and variation branch creation from history plies (15 tests passing).
+  - Added 3 new tests in `src/tests/premove.test.ts` verifying piece physical relocation with origin square highlight, rejection of geometrically impossible moves, and right-click cancellation restoring piece position (14 tests passing).
+  - All test names $\le 100$ characters; 100% test pass rate across all suites.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (production build clean).
+  - Verified `npm test` (all test suites passing, watchdog clean).
 - [x] Dedicated Analysis Route & Clean Navigation (`src/main.ts`, `src/router.ts`, `src/ui/styles.css`):
   - Main menu button «Анализ» (`#btn-analysis`) navigates to route `#/analysis` revealing `.screen-analysis`.
   - «В главное меню» (`#btn-analysis-back-to-main`) with sleek SVG left arrow cleanly routes back to `#/`.
