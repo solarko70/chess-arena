@@ -643,7 +643,7 @@ export function buildGameScene(): string {
 /**
  * Builds the Review Screen cosmic scene markup:
  * - Static fullscreen SVG layer (Eclipse disk without rays, bottom-left amber nebula, chess constellations, static stars)
- * - 4 isolated animated layers (Spiral galaxy in top-right, Comet outside 26-74% zone, Eclipse corona, Sparkles + twinkling stars)
+ * - 4 static decorative layers (Spiral galaxy, Comet, Eclipse corona, Sparkles and stars)
  */
 export function buildReviewScene(): string {
   const circles: ExclusionZone[] = [
@@ -668,7 +668,7 @@ export function buildReviewScene(): string {
   const chessNodes = constellationsToNodes(REVIEW_CONSTELLATIONS);
 
   return `
-    <svg class="review-solar-stars space-static-svg space-scene-svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="pointer-events: none;">
+    <svg class="review-solar-stars space-static-svg space-scene-svg space-review-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="pointer-events: none;">
       <defs>
         <!-- Eclipse corona gradient centered at (160, 120) -->
         <radialGradient id="review-eclipse-grad" cx="160" cy="120" r="260" gradientUnits="userSpaceOnUse">
@@ -727,8 +727,8 @@ export function buildReviewScene(): string {
       </g>
     </svg>
 
-    <!-- Animated Layer 1: Spiral Galaxy in top-right (~18% scene width, 60deg tilt, 240s spin) -->
-    <svg class="space-anim-layer space-layer-galaxy" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Static Layer 1: Spiral Galaxy in top-right -->
+    <svg class="space-anim-layer space-layer-galaxy space-review-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-galaxy-cluster" id="space-galaxy-cluster" transform="translate(1680, 200) rotate(-30) scale(1, 0.5)">
         <g class="space-galaxy-spin">
           <circle cx="0" cy="0" r="80" fill="url(#review-galaxy-core-grad)" class="space-galaxy-core" />
@@ -738,8 +738,8 @@ export function buildReviewScene(): string {
       </g>
     </svg>
 
-    <!-- Animated Layer 2: Comet in lower-right (strictly outside 26-74% content zone, 40s drift) -->
-    <svg class="space-anim-layer space-layer-comet" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Static Layer 2: Comet outside the content zone -->
+    <svg class="space-anim-layer space-layer-comet space-review-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-comet-cluster space-comet-drift" id="space-comet-cluster">
         <path d="M 1810 890 L 1500 710 L 1535 675 Z" fill="url(#review-comet-tail-grad)" class="space-comet-tail" />
         <circle cx="1810" cy="890" r="32" fill="url(#review-comet-head-grad)" class="space-comet-glow" />
@@ -747,15 +747,15 @@ export function buildReviewScene(): string {
       </g>
     </svg>
 
-    <!-- Animated Layer 3: Eclipse Corona soft pulse (9s period) -->
-    <svg class="space-anim-layer space-layer-eclipse-corona" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Static Layer 3: Eclipse Corona -->
+    <svg class="space-anim-layer space-layer-eclipse-corona space-review-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-eclipse-corona-wrap">
         <circle cx="160" cy="120" r="260" fill="url(#review-eclipse-grad)" class="space-eclipse-corona space-eclipse-corona-ring" />
       </g>
     </svg>
 
-    <!-- Animated Layer 4: Sparkles (<use>) and Anti-phase Twinkling Stars -->
-    <svg class="space-anim-layer space-layer-twinkle" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Static Layer 4: Sparkles and Stars -->
+    <svg class="space-anim-layer space-layer-twinkle space-review-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-twinkle-group">
         ${renderSparkleUses(REVIEW_SPARKLES)}
         <path d="${twinkleAD}" fill="none" stroke="var(--star-color)" stroke-width="1.6" stroke-linecap="round" class="space-stars-twinkle space-stars-twinkle-a" />

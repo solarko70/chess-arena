@@ -165,7 +165,7 @@ describe('Saturn background', () => {
     expect(scene.querySelectorAll('.solar-orbits-spinning circle')).toHaveLength(4);
     const groups = [...scene.querySelector('.solar-orbits-spinning')!.children];
     expect(groups.map(group => group.getAttribute('class')))
-      .toEqual(['solar-orbit-inner', 'solar-orbit-outer']);
+      .toEqual(['solar-orbit-near', 'solar-orbit-inner', 'solar-orbit-outer']);
     for (const group of groups) {
       expect(group.tagName).toBe('g');
       expect(group.getAttribute('aria-hidden')).toBe('true');
@@ -455,10 +455,12 @@ describe('Saturn background', () => {
     }
   });
 
-  it('mounts eight radial beams starting on their own orbits and extending outward by 2500 units', () => {
+  it('mounts four cardinal radial beams only on the second orbit extending outward by 2500 units', () => {
     mountSaturnBackground(container);
-    expect(container.querySelectorAll('.solar-radial-beam')).toHaveLength(8);
-    for (const [name, radius] of [['inner', 380], ['outer', 490]] as const) {
+    expect(container.querySelectorAll('.solar-radial-beam')).toHaveLength(4);
+    expect(container.querySelectorAll('.solar-orbit-outer .solar-radial-beam')).toHaveLength(0);
+    expect(container.querySelectorAll('.solar-orbit-near .solar-radial-beam')).toHaveLength(0);
+    for (const [name, radius] of [['inner', 380]] as const) {
       const group = container.querySelector(`.solar-orbit-${name}`)!;
       const beams = [...group.querySelectorAll(':scope > .solar-radial-beam')];
       expect(beams).toHaveLength(4);
@@ -482,19 +484,72 @@ describe('Saturn background', () => {
     }
   });
 
-  it('keeps beams theme-aware and unclipped until the viewport without intercepting controls', () => {
+  it('keeps three orbit groups at fixed opacity with only transform animations', () => {
+    mountSaturnBackground(container);
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const stylesheet = document.createElement('style');
+    stylesheet.textContent = css.slice(css.indexOf('\n.solar-orbit-inner,'),
+      css.indexOf('/* Retire the occluded menu animations'))
+      + css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
+    document.head.appendChild(stylesheet);
+    try {
+      expect(css).not.toMatch(/solar-orbit-fade|solar-glow-breathe/);
+      expect(container.querySelector('[class*="fade"], [class*="breathe"]')).toBeNull();
+      for (const [name, opacity, radius, animation] of [
+        ['near', '0.25', 320, 'none'],
+        ['inner', '0.45', 380, 'orbit-spin-inner 85s linear infinite'],
+        ['outer', '0.3', 490, 'orbit-spin-outer 130s linear infinite'],
+      ] as const) {
+        const group = container.querySelector(`.solar-orbit-${name}`)!;
+        expect(group.parentElement).toBe(container.querySelector('.solar-orbits-spinning'));
+        expect(group.querySelector(`circle[r="${radius}"]`)).not.toBeNull();
+        const style = getComputedStyle(group);
+        expect(style.animation).toBe(animation);
+        expect(style.opacity).toBe(opacity);
+        expect(style.pointerEvents).toBe('none');
+        expect(style.willChange).toBe('transform');
+        expect(style.animationDelay).toBe('');
+        expect(style.contain).toBe('layout style paint');
+        expect(style.backfaceVisibility).toBe('hidden');
+        expect(style.transform).toContain('translateZ(0)');
+        expect(style.transition).toBe('');
+        if (animation !== 'none') {
+          const animationName = animation.split(' ')[0];
+          const keyframes = css.match(new RegExp(
+            `@keyframes ${animationName}\\s*\\{([\\s\\S]*?)\\n\\}`,
+          ));
+          expect(keyframes).not.toBeNull();
+          expect([...keyframes![1].matchAll(/([\w-]+)\s*:/g)].map(match => match[1]))
+            .toEqual(['transform', 'transform']);
+        }
+      }
+      document.body.classList.add('bg-anim-off');
+      for (const group of container.querySelectorAll('.solar-orbits-spinning > g')) {
+        expect(getComputedStyle(group).animation).toBe('none');
+      }
+      document.body.classList.remove('bg-anim-off');
+      container.classList.add('solar-anim-paused');
+      for (const group of container.querySelectorAll('.solar-orbits-spinning > g')) {
+        expect(getComputedStyle(group).animation).toBe('none');
+      }
+    } finally {
+      stylesheet.remove();
+    }
+  });
+
+  it('keeps beams theme-aware and paint-isolated without intercepting controls', () => {
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     const beam = css.match(/\.solar-radial-beam\s*\{([^}]+)\}/)![1];
     expect(beam).toContain('stroke: var(--solar-radial-beam-color)');
-    expect(beam).toContain('stroke-width: 1');
+    expect(beam).toContain('stroke-width: 1px');
     expect(beam).toContain('pointer-events: none');
     expect(beam).toContain('user-select: none');
     expect(beam).not.toMatch(/animation\s*:|filter\s*:|shadow\s*:/);
     for (const selector of ['solar-singularity-scene', 'solar-orbits-spinning']) {
       const rule = css.match(new RegExp(`(?:^|\\})\\s*\\.${selector}\\s*\\{([^}]+)\\}`))![1];
       expect(rule).toContain('overflow: visible');
-      expect(rule).toContain('contain: layout style');
-      expect(rule).not.toMatch(/contain:[^;]*paint/);
+      expect(rule).toContain('contain: layout style paint');
+      expect(rule).toContain('translateZ(0)');
     }
     const host = css.match(/\.saturn-background-mount\s*\{([^}]+)\}/)![1];
     expect(host).toContain('position: fixed');

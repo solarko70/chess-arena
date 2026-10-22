@@ -57,7 +57,26 @@ describe('Static game scenery', () => {
     container.innerHTML = buildReviewScene();
     expect(container.querySelector('.space-game-static')).toBeNull();
     expect(getComputedStyle(container.querySelector('.space-galaxy-spin')!).animation)
-      .toContain('spaceGalaxySpin');
+      .toBe('none');
+  });
+
+  it('freezes all review layers and releases animation compositing hints', () => {
+    container.innerHTML = buildReviewScene();
+    expect(container.children).toHaveLength(5);
+    for (const layer of container.children) {
+      expect(layer.classList.contains('space-review-static')).toBe(true);
+      expect(layer.getAttribute('aria-hidden')).toBe('true');
+      for (const element of [layer, ...layer.querySelectorAll('*')]) {
+        const style = getComputedStyle(element);
+        expect(style.animation).toBe('none');
+        expect(style.transition).toBe('none');
+        expect(style.willChange).toBe('auto');
+        expect(style.pointerEvents).toBe('none');
+      }
+    }
+    expect(container.querySelector('animate, animateTransform, animateMotion, script')).toBeNull();
+    expect(container.querySelector('.space-galaxy-cluster')?.getAttribute('transform'))
+      .toBe('translate(1680, 200) rotate(-30) scale(1, 0.5)');
   });
 
   it('builds and discards game scenery without timers, frames or event listeners', () => {

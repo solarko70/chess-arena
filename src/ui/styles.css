@@ -3580,7 +3580,9 @@ body.review-active #app {
   user-select: none;
   will-change: transform, opacity;
   z-index: var(--z-saturn);
-  contain: layout style;
+  contain: layout style paint;
+  transform: translateZ(0);
+  backface-visibility: hidden;
   opacity: 1;
   transition: opacity 250ms ease-out;
   background: radial-gradient(ellipse at 70.77% 45.38%,
@@ -3613,7 +3615,8 @@ body.review-active #app {
   pointer-events: none;
   display: block;
   transform: translate3d(-50%, -50%, 0);
-  contain: layout paint style;
+  backface-visibility: hidden;
+  contain: layout style paint;
 }
 
 .solar-rim-static {
@@ -3627,7 +3630,7 @@ body.review-active #app {
   transform: translate3d(-50%, -50%, 0) translateZ(0);
   animation: none;
   overflow: visible;
-  contain: layout style;
+  contain: layout style paint;
 }
 
 .solar-orbit-inner,
@@ -3638,14 +3641,27 @@ body.review-active #app {
   will-change: transform;
   pointer-events: none;
   overflow: visible;
+  contain: layout style paint;
 }
 
 .solar-orbit-inner {
+  opacity: 0.45;
   animation: orbit-spin-inner 85s linear infinite;
 }
 
 .solar-orbit-outer {
+  opacity: 0.3;
   animation: orbit-spin-outer 130s linear infinite;
+}
+
+.solar-orbit-near {
+  opacity: 0.25;
+  animation: none;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: layout style paint;
+  pointer-events: none;
 }
 
 .solar-orbit-label {
@@ -3691,7 +3707,7 @@ body.review-active #app {
 
 .solar-radial-beam {
   stroke: var(--solar-radial-beam-color);
-  stroke-width: 1;
+  stroke-width: 1px;
   pointer-events: none;
   user-select: none;
 }
@@ -3718,6 +3734,11 @@ body.bg-anim-off .solar-orbit-inner,
 body.bg-anim-off .solar-orbit-outer,
 .solar-anim-paused .solar-orbit-inner,
 .solar-anim-paused .solar-orbit-outer {
+  animation: none !important;
+}
+
+body.bg-anim-off .solar-orbit-near,
+.solar-anim-paused .solar-orbit-near {
   animation: none !important;
 }
 
@@ -4096,6 +4117,15 @@ body.home-active #solar-bg > .solar-surface {
   animation: none !important;
   transition: none !important;
   will-change: auto !important;
+}
+
+/* Freeze review scenery without discarding its fixed SVG placement transforms. */
+.space-review-static,
+.space-review-static * {
+  animation: none !important;
+  transition: none !important;
+  will-change: auto !important;
+  pointer-events: none;
 }
 
 .space-scene-paused,
@@ -7063,6 +7093,10 @@ body:has(#screen-analysis.active) #app {
 @media (prefers-reduced-motion: reduce) {
   .solar-orbit-inner,
   .solar-orbit-outer {
+    animation: none !important;
+  }
+
+  .solar-orbit-near {
     animation: none !important;
   }
 
