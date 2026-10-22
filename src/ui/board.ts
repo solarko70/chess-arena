@@ -143,7 +143,7 @@ export class ChessBoardUI {
         <div class="board-container">
           <div class="chess-board"></div>
           <div class="board-badge-layer" aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; z-index: 5;"></div>
-          <svg class="board-arrow-layer" viewBox="0 0 800 800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;"></svg>
+          <svg class="board-arrow-layer" viewBox="0 0 800 800" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; z-index: 4;"></svg>
           <div class="promo-overlay" style="display: none;"></div>
         </div>
       </div>

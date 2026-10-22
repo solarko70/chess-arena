@@ -728,4 +728,24 @@
   - Verified `npm run build` (production build clean).
   - Verified `npm test` (all test suites passing, watchdog clean).
 
+## Stage 6b-6: Complete Elimination of Board Downward Shift in Analysis Mode (Completed)
+- [x] Flex-Geometry Stabilization (`src/ui/styles.css`):
+  - In `.screen-analysis`: switched `justify-content` from `center` to `flex-start` and aligned items to top, preventing vertical centering from pulling the chessboard column downward when right sidebar height expands.
+  - In `.analysis-screen-inner`: enforced `justify-content: flex-start` and `align-items: stretch` to anchor the top position of the board regardless of sidebar height changes.
+  - In `.analysis-board-col`: added `flex-shrink: 0` to lock the board column width and flex sizing.
+  - In `.analysis-moves-scroll`: constrained `max-height: 180px` and added `scrollbar-gutter: stable` to eliminate layout shift caused by dynamic appearance/disappearance of the scrollbar.
+- [x] Isolated Move History Auto-Scroll (`src/ui/analysis-board.ts`):
+  - Completely eliminated `element.scrollIntoView()` calls on move elements which caused global page/window jumps.
+  - Replaced with strictly isolated `container.scrollTop` calculations on `.analysis-moves-scroll`, scrolling only within the moves container.
+- [x] Board Arrow SVG Layer Hardening (`src/ui/styles.css`, `src/ui/board.ts`):
+  - Added explicit `.board-arrow-layer` class in CSS with `position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; z-index: 4;`.
+  - Added `inset: 0` and `display: block` attributes to `.board-arrow-layer` SVG markup in `src/ui/board.ts` to prevent any baseline or inline rendering shifts when drawing or clearing engine arrows.
+- [x] Verification & Tests (`src/tests/analysis-board.test.ts`):
+  - Added 2 new tests validating flex-alignment stabilization, `scrollbar-gutter: stable`, and isolated container auto-scrolling without `scrollIntoView`.
+  - All test names $\le 100$ characters; 100% of 448 tests passing across 39 test suites.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (production build clean).
+  - Verified `npm test` (all test suites passing, watchdog clean).
+
+
 

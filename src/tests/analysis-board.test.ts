@@ -569,4 +569,34 @@ describe('Stage 6b: Analysis Board & Board Editor', () => {
     expect(afterDeselectSq52).toBe(initialSq52);
     expect(initialSq52.classList.contains('selected')).toBe(false);
   });
+
+  it('flex-выравнивание и scrollbar-gutter стабилизируют экран анализа', () => {
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/\.screen-analysis\s*\{[^}]*justify-content:\s*flex-start/);
+    expect(css).toMatch(/\.analysis-moves-scroll\s*\{[^}]*scrollbar-gutter:\s*stable/);
+    expect(css).toMatch(/\.analysis-moves-scroll\s*\{[^}]*max-height:\s*180px/);
+    expect(css).toMatch(/\.analysis-board-col\s*\{[^}]*flex-shrink:\s*0/);
+    expect(css).toMatch(/\.board-arrow-layer\s*\{[^}]*display:\s*block/);
+  });
+
+  it('ход на доске анализа скроллит только внутренний контейнер без scrollIntoView', () => {
+    const origScrollIntoView = Element.prototype.scrollIntoView;
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    try {
+      const movesScroll = container.querySelector('.analysis-moves-scroll') as HTMLElement;
+      expect(movesScroll).toBeTruthy();
+
+      const store = analysisUI.getStore();
+      store.makeMove(52, 36); // 1. e4
+      store.makeMove(12, 28); // 1... e5
+
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
+      const activeMoves = movesScroll.querySelectorAll('.move-item.active');
+      expect(activeMoves.length).toBeGreaterThan(0);
+    } finally {
+      Element.prototype.scrollIntoView = origScrollIntoView;
+    }
+  });
 });

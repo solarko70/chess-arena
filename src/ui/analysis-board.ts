@@ -628,7 +628,7 @@ export class AnalysisBoardUI {
   }
 
   private renderMovesTable(liveState: GameState, curPly: number): void {
-    const container = this.container.querySelector('#analysis-moves-container');
+    const container = this.container.querySelector('#analysis-moves-container') as HTMLElement | null;
     if (!container) return;
 
     const variations = this.store.getVariations();
@@ -700,10 +700,22 @@ export class AnalysisBoardUI {
 
     container.appendChild(tableEl);
 
-    // Auto scroll active move into view
+    // Auto scroll active move strictly within moves container to prevent page/board layout shift
     const activeEl = container.querySelector('.move-item.active, .variation-move.active') as HTMLElement | null;
-    if (activeEl && typeof activeEl.scrollIntoView === 'function') {
-      activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (activeEl) {
+      const cRect = typeof container.getBoundingClientRect === 'function' ? container.getBoundingClientRect() : null;
+      const aRect = typeof activeEl.getBoundingClientRect === 'function' ? activeEl.getBoundingClientRect() : null;
+      if (cRect && aRect && cRect.height > 0) {
+        const relativeTop = aRect.top - cRect.top + container.scrollTop;
+        const targetScroll = relativeTop - (container.clientHeight / 2) + (activeEl.clientHeight / 2);
+        container.scrollTop = Math.max(0, targetScroll);
+      } else if (typeof activeEl.offsetTop === 'number' && typeof container.offsetTop === 'number') {
+        const relativeTop = activeEl.offsetTop - container.offsetTop;
+        const targetScroll = relativeTop - (container.clientHeight / 2) + (activeEl.clientHeight / 2);
+        container.scrollTop = Math.max(0, targetScroll);
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
     }
   }
 
