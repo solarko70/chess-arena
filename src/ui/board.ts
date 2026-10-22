@@ -89,6 +89,12 @@ export class ChessBoardUI {
   private evalBarTextEl: HTMLElement
   private arrowLayerEl: SVGElement
   private badgeLayerEl: HTMLElement
+  private planningLayerEl: SVGElement
+  private planningFromSquare: Square | null = null
+  private planningArrows = new Map<string, { from: Square; to: Square }>()
+  private planningHighlights = new Set<Square>()
+  private static planningMarkerId = 0
+  private planningMarkerId = `planning-arrowhead-${++ChessBoardUI.planningMarkerId}`
   private lastHistoryLength = 0
   private lastVariationId: string | null = null
   private hideBadges = false
@@ -123,6 +129,8 @@ export class ChessBoardUI {
   private lastRenderedVariationId: string | null = null
   private lastRenderedPendingPromo = false
   private lastRenderedPremovesLen = 0
+  private lastRenderedAnalysisKey = ''
+  private lastRenderedReview: ReturnType<ChessStore['getReviewResult']> = null
 
   constructor(container: HTMLElement, store: ChessStore, options: ChessBoardUIOptions = {}) {
     this.container = container
@@ -144,6 +152,7 @@ export class ChessBoardUI {
           <div class="chess-board"></div>
           <div class="board-badge-layer" aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; z-index: 5;"></div>
           <svg class="board-arrow-layer" viewBox="0 0 800 800" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; z-index: 4;"></svg>
+          <svg class="board-planning-overlay" viewBox="0 0 800 800" aria-hidden="true"></svg>
           <div class="promo-overlay" style="display: none;"></div>
         </div>
       </div>
@@ -156,6 +165,7 @@ export class ChessBoardUI {
     this.evalBarTextEl = this.container.querySelector('#eval-bar-text') as HTMLElement
     this.arrowLayerEl = this.container.querySelector('.board-arrow-layer') as SVGElement
     this.badgeLayerEl = this.container.querySelector('.board-badge-layer') as HTMLElement
+    this.planningLayerEl = this.container.querySelector('.board-planning-overlay') as SVGElement
 
     this.initEvents()
     this.store.subscribe(() => this.handleStoreNotification())
@@ -171,6 +181,11 @@ export class ChessBoardUI {
     })
     window.addEventListener('pointermove', (e) => this.handlePointerMove(e))
     window.addEventListener('pointerup', (e) => this.handlePointerUp(e))
+    window.addEventListener('pointercancel', () => { this.planningFromSquare = null })
+    window.addEventListener('blur', () => { this.planningFromSquare = null })
+    this.boardEl.addEventListener('click', (e) => {
+      if (e.button === 0) this.clearPlanning()
+    })
 
     // Global pointer down cancels premove queue when clicking outside the board
     window.addEventListener('pointerdown', (e) => {
@@ -349,6 +364,58 @@ export class ChessBoardUI {
     this.render()
   }
 
+  private getAnalysisRenderKey(): string {
+    const node = this.store.getActiveVariationNode()
+    const review = this.store.getReviewResult()
+    const index = this.store.getViewIndex() ?? (review?.moves.length ?? 0) - 1
+    return JSON.stringify([
+      this.store.isReviewMode(), this.store.isReviewInProgress(),
+      node?.class, node?.score, node?.bestMove, review?.moves[index],
+    ])
+  }
+
+  private clearPlanning(): void {
+    this.planningFromSquare = null
+    this.planningArrows.clear()
+    this.planningHighlights.clear()
+    this.renderPlanning()
+  }
+
+  private renderPlanning(): void {
+    const { width, height } = this.store.getState().board
+    const flipped = this.store.isFlipped()
+    const sqW = 800 / width
+    const sqH = 800 / height
+    const center = (sq: Square) => {
+      const x = sq % width
+      const y = Math.floor(sq / width)
+      return [(flipped ? width - 1 - x : x) * sqW + sqW / 2,
+        (flipped ? height - 1 - y : y) * sqH + sqH / 2]
+    }
+    this.planningLayerEl.innerHTML = `
+      <defs>
+        <marker id="${this.planningMarkerId}" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
+          <polygon points="0 0, 6 3, 0 6" fill="var(--solar-planning-arrow)" />
+        </marker>
+      </defs>
+      ${[...this.planningHighlights].map((sq) => {
+        const [x, y] = center(sq)
+        return `<rect class="square-planning-highlight" x="${x - sqW / 2}" y="${y - sqH / 2}" width="${sqW}" height="${sqH}" />`
+      }).join('')}
+      ${[...this.planningArrows.values()].map(({ from, to }) => {
+        const [x1, y1] = center(from)
+        const [x2, y2] = center(to)
+        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--solar-planning-arrow)" stroke-width="8" stroke-linecap="round" marker-end="url(#${this.planningMarkerId})" />`
+      }).join('')}
+    `
+  }
+
+  private getPlanningSquare(target: EventTarget | null): Square | null {
+    if (!(target instanceof Element)) return null
+    const square = target.closest<HTMLElement>('.chess-square')
+    return square && this.boardEl.contains(square) ? Number(square.dataset.square) : null
+  }
+
   private handleStoreNotification(): void {
     const state = this.store.getState()
     const liveState = this.store.getLiveState()
@@ -375,7 +442,9 @@ export class ChessBoardUI {
       this.lastRenderedViewIndex === currentViewIndex &&
       this.lastRenderedVariationId === currentVariationId &&
       this.lastRenderedPendingPromo === currentHasPromo &&
-      this.lastRenderedPremovesLen === currentPremovesLen
+      this.lastRenderedPremovesLen === currentPremovesLen &&
+      this.lastRenderedReview === this.store.getReviewResult() &&
+      this.lastRenderedAnalysisKey === this.getAnalysisRenderKey()
 
     if (isOnlySelectionChange) {
       if (this.lastRenderedSelectedSq === currentSelectedSq) return
@@ -485,15 +554,7 @@ export class ChessBoardUI {
       }
     }
 
-    // Clean up any active solar wings before re-rendering
-    if (this.currentWingsMountEl) {
-      this.currentWingsMountEl.remove()
-      this.currentWingsMountEl = null
-    }
-    if (this.wingsTimer) {
-      clearTimeout(this.wingsTimer)
-      this.wingsTimer = null
-    }
+    this.clearStellarDecorations()
 
     const state = this.store.getState()
     const { width, height } = state.board
@@ -506,6 +567,13 @@ export class ChessBoardUI {
     const inCheck = this.store.isInCheck()
     const kingSq = inCheck ? this.store.getKingSquare() : null
     const premoves = this.store.getPremoves()
+
+    if (this.lastRenderedFen !== serializeFEN(state) ||
+      this.lastRenderedHistoryLen !== historyLen ||
+      this.lastRenderedViewIndex !== this.store.getViewIndex() ||
+      this.lastRenderedVariationId !== (this.store.getActiveVariationNode()?.id ?? null)) {
+      this.clearPlanning()
+    }
 
     // Visually relocate pieces to destination squares for active premoves (chess.com physics)
     for (const pm of premoves) {
@@ -598,6 +666,7 @@ export class ChessBoardUI {
     this.renderMoveBadge(flipped)
     this.handleReviewMoveKinematics(flipped, width, height)
     this.renderSolarWings()
+    this.renderPlanning()
 
     this.lastRenderedFen = serializeFEN(state)
     this.lastRenderedFlipped = flipped
@@ -607,6 +676,8 @@ export class ChessBoardUI {
     this.lastRenderedVariationId = this.store.getActiveVariationNode()?.id ?? null
     this.lastRenderedPendingPromo = pendingPromo !== null
     this.lastRenderedPremovesLen = premoves.length
+    this.lastRenderedAnalysisKey = this.getAnalysisRenderKey()
+    this.lastRenderedReview = this.store.getReviewResult()
   }
 
   private handleReviewMoveKinematics(flipped: boolean, width: number, height: number): void {
@@ -754,8 +825,25 @@ export class ChessBoardUI {
     pieceEl.addEventListener('transitionend', cleanup)
   }
 
+  private clearStellarDecorations(): void {
+    this.currentWingsMountEl?.remove()
+    this.currentWingsMountEl = null
+    if (this.wingsTimer) clearTimeout(this.wingsTimer)
+    this.wingsTimer = null
+    this.boardEl.querySelectorAll('.stellar-wings-mount, .stellar-wings, .stellar-crown, .stellar-aura')
+      .forEach((el) => el.remove())
+    this.boardEl.querySelectorAll('.is-stellar, .has-wings')
+      .forEach((el) => el.classList.remove('is-stellar', 'has-wings'))
+  }
+
   private renderSolarWings(): void {
     const isReview = this.store.isReviewMode()
+    if (!isReview) return
+    const activeVar = this.store.getActiveVariationNode()
+    if (activeVar) {
+      if (activeVar.class === 'stellar') this.mountSolarWings(activeVar.move.to)
+      return
+    }
     const review = this.store.getReviewResult()
     if (!isReview || !review || !review.moves || review.moves.length === 0) {
       return
@@ -785,7 +873,7 @@ export class ChessBoardUI {
     if (!targetSqEl) return
 
     const wingsMount = document.createElement('div')
-    wingsMount.className = 'stellar-wings-mount'
+    wingsMount.className = 'stellar-wings-mount stellar-wings'
     wingsMount.setAttribute('aria-hidden', 'true')
     wingsMount.innerHTML = `
       <svg class="stellar-wings-svg stellar-wings-flutter" viewBox="0 0 100 60" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -868,8 +956,8 @@ export class ChessBoardUI {
     const activeVar = this.store.getActiveVariationNode()
     if (activeVar) {
       const toSquare = activeVar.move.to
-      const moveClass = activeVar.class ?? 'best'
-      const meta = getMoveClassMeta(moveClass)
+      const moveClass = activeVar.class
+      const meta = moveClass ? getMoveClassMeta(moveClass) : null
 
       const { width, height } = this.store.getState().board
       const toX = toSquare % width
@@ -893,11 +981,11 @@ export class ChessBoardUI {
       slotEl.style.pointerEvents = 'none'
 
       const badgeEl = document.createElement('div')
-      badgeEl.className = `board-move-badge badge-${moveClass}`
-      badgeEl.dataset.class = moveClass
+      badgeEl.className = `board-move-badge badge-${moveClass ?? 'pending'}`
+      if (moveClass) badgeEl.dataset.class = moveClass
       badgeEl.dataset.square = toSquare.toString()
-      badgeEl.title = meta.nameRu
-      badgeEl.innerHTML = meta.svg
+      badgeEl.title = meta?.nameRu ?? 'Анализ...'
+      badgeEl.innerHTML = meta?.svg ?? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2" /></svg>'
 
       slotEl.appendChild(badgeEl)
       this.badgeLayerEl.appendChild(slotEl)
@@ -1443,6 +1531,15 @@ export class ChessBoardUI {
   }
 
   private handlePointerDown(e: PointerEvent): void {
+    if (e.button === 2) {
+      e.preventDefault()
+      const from = this.getPlanningSquare(e.target)
+      this.clearPremoves()
+      this.planningFromSquare = from
+      return
+    }
+    if (e.button !== 0) return
+    this.clearPlanning()
     if (
       e.pointerType === 'touch' &&
       (this.isTouching || Date.now() - this.lastTouchEndTime < 500)
@@ -1470,6 +1567,22 @@ export class ChessBoardUI {
   }
 
   private handlePointerUp(e: PointerEvent): void {
+    if (e.button === 2) {
+      const from = this.planningFromSquare
+      const to = this.getPlanningSquare(e.target)
+      this.planningFromSquare = null
+      if (from === null || to === null) return
+      e.preventDefault()
+      if (from === to) {
+        if (!this.planningHighlights.delete(to)) this.planningHighlights.add(to)
+      } else {
+        const key = `${from}:${to}`
+        if (!this.planningArrows.delete(key)) this.planningArrows.set(key, { from, to })
+      }
+      this.renderPlanning()
+      return
+    }
+    if (e.button !== 0) return
     if (
       e.pointerType === 'touch' &&
       (this.isTouching || Date.now() - this.lastTouchEndTime < 500)
