@@ -1,4 +1,7 @@
 :root {
+  --solar-brand-piece-fill: #ffffff;
+  --solar-brand-piece-stroke: #0f172a;
+  --solar-brand-piece-glow: rgba(245, 158, 11, 0.25);
   --solar-brand-gold: #fbbf24;
   --solar-brand-gold-light: #fef08a;
   --solar-brand-gold-mid: #f59e0b;
@@ -226,6 +229,7 @@
 }
 
 [data-theme='light'] {
+  --solar-brand-piece-stroke: #1e293b;
   --solar-brand-gold: #d97706;
   --solar-brand-gold-light: #b45309;
   --solar-brand-gold-mid: #c46507;
@@ -2537,7 +2541,7 @@ body.review-active #app {
 
 .game-over-header {
   text-align: center;
-  margin-bottom: 16px;
+  filter: drop-shadow(0 0 20px var(--solar-brand-piece-glow));
 }
 
 .game-over-verdict {
@@ -6074,10 +6078,22 @@ body.review-active .sound-toggle-btn {
   animation: homeTitleAppear 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.home-title-queen {
+.brand-header {
   position: relative;
-  width: clamp(88px, 10vw, 116px);
-  height: clamp(88px, 10vw, 116px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.home-title-queen {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(100px, 11vw, 140px);
+  height: auto;
   flex-shrink: 0;
   margin-bottom: 16px;
   z-index: var(--z-brand-logo);
@@ -6120,9 +6136,9 @@ body.review-active .sound-toggle-btn {
     'Space Grotesk',
     'Inter',
     sans-serif;
-  font-size: clamp(2.4rem, 4.5vw, 3.4rem);
+  font-size: clamp(3.2rem, 5.8vw, 4.4rem);
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   margin: 0;
   color: var(--solar-brand-silver);
   line-height: 1.1;
@@ -6133,6 +6149,7 @@ body.review-active .sound-toggle-btn {
   row-gap: 0.1em;
   position: relative;
   z-index: var(--z-brand-title);
+  padding-top: 55px;
 }
 
 /* Home Buttons Container: Placed below the title with Frosted Glass */

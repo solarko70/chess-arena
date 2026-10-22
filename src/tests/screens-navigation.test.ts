@@ -49,7 +49,8 @@ describe('Screens & Navigation (Stage A1)', () => {
     const logo = document.querySelector('.home-solar-logo .solar-logo');
     expect(logo?.getAttribute('aria-hidden')).toBe('true');
     expect(logo?.querySelector('.solar-logo-queen')).not.toBeNull();
-    expect(logo?.querySelector('.solar-logo-corona')).not.toBeNull();
+    expect(logo?.querySelector('.solar-logo-corona')).toBeNull();
+    expect(homeTitle?.parentElement?.classList.contains('brand-header')).toBe(true);
     expect(gameTitle).toBeNull();
   });
 
@@ -360,29 +361,30 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(css).toMatch(/\.home-title-wrapper\s*\{[^}]*left:\s*var\(--sun-x\);/);
   });
 
-  it('home title uses compact clamp sizing and queen stays 16px above the text', () => {
+  it('home title is enlarged with the queen layered behind the letters', () => {
     const cssPath = path.resolve(__dirname, '../ui/styles.css');
     const css = fs.readFileSync(cssPath, 'utf-8');
-    expect(css).toMatch(/\.home-title\s*\{[^}]*font-size:\s*clamp\(2\.4rem,\s*4\.5vw,\s*3\.4rem\);/);
-    expect(css).toMatch(/\.home-title\s*\{[^}]*letter-spacing:\s*0\.08em;/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*font-size:\s*clamp\(3\.2rem,\s*5\.8vw,\s*4\.4rem\);/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*letter-spacing:\s*0\.06em;/);
     expect(css).toMatch(/\.home-title\s*\{[^}]*line-height:\s*1\.1;/);
     expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*var\(--z-brand-logo\);/);
     expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*var\(--z-brand-title\);/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*width:\s*clamp\(88px,\s*10vw,\s*116px\);/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*height:\s*clamp\(88px,\s*10vw,\s*116px\);/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*margin-bottom:\s*16px;/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*position:\s*relative;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*width:\s*clamp\(100px,\s*11vw,\s*140px\);/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*height:\s*auto;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*bottom:\s*18px;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*position:\s*absolute;/);
     expect(css).toMatch(/\.home-hero\s*\{[^}]*margin-top:\s*calc\(var\(--sun-y\) \+ max\(12vh, 120px\)\);/);
   });
 
-  it('solar queen has five tips, a radiant sun, an open halo and four axial ticks', () => {
+  it('solar queen has five tips, two suns and no targeting ring', () => {
     const logo = document.querySelector('svg.solar-queen-logo')!;
     expect(logo.getAttribute('fill')).toBe('none');
     expect(logo.querySelectorAll('.solar-queen-tip')).toHaveLength(5);
     expect(logo.querySelector('.solar-queen-sun circle')).not.toBeNull();
     expect(logo.querySelector('.solar-queen-sun path')).not.toBeNull();
-    expect(logo.querySelector('.solar-logo-corona circle')).not.toBeNull();
-    expect(logo.querySelector('.solar-logo-ticks')?.getAttribute('d')?.match(/M/g)).toHaveLength(4);
+    expect(logo.querySelector('.solar-logo-corona, .solar-logo-ticks')).toBeNull();
+    expect(logo.querySelectorAll('circle.solar-queen-tip')).toHaveLength(4);
+    expect(logo.querySelector('.solar-queen-top-sun')).not.toBeNull();
     expect(logo.querySelector('rect')?.getAttribute('rx')).toBe('2.8');
     expect(logo.querySelector('.solar-logo-king, filter, image')).toBeNull();
     for (const outline of logo.querySelectorAll('use')) {
