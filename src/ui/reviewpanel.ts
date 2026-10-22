@@ -1,4 +1,5 @@
 import { ChessStore } from '@/state/store';
+import { APP_NAME } from '@/config';
 import {
   exportReviewedPGN,
   getMoveClassMeta,
@@ -482,7 +483,7 @@ export class ReviewPanelUI {
     const review = this.store.getReviewResult();
     if (!review) return;
 
-    const pgn = exportReviewedPGN(this.store.getLiveState(), review);
+    const pgn = exportReviewedPGN(this.store.getLiveState(), review, { Site: APP_NAME });
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(pgn);

@@ -38,6 +38,9 @@ describe('Stage 6b: Analysis Board & Board Editor', () => {
     expect(container.querySelector('#analysis-board-mount')).toBeTruthy();
     expect(container.querySelector('#analysis-fen-input')).toBeTruthy();
     expect(container.querySelector('#analysis-pgn-input')).toBeTruthy();
+    expect((container.querySelector('#analysis-pgn-input') as HTMLTextAreaElement).value)
+      .toContain('[Site "Solar Chess"]');
+    expect(analysisUI.getStore().getPGN()).toContain('[Site "Solar Chess"]');
     expect(container.querySelector('#btn-analysis-back-to-main')).toBeTruthy();
     expect(container.querySelector('#btn-analysis-flip')).toBeTruthy();
     expect(container.querySelector('#btn-board-editor')).toBeTruthy();

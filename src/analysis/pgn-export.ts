@@ -1,4 +1,5 @@
 import type { GameState } from '@/core';
+import { APP_NAME } from '@/config';
 import type { GameReviewResult, ReviewedMove } from './review';
 import { scoreToCp } from './winchance';
 import { getMoveClassMeta } from './classes';
@@ -23,7 +24,7 @@ export function exportReviewedPGN(
 ): string {
   const headers: Record<string, string> = {
     Event: metadata?.Event ?? 'Casual Game',
-    Site: metadata?.Site ?? 'Chess Arena',
+    Site: metadata?.Site ?? APP_NAME,
     Date: metadata?.Date ?? new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
     Round: metadata?.Round ?? '1',
     White: metadata?.White ?? 'Player 1',

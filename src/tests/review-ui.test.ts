@@ -383,6 +383,8 @@ describe('Game Review UI Integration Tests', () => {
     const mockResult = createMockReviewResult()
     const pgn = exportReviewedPGN(globalStore.getLiveState(), mockResult)
 
+    expect(pgn).toContain('[Site "Solar Chess"]')
+
     expect(pgn).toContain('{[%eval')
     expect(pgn).toContain('??') // NAG for blunder (ply 4)
     expect(pgn).toContain('[WhiteAccuracy "94.5"]')

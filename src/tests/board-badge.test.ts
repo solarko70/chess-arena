@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ChessStore } from '@/state/store';
 import { ChessBoardUI } from '@/ui/board';
 import { GameOverModalUI } from '@/ui/gameovermodal';
@@ -109,6 +109,50 @@ describe('Board Classification Badge & Performance Rating UI (Stage A3.1)', () =
     expect(layer).not.toBeNull();
     expect(layer.style.pointerEvents).toBe('none');
     expect(layer.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('right-click planning preserves mounted badges and pieces throughout repeated gestures', () => {
+    store.makeMove(52, 36);
+    store.setReviewResult(createMockReview());
+    store.setReviewMode(true);
+    store.setViewIndex(0);
+    const badge = boardContainer.querySelector('.move-badge');
+    const square = boardContainer.querySelector('[data-square="36"].chess-square')!;
+    const piece = square.querySelector('.piece-wrapper');
+    expect(badge).not.toBeNull();
+    expect(piece).not.toBeNull();
+    const render = vi.spyOn(boardUI as unknown as { render(): void }, 'render');
+    const mutations: MutationRecord[] = [];
+    const observer = new MutationObserver(records => mutations.push(...records));
+    observer.observe(boardContainer.querySelector('.board-badge-layer')!, { childList: true, subtree: true });
+    const gesture = (to: Element, contextFirst: boolean) => {
+      square.dispatchEvent(new MouseEvent('pointerdown', { button: 2, bubbles: true, cancelable: true }));
+      expect(boardContainer.querySelector('.move-badge')).toBe(badge);
+      const context = () => square.dispatchEvent(new MouseEvent('contextmenu', {
+        button: 2, bubbles: true, cancelable: true,
+      }));
+      if (contextFirst) context();
+      to.dispatchEvent(new MouseEvent('pointerup', { button: 2, bubbles: true, cancelable: true }));
+      if (!contextFirst) context();
+      expect(boardContainer.querySelector('.move-badge')).toBe(badge);
+      expect(square.querySelector('.piece-wrapper')).toBe(piece);
+    };
+    try {
+      gesture(square, true);
+      expect(boardContainer.querySelector('.square-planning-highlight')).not.toBeNull();
+      gesture(square, false);
+      expect(boardContainer.querySelector('.square-planning-highlight')).toBeNull();
+      const target = boardContainer.querySelector('[data-square="28"].chess-square')!;
+      gesture(target, true);
+      expect(boardContainer.querySelector('.board-planning-overlay line')).not.toBeNull();
+      gesture(target, false);
+      expect(boardContainer.querySelector('.board-planning-overlay line')).toBeNull();
+      expect([...mutations, ...observer.takeRecords()]).toHaveLength(0);
+      expect(render).not.toHaveBeenCalled();
+    } finally {
+      observer.disconnect();
+      render.mockRestore();
+    }
   });
 
   it('in start position viewIndex -1 the board badge is absent', () => {

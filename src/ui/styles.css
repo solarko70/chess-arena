@@ -1,4 +1,9 @@
 :root {
+  --solar-brand-gold: #fbbf24;
+  --solar-brand-gold-light: #fff1a8;
+  --solar-brand-silver: #f8fafc;
+  --solar-brand-disc: #0a0d16;
+  --solar-brand-transparent: transparent;
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-tertiary: #334155;
@@ -906,13 +911,13 @@ body.review-active #app {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   pointer-events: none;
   opacity: 1;
-  animation: badgeFadeIn 120ms ease-out;
+  animation: badge-pop 120ms ease-out 1;
   transition:
     opacity 120ms ease-out,
     transform 120ms ease-out;
 }
 
-@keyframes badgeFadeIn {
+@keyframes badge-pop {
   from {
     opacity: 0;
     transform: scale(0.65);
@@ -6073,6 +6078,21 @@ body.review-active .sound-toggle-btn {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.home-solar-logo {
+  top: -1.35em;
+}
+
+.home-title-solar {
+  background: linear-gradient(135deg, var(--solar-brand-gold-light), var(--solar-brand-gold));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: var(--solar-brand-transparent);
+}
+
+.home-title-chess {
+  color: var(--solar-brand-silver);
 }
 
 .home-title {

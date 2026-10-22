@@ -1,3 +1,4 @@
+import { APP_NAME } from '@/config';
 import type {
   GameState,
   Move,
@@ -1089,7 +1090,7 @@ export class ChessStore {
   }
 
   getPGN(): string {
-    return exportPGN(this.state);
+    return exportPGN(this.state, { Site: APP_NAME });
   }
 
   getValidDestinationsFor(sq: Square): Square[] {

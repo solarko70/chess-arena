@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { initApp, getRouter } from '@/main';
 import { globalStore } from '@/state/store';
-import { APP_NAME } from '@/config';
+import { APP_NAME, APP_TITLE } from '@/config';
 import { t } from '@/i18n';
 
 describe('Screens & Navigation (Stage A1)', () => {
@@ -35,12 +35,20 @@ describe('Screens & Navigation (Stage A1)', () => {
   });
 
   it('home and game screen titles are rendered from APP_NAME', () => {
-    expect(document.title).toBe(APP_NAME);
+    expect(APP_NAME).toBe('Solar Chess');
+    expect(document.title).toBe(APP_TITLE);
+    expect(document.title).toBe('Solar Chess — Cosmic Chess Arena');
 
     const homeTitle = document.getElementById('home-app-title');
     const gameTitle = document.getElementById('game-app-title');
 
     expect(homeTitle?.textContent).toContain(APP_NAME);
+    expect(homeTitle?.querySelector('.home-title-solar')?.textContent).toBe('Solar');
+    expect(homeTitle?.querySelector('.home-title-chess')?.textContent).toBe('Chess');
+    const logo = document.querySelector('.home-solar-logo .solar-logo');
+    expect(logo?.getAttribute('aria-hidden')).toBe('true');
+    expect(logo?.querySelector('.solar-logo-king')).not.toBeNull();
+    expect(logo?.querySelector('.solar-logo-corona')).not.toBeNull();
     expect(gameTitle).toBeNull();
   });
 
@@ -63,6 +71,16 @@ describe('Screens & Navigation (Stage A1)', () => {
     // 3. Analysis navigates to analysis screen
     document.getElementById('btn-analysis')?.click();
     expect(window.location.hash).toBe('#/analysis');
+  });
+
+  it('static page metadata uses Solar Chess branding', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../../index.html'), 'utf8');
+    const page = new DOMParser().parseFromString(html, 'text/html');
+    expect(page.title).toBe(APP_TITLE);
+    expect(page.querySelector('meta[name="description"]')?.getAttribute('content')).toContain(APP_NAME);
+    expect(page.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe(APP_TITLE);
+    expect(page.querySelector('meta[property="og:site_name"]')?.getAttribute('content')).toBe(APP_NAME);
+    expect(document.body.textContent).not.toContain('Chess Arena');
   });
 
   it('hash router switches screens between home, game, and analysis', () => {

@@ -6,7 +6,7 @@ import {
   startMenuAmbient,
   stopMenuAmbient,
 } from './audio/solar-audio';
-import { APP_NAME } from './config';
+import { APP_TITLE } from './config';
 import { t } from './i18n';
 import { HashRouter, type AppRoute } from './router';
 import { globalStore, type ChessStore } from './state/store';
@@ -19,7 +19,7 @@ import { AnalysisBoardUI, mountAnalysisBoard } from './ui/analysis-board';
 import { LEVELS } from './ai';
 import { getPieceSvg } from './ui/pieces';
 import { buildGameScene, buildReviewScene } from './ui/space-scenes';
-import { disposeSaturnBackground, updateSaturnBackground } from './ui/navigation';
+import { buildSolarLogo, disposeSaturnBackground, updateSaturnBackground } from './ui/navigation';
 import type { Color } from './core';
 
 function formatClockMs(ms: number): { text: string; isLow: boolean } {
@@ -145,7 +145,7 @@ export function initApp(): void {
   document.getElementById('game-over-modal-mount')?.remove();
   document.getElementById('game-solar-bg')?.remove();
 
-  document.title = APP_NAME;
+  document.title = APP_TITLE;
   globalStore.loadSettingsFromStorage();
 
   app.innerHTML = `
@@ -232,8 +232,8 @@ export function initApp(): void {
     <!-- Screen 1: Home -->
     <div class="screen screen-home" id="screen-home">
       <div class="home-title-wrapper" id="home-title-wrapper">
-        <div class="home-title-queen" aria-hidden="true">${getPieceSvg('queen', 'white')}</div>
-        <h1 class="home-title" id="home-app-title">${APP_NAME}</h1>
+        <div class="home-title-queen home-solar-logo" aria-hidden="true">${buildSolarLogo()}</div>
+        <h1 class="home-title" id="home-app-title"><span class="home-title-solar">Solar</span> <span class="home-title-chess">Chess</span></h1>
       </div>
       <div class="home-hero">
         <div class="home-menu">

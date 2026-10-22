@@ -1,5 +1,6 @@
 import { ChessStore, type VariationNode } from '../state/store';
 import { ChessBoardUI } from './board';
+import { APP_NAME } from '@/config';
 import { createEngine, type AnalysisEngine, type AnalysisEngineResult } from '@/analysis';
 import {
   exportPGN,
@@ -463,7 +464,7 @@ export class AnalysisBoardUI {
     const loadPgnBtn = this.container.querySelector('#btn-load-pgn') as HTMLButtonElement | null;
 
     copyPgnBtn?.addEventListener('click', async () => {
-      const pgn = exportPGN(this.store.getLiveState());
+      const pgn = exportPGN(this.store.getLiveState(), { Site: APP_NAME });
       await this.copyText(pgn, copyPgnBtn, 'Скопировано');
     });
 
@@ -584,7 +585,7 @@ export class AnalysisBoardUI {
     // Update PGN input
     const pgnInput = this.container.querySelector('#analysis-pgn-input') as HTMLTextAreaElement | null;
     if (pgnInput && document.activeElement !== pgnInput) {
-      pgnInput.value = exportPGN(liveState);
+      pgnInput.value = exportPGN(liveState, { Site: APP_NAME });
     }
 
     // Update nav buttons disabled state

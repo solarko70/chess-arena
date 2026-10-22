@@ -269,6 +269,8 @@ export class ChessBoardUI {
   }
 
   public clearPremoves(): void {
+    // Empty planning gestures must preserve the mounted pieces and badge animation.
+    if (this.premoveSelectedSq === null && this.store.getPremoves().length === 0) return
     this.premoveSelectedSq = null
     this.clearPremoveHintDots()
     this.store.clearPremoves()
@@ -981,7 +983,7 @@ export class ChessBoardUI {
       slotEl.style.pointerEvents = 'none'
 
       const badgeEl = document.createElement('div')
-      badgeEl.className = `board-move-badge badge-${moveClass ?? 'pending'}`
+      badgeEl.className = `board-move-badge move-badge badge-${moveClass ?? 'pending'}`
       if (moveClass) badgeEl.dataset.class = moveClass
       badgeEl.dataset.square = toSquare.toString()
       badgeEl.title = meta?.nameRu ?? 'Анализ...'
@@ -1049,7 +1051,7 @@ export class ChessBoardUI {
     slotEl.style.pointerEvents = 'none'
 
     const badgeEl = document.createElement('div')
-    badgeEl.className = `board-move-badge badge-${moveClass}`
+    badgeEl.className = `board-move-badge move-badge badge-${moveClass}`
     badgeEl.dataset.class = moveClass
     badgeEl.dataset.square = toSquare.toString()
     badgeEl.title = meta.nameRu
