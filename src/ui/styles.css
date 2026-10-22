@@ -67,6 +67,32 @@
   --solar-btn-start: #fbbf24;
   --solar-btn-end: #f59e0b;
   --solar-btn-outline: rgba(255, 255, 255, 0.2);
+  --z-saturn: 0;
+  --solar-saturn-polar: #aea78d;
+  --solar-saturn-sand: #d9c39b;
+  --solar-saturn-caramel: #b39060;
+  --solar-saturn-gold: #e7ca91;
+  --solar-saturn-ochre: #826445;
+  --solar-saturn-night: #111722;
+  --solar-saturn-ivory: #fff0ca;
+  --solar-saturn-shadow: #080d18;
+  --solar-saturn-band-0: #f0deb6;
+  --solar-saturn-band-1: #7e654c;
+  --solar-saturn-band-2: #aa8555;
+  --solar-saturn-band-3: #e3cba0;
+  --solar-saturn-ring-c-0: #8c8271;
+  --solar-saturn-ring-c-1: #b0a28a;
+  --solar-saturn-ring-c-2: #615b54;
+  --solar-saturn-ring-b-0: #d5c7ac;
+  --solar-saturn-ring-b-1: #a89a80;
+  --solar-saturn-ring-b-2: #eee0c2;
+  --solar-saturn-ring-a-0: #b7ac97;
+  --solar-saturn-ring-a-1: #827969;
+  --solar-saturn-ring-a-2: #d0c3a6;
+  --solar-saturn-hover-glow: rgba(245, 158, 11, 0.55);
+  --solar-saturn-transparent: transparent;
+  --solar-saturn-mask-visible: #fff;
+  --solar-saturn-mask-hidden: #000;
   --acc-low: #ef4444;
   --acc-mid: #f59e0b;
   --acc-high: #22c55e;
@@ -3471,6 +3497,132 @@ body.review-active #app {
   overflow: visible;
 }
 
+/* The scene survives the immediate display change of the routed screen. */
+.saturn-background-mount {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-saturn);
+  pointer-events: none;
+}
+
+.saturn-scene-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: var(--z-saturn);
+  perspective: 1200px;
+  opacity: 1;
+  transition: opacity 250ms ease-out;
+  --saturn-x: 0px;
+  --saturn-y: 0px;
+  --saturn-rotate-x: 0deg;
+  --saturn-rotate-y: 0deg;
+}
+
+.saturn-scene-wrapper.saturn-scene-leaving {
+  opacity: 0;
+}
+
+.saturn-parallax,
+.saturn-float,
+.saturn-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.saturn-parallax {
+  transform-origin: 77% 44%;
+  transform: translate3d(calc(var(--saturn-x) * 0.2), calc(var(--saturn-y) * 0.2), 0)
+    rotateX(var(--saturn-rotate-x)) rotateY(var(--saturn-rotate-y));
+}
+
+.saturn-float {
+  transform-origin: 77% 44%;
+  animation: saturnOrbitalFloat 13s ease-in-out infinite;
+}
+
+.saturn-planet-depth {
+  transform: translate(calc(var(--saturn-x) * 0.35), calc(var(--saturn-y) * 0.35));
+}
+
+.saturn-ring-depth {
+  transform: translate(calc(var(--saturn-x) * 0.8), calc(var(--saturn-y) * 0.8));
+}
+
+.saturn-planet {
+  filter: brightness(1);
+  transition: filter 450ms ease;
+}
+
+.saturn-hovered .saturn-planet {
+  filter: brightness(1.08);
+}
+
+.saturn-ring-glow {
+  opacity: 0;
+  filter: drop-shadow(0 0 20px var(--solar-saturn-hover-glow));
+  transition: opacity 450ms ease;
+}
+
+.saturn-hovered .saturn-ring-glow {
+  opacity: 0.8;
+}
+
+.saturn-hitbox {
+  pointer-events: auto;
+}
+
+.saturn-hit-target {
+  pointer-events: fill;
+}
+
+.saturn-scene-leaving .saturn-hitbox,
+.saturn-scene-leaving .saturn-hit-target {
+  pointer-events: none;
+}
+
+body.home-active #app {
+  max-width: none;
+}
+
+.screen-home {
+  pointer-events: none;
+}
+
+.screen-home .home-hero {
+  pointer-events: auto;
+}
+
+body.home-active #solar-bg > .solar-sun,
+body.home-active #solar-bg > .solar-orbits,
+body.home-active #solar-bg > .solar-surface {
+  visibility: hidden;
+}
+
+@keyframes saturnOrbitalFloat {
+  0%,
+  100% {
+    transform: translate3d(0, -6px, 0) rotate(-0.35deg);
+  }
+  50% {
+    transform: translate3d(0, 6px, 0) rotate(0.35deg);
+  }
+}
+
+body.bg-anim-off .saturn-float {
+  animation: none !important;
+}
+
+body.bg-anim-off .saturn-parallax,
+body.bg-anim-off .saturn-planet-depth,
+body.bg-anim-off .saturn-ring-depth {
+  transform: none !important;
+}
+
 /* Fullscreen Solar Game Background Layer */
 .game-solar-background {
   position: fixed;
@@ -5753,8 +5905,6 @@ body.review-active .sound-toggle-btn {
   background: var(--hero-glass-bg);
   border: 1px solid var(--hero-glass-border);
   box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -6003,5 +6153,46 @@ body.review-active .sound-toggle-btn {
     max-width: 100vw;
     box-sizing: border-box;
     overflow-x: hidden !important;
+  }
+}
+
+@media (min-width: 901px) and (min-height: 601px) {
+  .screen-home .home-title-wrapper {
+    left: 25%;
+  }
+
+  .screen-home .home-title {
+    font-size: clamp(2.6rem, 5.5vw, 6rem);
+  }
+
+  .screen-home .home-hero {
+    margin-right: auto;
+    margin-left: max(0px, calc(25% - 210px));
+  }
+}
+
+@media (max-width: 900px) {
+  .saturn-svg {
+    width: 160%;
+    left: -60%;
+    opacity: 0.62;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saturn-float {
+    animation: none !important;
+  }
+
+  .saturn-parallax,
+  .saturn-planet-depth,
+  .saturn-ring-depth {
+    transform: none !important;
+  }
+
+  .saturn-scene-wrapper,
+  .saturn-planet,
+  .saturn-ring-glow {
+    transition: none !important;
   }
 }

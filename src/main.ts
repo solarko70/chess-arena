@@ -18,6 +18,7 @@ import { GameSetupModalUI } from './ui/setupmodals';
 import { LEVELS } from './ai';
 import { getPieceSvg } from './ui/pieces';
 import { buildGameScene, buildReviewScene } from './ui/space-scenes';
+import { disposeSaturnBackground, updateSaturnBackground } from './ui/navigation';
 import type { Color } from './core';
 
 function formatClockMs(ms: number): { text: string; isLow: boolean } {
@@ -112,6 +113,8 @@ function getSideLabel(store: ChessStore, sideColor: Color): string {
 export function initApp(): void {
   const app = document.getElementById('app');
   if (!app) return;
+
+  disposeSaturnBackground();
 
   if (clockIntervalId !== null) {
     clearInterval(clockIntervalId);
@@ -426,6 +429,7 @@ export function initApp(): void {
     const isGame = route === 'game';
     document.body.classList.toggle('home-active', isHome);
     document.body.classList.toggle('game-active', isGame);
+    updateSaturnBackground(route, app);
 
     if (isHome) {
       startMenuAmbient();
@@ -1011,8 +1015,8 @@ export function initApp(): void {
 
   // Tactile button click sound feedback
   const handleButtonClickSound = (e: MouseEvent): void => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
+    const target = e.target;
+    if (!(target instanceof Element)) return;
 
     // Do NOT play UI button click on move navigation and review elements (chess move sounds play instead)
     const isMoveNav = target.closest(
@@ -1031,8 +1035,8 @@ export function initApp(): void {
   // Subtle button hover sound feedback with throttling (~45ms)
   let lastHoverTime = 0;
   const handleButtonHoverSound = (e: MouseEvent): void => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
+    const target = e.target;
+    if (!(target instanceof Element)) return;
 
     // Do NOT play hover sound on chess board squares, pieces, or board coordinates
     if (target.closest('#board-mount, .board-square, .chess-piece, .square-overlay, .piece-wrapper')) return;
