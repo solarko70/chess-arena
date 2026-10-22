@@ -623,6 +623,29 @@
   - Verified `npm run build` (production build clean).
   - Verified `npm test` (36 test files passed, 389 tests passed, watchdog clean).
 
+## Stage 6b-4: MultiPV 3 Real-time Stream, Reset Board Warning & Chained Multi-premoves (Completed)
+- [x] Autonomous Real-time MultiPV 3 Stream (`src/analysis/engine.ts`, `src/ui/analysis-board.ts`):
+  - Created reactive line buffer in `StockfishAnalysisEngine`: tracks candidate lines via `infoByMultiPV = new Map<number, ParsedUCIInfo>()`.
+  - Added throttled streaming (`scheduleUpdate` every 130ms) notifying caller via `EngineAnalyzeOptions.onUpdate`.
+  - UI automatically applies partial engine lines (`applyEngineResult`) as Stockfish discovers candidate lines 1, 2, and 3 without requiring user clicks or interaction.
+- [x] Reset Board Button & Confirmation Warning (`src/ui/analysis-board.ts`, `src/ui/styles.css`):
+  - Added full-width button `.analysis-reset-board-btn` (`#btn-analysis-reset-board`) positioned below the 4-button navigation grid with sleek SVG reset icon.
+  - Interactive confirmation warning banner (`#analysis-reset-confirm`) with text «Сбросить анализ к начальной позиции? Все ходы и варианты будут удалены.», accent confirm button (`#btn-reset-confirm-yes`), and cancel button (`#btn-reset-confirm-no`).
+  - Confirmation required when board has moves or variations; cancels cleanly or resets to starting FEN, clears variations/history, updates FEN/PGN inputs, and triggers fresh Stockfish evaluation.
+- [x] Chained Multi-premoves with the Same Piece (`src/ui/board.ts`):
+  - Added `getSpeculativePieces()` tracking pieces at their speculative destination squares across chained premoves.
+  - Interaction with speculatively moved piece on `to` square calculates geometric moves from `to` and displays `.move-hint-dot` targets.
+  - Dropping or clicking subsequent destination `to2` adds second step to `premoveQueue` (`[{from, to}, {from: to, to: to2}]`).
+  - Square highlights mark intermediate step as origin (`.square-premove-origin`) and final destination as `.square-premove-to`.
+  - Right click anywhere cancels entire chain and restores piece to its original authoritative square.
+- [x] Comprehensive Testing & Verification (`src/tests/analysis-board.test.ts`, `src/tests/premove.test.ts`):
+  - Added 3 new tests in `src/tests/analysis-board.test.ts` covering reset button presence, reset warning & position reset, and autonomous MultiPV 3 streaming without user clicks (18 tests passing).
+  - Added 2 new tests in `src/tests/premove.test.ts` covering chained multi-premove addition and right-click full rollback (16 tests passing).
+  - All test names $\le 100$ characters; 100% test pass rate across all suites.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (production build clean).
+  - Verified `npm test` (all test suites passing, watchdog clean).
+
 ## Stage 6b-3: Analysis Board (chess.com Style MultiPV & Variations) & Premove Overhaul (Completed)
 - [x] Full-width Analysis Board Navigation (`src/ui/analysis-board.ts`, `src/ui/styles.css`):
   - Overhauled `.analysis-board-nav`: spans 100% chessboard width, CSS Grid `grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;`.

@@ -201,10 +201,25 @@ export class ChessBoardUI {
     return this.store.getPremoves()
   }
 
+  public getSpeculativePieces(): (Piece | null)[] {
+    const state = this.store.getState()
+    const pieces = [...state.board.pieces]
+    const premoves = this.store.getPremoves()
+    for (const pm of premoves) {
+      const pieceToMove = pieces[pm.from]
+      if (pieceToMove) {
+        pieces[pm.to] = pm.promotion ? { ...pieceToMove, type: pm.promotion } : pieceToMove
+        pieces[pm.from] = null
+      }
+    }
+    return pieces
+  }
+
   public setPremove(premove: Premove | null): void {
     if (premove) {
       const state = this.store.getState()
-      const piece = state.board.pieces[premove.from]
+      const specPieces = this.getSpeculativePieces()
+      const piece = specPieces[premove.from] ?? state.board.pieces[premove.from]
       if (piece && !isGeometricallyValidPremove(premove.from, premove.to, piece, state.board.width, state.board.height)) {
         return
       }
@@ -218,7 +233,8 @@ export class ChessBoardUI {
 
   public addPremove(premove: Premove): void {
     const state = this.store.getState()
-    const piece = state.board.pieces[premove.from]
+    const specPieces = this.getSpeculativePieces()
+    const piece = specPieces[premove.from] ?? state.board.pieces[premove.from]
     if (piece && !isGeometricallyValidPremove(premove.from, premove.to, piece, state.board.width, state.board.height)) {
       return
     }
@@ -262,22 +278,37 @@ export class ChessBoardUI {
   private renderPremoveHintDots(fromSq: Square): void {
     this.clearPremoveHintDots()
     const state = this.store.getState()
-    const piece = state.board.pieces[fromSq]
+    const { width, height } = state.board
+    const specPieces = this.getSpeculativePieces()
+    const piece = specPieces[fromSq] ?? state.board.pieces[fromSq]
     if (!piece) return
 
     const tempState = {
       ...state,
       turn: piece.color,
+      board: {
+        ...state.board,
+        pieces: specPieces,
+      },
     }
 
     try {
       const pseudoMoves = generatePseudoLegal(tempState).filter((m) => m.from === fromSq)
-      const destSquares = Array.from(new Set(pseudoMoves.map((m) => m.to)))
+      let destSquares = Array.from(new Set(pseudoMoves.map((m) => m.to)))
+
+      if (destSquares.length === 0) {
+        const total = width * height
+        for (let toSq = 0; toSq < total; toSq++) {
+          if (toSq !== fromSq && isGeometricallyValidPremove(fromSq, toSq, piece, width, height)) {
+            destSquares.push(toSq)
+          }
+        }
+      }
 
       for (const destSq of destSquares) {
         const targetSqEl = this.boardEl.querySelector(`[data-square="${destSq}"]`)
         if (targetSqEl && !targetSqEl.querySelector('.dest-hint, .dest-capture-ring, .move-hint-dot')) {
-          const targetPiece = state.board.pieces[destSq]
+          const targetPiece = specPieces[destSq]
           const hint = document.createElement('div')
           hint.className = targetPiece
             ? 'dest-capture-ring square-hint premove-hint'
@@ -286,7 +317,16 @@ export class ChessBoardUI {
         }
       }
     } catch {
-      // Safe fallback if move generator encounters unexpected board state
+      for (let toSq = 0; toSq < width * height; toSq++) {
+        if (toSq !== fromSq && isGeometricallyValidPremove(fromSq, toSq, piece, width, height)) {
+          const targetSqEl = this.boardEl.querySelector(`[data-square="${toSq}"]`)
+          if (targetSqEl && !targetSqEl.querySelector('.dest-hint, .dest-capture-ring, .move-hint-dot')) {
+            const hint = document.createElement('div')
+            hint.className = 'dest-hint move-hint-dot square-hint premove-hint'
+            targetSqEl.appendChild(hint)
+          }
+        }
+      }
     }
   }
 
@@ -998,7 +1038,8 @@ export class ChessBoardUI {
 
     const sq = parseInt(target.dataset.square, 10)
     const state = this.store.getState()
-    const piece = state.board.pieces[sq]
+    const specPieces = this.getSpeculativePieces()
+    const piece = specPieces[sq] ?? state.board.pieces[sq]
     const turn = state.turn
 
     // ── Premove Handling ──────────────────────────────────────────────────
@@ -1134,7 +1175,8 @@ export class ChessBoardUI {
 
       // Clicking on any other destination square -> commit premove from -> to
       const fromSq = this.premoveSelectedSq
-      const fromPiece = pieces[fromSq]
+      const specPieces = this.getSpeculativePieces()
+      const fromPiece = specPieces[fromSq] ?? pieces[fromSq]
       if (fromPiece && !isGeometricallyValidPremove(fromSq, sq, fromPiece, width, height)) {
         this.premoveSelectedSq = null
         this.clearPremoveHintDots()
@@ -1247,7 +1289,8 @@ export class ChessBoardUI {
       if (targetSqEl && targetSqEl.dataset.square && fromSq !== null) {
         const toSq = parseInt(targetSqEl.dataset.square, 10)
         if (toSq !== fromSq) {
-          const fromPiece = this.store.getState().board.pieces[fromSq]
+          const specPieces = this.getSpeculativePieces()
+          const fromPiece = specPieces[fromSq] ?? this.store.getState().board.pieces[fromSq]
           const { width, height } = this.store.getState().board
           if (fromPiece && !isGeometricallyValidPremove(fromSq, toSq, fromPiece, width, height)) {
             this.premoveSelectedSq = null

@@ -428,4 +428,95 @@ describe('Stage 6b: Analysis Board & Board Editor', () => {
     expect(store.getActiveVariationNode()).not.toBeNull();
     expect(store.getActiveVariationNode()?.san).toBe('c5');
   });
+
+  it('кнопка сброса позиции отображается под панелью навигации доски анализа', () => {
+    const resetBtn = container.querySelector('#btn-analysis-reset-board') as HTMLButtonElement;
+    expect(resetBtn).toBeTruthy();
+    expect(resetBtn.title).toContain('Сбросить доску');
+    expect(resetBtn.textContent).toContain('Вернуть начальную позицию');
+    expect(resetBtn.querySelector('.reset-icon')).toBeTruthy();
+
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/\.analysis-reset-board-btn\s*\{[^}]*height:\s*44px/);
+    expect(css).toMatch(/\.analysis-reset-board-btn\s*\{[^}]*width:\s*100%/);
+  });
+
+  it('предупреждение при сбросе непустой позиции и успешный сброс доски при подтверждении', () => {
+    const store = analysisUI.getStore();
+    store.makeMove(52, 36); // 1. e4
+    store.makeMove(12, 28); // 1... e5
+    expect(store.getLiveState().history.length).toBe(2);
+
+    const resetBtn = container.querySelector('#btn-analysis-reset-board') as HTMLButtonElement;
+    const confirmBox = container.querySelector('#analysis-reset-confirm') as HTMLElement;
+    const confirmNo = container.querySelector('#btn-reset-confirm-no') as HTMLButtonElement;
+    const confirmYes = container.querySelector('#btn-reset-confirm-yes') as HTMLButtonElement;
+    expect(confirmBox.style.display).toBe('none');
+
+    // Clicking reset button opens warning confirmation
+    resetBtn.click();
+    expect(confirmBox.style.display).not.toBe('none');
+    expect(confirmBox.textContent).toContain('Сбросить анализ к начальной позиции');
+
+    // Cancel preserves history
+    confirmNo.click();
+    expect(confirmBox.style.display).toBe('none');
+    expect(store.getLiveState().history.length).toBe(2);
+
+    // Confirm resets game to initial position and clears moves
+    resetBtn.click();
+    expect(confirmBox.style.display).not.toBe('none');
+    confirmYes.click();
+    expect(confirmBox.style.display).toBe('none');
+    expect(store.getLiveState().history.length).toBe(0);
+
+    const fenInput = container.querySelector('#analysis-fen-input') as HTMLInputElement;
+    expect(fenInput.value).toContain('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  });
+
+  it('автономное обновление 3 линий MultiPV из буфера движка без действий пользователя', async () => {
+    const engine = analysisUI.getEngine();
+    const mvE4 = { from: 52, to: 36, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+    const mvD4 = { from: 51, to: 35, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+    const mvC4 = { from: 50, to: 34, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+
+    const mockLines = [
+      { move: mvE4, san: 'e4', score: { type: 'cp' as const, value: 35 }, pv: [mvE4], pvSan: ['e4', 'e5'] },
+      { move: mvD4, san: 'd4', score: { type: 'cp' as const, value: 20 }, pv: [mvD4], pvSan: ['d4', 'd5'] },
+      { move: mvC4, san: 'c4', score: { type: 'cp' as const, value: 15 }, pv: [mvC4], pvSan: ['c4', 'c5'] },
+    ];
+
+    vi.spyOn(engine, 'analyze').mockImplementation(async (_state, opts) => {
+      opts?.onUpdate?.({
+        bestMove: mvE4,
+        score: { type: 'cp', value: 35 },
+        depth: 14,
+        nodes: 500,
+        lines: mockLines,
+        pv: [mvE4],
+        timeMs: 20,
+        engineName: 'Stockfish 19 Lite WASM',
+      });
+      return {
+        bestMove: mvE4,
+        score: { type: 'cp', value: 35 },
+        depth: 18,
+        nodes: 1000,
+        lines: mockLines,
+        pv: [mvE4],
+        timeMs: 50,
+        engineName: 'Stockfish 19 Lite WASM',
+      };
+    });
+
+    (analysisUI as unknown as { runLiveAnalysis: () => void }).runLiveAnalysis();
+    await new Promise((r) => setTimeout(r, 60));
+
+    const multipvContainer = container.querySelector('#analysis-multipv-lines') as HTMLElement;
+    const rows = multipvContainer.querySelectorAll('.analysis-multipv-row');
+    expect(rows.length).toBe(3);
+    expect(rows[0].textContent).toContain('+0.35');
+    expect(rows[1].textContent).toContain('+0.20');
+    expect(rows[2].textContent).toContain('+0.15');
+  });
 });

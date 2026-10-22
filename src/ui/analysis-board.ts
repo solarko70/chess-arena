@@ -89,6 +89,15 @@ const NAV_LAST_ICON = `
   </svg>
 `;
 
+const RESET_ICON = `
+  <svg class="reset-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </svg>
+`;
+
+const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
 const PIECE_TYPES: PieceType[] = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
 let observatorySequence = 0;
 
@@ -196,6 +205,19 @@ export class AnalysisBoardUI {
               <button class="btn-board-nav" id="btn-nav-end" title="В конец (Стрелка вниз)" aria-label="В конец">
                 ${NAV_LAST_ICON}
               </button>
+            </div>
+
+            <button class="analysis-reset-board-btn" id="btn-analysis-reset-board" title="Сбросить доску к начальной позиции">
+              ${RESET_ICON}
+              <span>Вернуть начальную позицию</span>
+            </button>
+
+            <div class="analysis-reset-confirm" id="analysis-reset-confirm" style="display: none;">
+              <div class="reset-confirm-text">Сбросить анализ к начальной позиции? Все ходы и варианты будут удалены.</div>
+              <div class="reset-confirm-actions">
+                <button class="btn-reset-confirm-yes" id="btn-reset-confirm-yes">Сбросить</button>
+                <button class="btn-reset-confirm-no" id="btn-reset-confirm-no">Отмена</button>
+              </div>
             </div>
           </div>
 
@@ -373,6 +395,44 @@ export class AnalysisBoardUI {
     });
     this.container.querySelector('#btn-nav-end')?.addEventListener('click', () => {
       this.viewEnd();
+    });
+
+    // Reset board to initial position
+    const resetBtn = this.container.querySelector('#btn-analysis-reset-board') as HTMLButtonElement | null;
+    const confirmBox = this.container.querySelector('#analysis-reset-confirm') as HTMLElement | null;
+    const confirmYes = this.container.querySelector('#btn-reset-confirm-yes') as HTMLButtonElement | null;
+    const confirmNo = this.container.querySelector('#btn-reset-confirm-no') as HTMLButtonElement | null;
+
+    const performReset = () => {
+      if (confirmBox) confirmBox.style.display = 'none';
+      this.store.newGame();
+      this.store.setActiveVariationNode(null);
+      this.boardUI.clearPremoves();
+      this.handleStoreChange();
+    };
+
+    resetBtn?.addEventListener('click', () => {
+      const state = this.store.getState();
+      const liveState = this.store.getLiveState();
+      const hasMoves = liveState.history.length > 0;
+      const hasVariations = this.store.getVariations().length > 0;
+      const isCustomFen = serializeFEN(state) !== STARTING_FEN;
+
+      if (!hasMoves && !hasVariations && !isCustomFen) {
+        performReset();
+      } else {
+        if (confirmBox) {
+          confirmBox.style.display = confirmBox.style.display === 'none' ? 'block' : 'none';
+        }
+      }
+    });
+
+    confirmYes?.addEventListener('click', () => {
+      performReset();
+    });
+
+    confirmNo?.addEventListener('click', () => {
+      if (confirmBox) confirmBox.style.display = 'none';
     });
 
     // FEN Actions
@@ -784,64 +844,79 @@ export class AnalysisBoardUI {
         depth: 18,
         multiPV: 3,
         signal,
+        onUpdate: (partial: AnalysisEngineResult) => {
+          if (signal.aborted) return;
+          this.applyEngineResult(currentState, partial);
+        },
       })
       .then((res: AnalysisEngineResult) => {
         if (signal.aborted) return;
-        this.boardUI.setExternalScore(res.score);
-        if (res.bestMove) {
-          this.boardUI.setExternalArrow(res.bestMove);
-        } else {
-          this.boardUI.setExternalArrow(null);
-        }
-
-        if (depthEl) {
-          depthEl.textContent = `depth=${res.depth}`;
-        }
-
-        if (numericEl) {
-          if (res.score.type === 'mate') {
-            const val = res.score.value;
-            numericEl.textContent = val > 0 ? `M${Math.abs(val)}` : `-M${Math.abs(val)}`;
-          } else {
-            const cp = res.score.value / 100;
-            const sign = cp > 0 ? '+' : '';
-            numericEl.textContent = `${sign}${cp.toFixed(1)}`;
-          }
-        }
-
-        if (bestMoveEl) {
-          if (res.bestMove) {
-            let san = res.lines[0]?.san;
-            if (!san) {
-              try {
-                san = moveToSAN(currentState, res.bestMove);
-              } catch {
-                san = '';
-              }
-            }
-            bestMoveEl.textContent = san ? `Лучший ход: ${san}` : 'Оценка рассчитана';
-          } else {
-            bestMoveEl.textContent = 'Оценка рассчитана';
-          }
-        }
-
-        if (pvEl) {
-          const firstLine = res.lines[0];
-          if (firstLine && firstLine.pvSan && firstLine.pvSan.length > 0) {
-            pvEl.textContent = `Линия: ${firstLine.pvSan.slice(0, 7).join(' ')}`;
-          } else {
-            pvEl.textContent = '';
-          }
-        }
-
-        const linesEl = (this.container.querySelector('#analysis-multipv-lines') as HTMLElement | null) ?? multipvContainer;
-        if (linesEl) {
-          this.renderMultiPVLines(linesEl, currentState, res.lines);
-        }
+        this.applyEngineResult(currentState, res);
       })
       .catch((err) => {
         if ((err as Error)?.name === 'AbortError') return;
       });
+  }
+
+  private applyEngineResult(currentState: GameState, res: AnalysisEngineResult): void {
+    if (this.isPaused) return;
+
+    const numericEl = this.container.querySelector('#analysis-eval-numeric');
+    const bestMoveEl = this.container.querySelector('#analysis-bestmove-info');
+    const depthEl = this.container.querySelector('#analysis-engine-depth');
+    const pvEl = this.container.querySelector('#analysis-pv-line');
+
+    this.boardUI.setExternalScore(res.score);
+    if (res.bestMove) {
+      this.boardUI.setExternalArrow(res.bestMove);
+    } else {
+      this.boardUI.setExternalArrow(null);
+    }
+
+    if (depthEl) {
+      depthEl.textContent = `depth=${res.depth}`;
+    }
+
+    if (numericEl) {
+      if (res.score.type === 'mate') {
+        const val = res.score.value;
+        numericEl.textContent = val > 0 ? `M${Math.abs(val)}` : `-M${Math.abs(val)}`;
+      } else {
+        const cp = res.score.value / 100;
+        const sign = cp > 0 ? '+' : '';
+        numericEl.textContent = `${sign}${cp.toFixed(1)}`;
+      }
+    }
+
+    if (bestMoveEl) {
+      if (res.bestMove) {
+        let san = res.lines[0]?.san;
+        if (!san) {
+          try {
+            san = moveToSAN(currentState, res.bestMove);
+          } catch {
+            san = '';
+          }
+        }
+        bestMoveEl.textContent = san ? `Лучший ход: ${san}` : 'Оценка рассчитана';
+      } else {
+        bestMoveEl.textContent = 'Оценка рассчитана';
+      }
+    }
+
+    if (pvEl) {
+      const firstLine = res.lines[0];
+      if (firstLine && firstLine.pvSan && firstLine.pvSan.length > 0) {
+        pvEl.textContent = `Линия: ${firstLine.pvSan.slice(0, 7).join(' ')}`;
+      } else {
+        pvEl.textContent = '';
+      }
+    }
+
+    const linesEl = this.container.querySelector('#analysis-multipv-lines') as HTMLElement | null;
+    if (linesEl) {
+      this.renderMultiPVLines(linesEl, currentState, res.lines);
+    }
   }
 
   private renderMultiPVLines(container: HTMLElement, state: GameState, lines: AnalysisEngineResult['lines']): void {

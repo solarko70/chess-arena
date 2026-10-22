@@ -399,5 +399,76 @@ describe('Stage 6a-3: Premove Mechanics (chess.com style)', () => {
     expect(updatedSq45.querySelector('.piece-wrapper')).toBeNull();
     expect(updatedSq62.classList.contains('square-premove-origin')).toBe(false);
   });
+
+  it('захват фигуры с поля премува и добавление второго шага в очередь цепочки', () => {
+    store.makeMove(52, 36); // 1. e4 (Black's turn)
+    expect(store.getState().turn).toBe('black');
+
+    // Step 1: Premove White Knight from 62 (g1) to 45 (f3)
+    boardUI.addPremove({ from: 62, to: 45 });
+    expect(store.getPremoves().length).toBe(1);
+
+    const sq45 = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+    expect(sq45.querySelector('.piece-wrapper')).toBeTruthy();
+
+    // Step 2: Grab the Knight on its speculative destination square 45 and chain to 28 (e5)
+    sq45.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+
+    // Hint dots should appear for the speculative position (including 28)
+    const hintDots = boardContainer.querySelectorAll('.move-hint-dot, .dest-hint');
+    expect(hintDots.length).toBeGreaterThan(0);
+
+    // Click square 28 (e5) to commit second premove
+    const sq28 = boardContainer.querySelector('[data-square="28"]') as HTMLElement;
+    sq28.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+
+    const queue = store.getPremoves();
+    expect(queue.length).toBe(2);
+    expect(queue[0]).toEqual({ from: 62, to: 45, promotion: undefined });
+    expect(queue[1]).toEqual({ from: 45, to: 28, promotion: undefined });
+
+    // The piece is now visually located at square 28
+    const updatedSq62 = boardContainer.querySelector('[data-square="62"]') as HTMLElement;
+    const updatedSq45 = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+    const updatedSq28 = boardContainer.querySelector('[data-square="28"]') as HTMLElement;
+
+    expect(updatedSq62.querySelector('.piece-wrapper')).toBeNull();
+    expect(updatedSq45.querySelector('.piece-wrapper')).toBeNull();
+    expect(updatedSq28.querySelector('.piece-wrapper')).toBeTruthy();
+
+    // Both previous squares have origin highlight, final has to highlight
+    expect(updatedSq62.classList.contains('square-premove-origin')).toBe(true);
+    expect(updatedSq45.classList.contains('square-premove-origin')).toBe(true);
+    expect(updatedSq28.classList.contains('square-premove-to')).toBe(true);
+  });
+
+  it('полный откат фигуры на исходное поле при отмене цепочки премувов правым кликом', () => {
+    store.makeMove(52, 36); // 1. e4 (Black's turn)
+    expect(store.getState().turn).toBe('black');
+
+    boardUI.addPremove({ from: 62, to: 45 });
+    boardUI.addPremove({ from: 45, to: 28 });
+    expect(store.getPremoves().length).toBe(2);
+
+    const chessBoard = boardContainer.querySelector('.chess-board') as HTMLElement;
+    chessBoard.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+    expect(store.getPremoves().length).toBe(0);
+    expect(store.getPremove()).toBeNull();
+
+    const sq62 = boardContainer.querySelector('[data-square="62"]') as HTMLElement;
+    const sq45 = boardContainer.querySelector('[data-square="45"]') as HTMLElement;
+    const sq28 = boardContainer.querySelector('[data-square="28"]') as HTMLElement;
+
+    // Piece is restored on original square 62
+    expect(sq62.querySelector('.piece-wrapper')).toBeTruthy();
+    expect(sq45.querySelector('.piece-wrapper')).toBeNull();
+    expect(sq28.querySelector('.piece-wrapper')).toBeNull();
+
+    // All premove highlights cleared
+    expect(sq62.classList.contains('square-premove-origin')).toBe(false);
+    expect(sq45.classList.contains('square-premove-origin')).toBe(false);
+    expect(sq28.classList.contains('square-premove-to')).toBe(false);
+  });
 });
 

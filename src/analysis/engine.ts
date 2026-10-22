@@ -26,6 +26,7 @@ export interface EngineAnalyzeOptions {
   depth?: number;
   multiPV?: number;
   signal?: AbortSignal;
+  onUpdate?: (partial: AnalysisEngineResult) => void;
 }
 
 export interface AnalysisEngineResult extends AnalysisResult {
@@ -283,10 +284,12 @@ export class OwnEngine implements AnalysisEngine {
     if (options.signal?.aborted) {
       throw createAbortError();
     }
-    return {
+    const result: AnalysisEngineResult = {
       ...res,
       engineName: this.name,
     };
+    options.onUpdate?.(result);
+    return result;
   }
 
   dispose(): void {
@@ -613,6 +616,57 @@ export class StockfishEngine implements AnalysisEngine {
       let phase: 'waiting_ready' | 'searching' | 'done' = 'waiting_ready';
       let hasReceivedBestMove = false;
       let aborted = false;
+      let lastUpdateTime = 0;
+      let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const notifyUpdate = () => {
+        if (!options.onUpdate || phase !== 'searching' || aborted || options.signal?.aborted) return;
+        const sortedEntries = Array.from(infoByMultiPV.entries()).sort((a, b) => a[0] - b[0]);
+        const lines: AnalysisLine[] = [];
+        for (const [, info] of sortedEntries) {
+          const { moves, sans } = convertUCIPV(state, info.pv);
+          if (moves.length === 0) continue;
+          lines.push({
+            move: moves[0],
+            san: sans[0],
+            score: info.score,
+            pv: moves,
+            pvSan: sans,
+          });
+        }
+        if (lines.length > 0) {
+          options.onUpdate({
+            bestMove: lines[0].move,
+            score: lines[0].score,
+            pv: lines[0].pv,
+            depth: maxDepthReached || 1,
+            nodes: totalNodes,
+            lines,
+            timeMs: Date.now() - start,
+            engineName: this.name,
+          });
+        }
+      };
+
+      const scheduleUpdate = () => {
+        if (!options.onUpdate) return;
+        const now = Date.now();
+        const interval = 130;
+        if (now - lastUpdateTime >= interval) {
+          lastUpdateTime = now;
+          if (throttleTimer) {
+            clearTimeout(throttleTimer);
+            throttleTimer = null;
+          }
+          notifyUpdate();
+        } else if (!throttleTimer) {
+          throttleTimer = setTimeout(() => {
+            throttleTimer = null;
+            lastUpdateTime = Date.now();
+            notifyUpdate();
+          }, interval - (now - lastUpdateTime));
+        }
+      };
 
       const onAbort = () => {
         if (phase === 'done') return;
@@ -624,6 +678,10 @@ export class StockfishEngine implements AnalysisEngine {
       };
 
       const cleanup = () => {
+        if (throttleTimer) {
+          clearTimeout(throttleTimer);
+          throttleTimer = null;
+        }
         w.onmessage = null;
         w.onerror = null;
         options.signal?.removeEventListener('abort', onAbort);
@@ -688,6 +746,7 @@ export class StockfishEngine implements AnalysisEngine {
               if (parsed.nodes !== undefined && parsed.nodes > totalNodes) {
                 totalNodes = parsed.nodes;
               }
+              scheduleUpdate();
             }
             return;
           }
