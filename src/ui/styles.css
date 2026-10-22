@@ -76,10 +76,12 @@
   --solar-singularity-hot: #fef3ad;
   --solar-singularity-rim-gold: #f59e0b;
   --solar-singularity-corona-edge: #d97706;
-  --solar-singularity-orbit: rgba(245, 158, 11, 0.25);
+  --solar-singularity-orbit: rgba(245, 158, 11, 0.45);
+  --solar-orbit-inner-color: rgba(245, 158, 11, 0.65);
+  --solar-orbit-outer-color: rgba(245, 158, 11, 0.55);
   --solar-singularity-coordinate: rgba(245, 158, 11, 0.45);
   --solar-singularity-tick: rgba(245, 158, 11, 0.65);
-  --solar-radial-beam-color: rgba(245, 158, 11, 0.35);
+  --solar-radial-beam-color: rgba(245, 158, 11, 0.45);
   --solar-menu-text: #f8fafc;
   --solar-menu-button: #151126;
   --solar-menu-button-hover: #29223f;
@@ -261,10 +263,12 @@
   --solar-singularity-core: #e2e8f0;
   --solar-singularity-hot: #fcd34d;
   --solar-singularity-corona-edge: #d97706;
-  --solar-singularity-orbit: rgba(146, 84, 20, 0.28);
+  --solar-singularity-orbit: rgba(146, 84, 20, 0.45);
+  --solar-orbit-inner-color: rgba(146, 84, 20, 0.65);
+  --solar-orbit-outer-color: rgba(146, 84, 20, 0.55);
   --solar-singularity-coordinate: rgba(146, 84, 20, 0.6);
   --solar-singularity-tick: rgba(146, 84, 20, 0.75);
-  --solar-radial-beam-color: rgba(107, 99, 82, 0.2);
+  --solar-radial-beam-color: rgba(146, 84, 20, 0.45);
   --solar-menu-text: #0f172a;
   --solar-menu-button: #ffffff;
   --solar-menu-button-hover: #e2e8f0;
@@ -3564,7 +3568,7 @@ body.review-active #app {
 .saturn-background-mount {
   position: fixed;
   inset: 0;
-  overflow: hidden;
+  overflow: visible;
   z-index: var(--z-saturn);
   pointer-events: none;
 }
@@ -3580,7 +3584,7 @@ body.review-active #app {
   user-select: none;
   will-change: transform, opacity;
   z-index: var(--z-saturn);
-  contain: layout style paint;
+  contain: layout style;
   transform: translateZ(0);
   backface-visibility: hidden;
   opacity: 1;
@@ -3616,7 +3620,8 @@ body.review-active #app {
   display: block;
   transform: translate3d(-50%, -50%, 0);
   backface-visibility: hidden;
-  contain: layout style paint;
+  overflow: visible;
+  contain: layout style;
 }
 
 .solar-rim-static {
@@ -3630,7 +3635,7 @@ body.review-active #app {
   transform: translate3d(-50%, -50%, 0) translateZ(0);
   animation: none;
   overflow: visible;
-  contain: layout style paint;
+  contain: layout style;
 }
 
 .solar-orbit-inner,
@@ -3641,26 +3646,36 @@ body.review-active #app {
   will-change: transform;
   pointer-events: none;
   overflow: visible;
-  contain: layout style paint;
+  contain: layout style;
 }
 
 .solar-orbit-inner {
-  opacity: 0.45;
+  stroke: var(--solar-orbit-inner-color);
+  opacity: 1;
   animation: orbit-spin-inner 85s linear infinite;
 }
 
+.solar-orbit-inner > circle {
+  stroke-width: 1.2px;
+}
+
 .solar-orbit-outer {
-  opacity: 0.3;
+  stroke: var(--solar-orbit-outer-color);
+  stroke-width: 1px;
+  opacity: 1;
   animation: orbit-spin-outer 130s linear infinite;
 }
 
 .solar-orbit-near {
-  opacity: 0.25;
+  stroke: var(--solar-singularity-orbit);
+  stroke-width: 1px;
+  opacity: 1;
   animation: none;
   transform: translateZ(0);
   will-change: transform;
   backface-visibility: hidden;
-  contain: layout style paint;
+  overflow: visible;
+  contain: layout style;
   pointer-events: none;
 }
 

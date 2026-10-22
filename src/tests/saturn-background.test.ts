@@ -455,15 +455,16 @@ describe('Saturn background', () => {
     }
   });
 
-  it('mounts four cardinal radial beams only on the second orbit extending outward by 2500 units', () => {
+  it('mounts four inner and two outer radial beams extending outward by 3000 units', () => {
     mountSaturnBackground(container);
-    expect(container.querySelectorAll('.solar-radial-beam')).toHaveLength(4);
-    expect(container.querySelectorAll('.solar-orbit-outer .solar-radial-beam')).toHaveLength(0);
+    expect(container.querySelectorAll('.solar-radial-beam')).toHaveLength(6);
+    expect(container.querySelectorAll('.solar-orbit-inner .solar-radial-beam')).toHaveLength(4);
+    expect(container.querySelectorAll('.solar-orbit-outer .solar-radial-beam')).toHaveLength(2);
     expect(container.querySelectorAll('.solar-orbit-near .solar-radial-beam')).toHaveLength(0);
-    for (const [name, radius] of [['inner', 380]] as const) {
+    for (const [name, radius] of [['inner', 380], ['outer', 490]] as const) {
       const group = container.querySelector(`.solar-orbit-${name}`)!;
       const beams = [...group.querySelectorAll(':scope > .solar-radial-beam')];
-      expect(beams).toHaveLength(4);
+      expect(beams).toHaveLength(name === 'inner' ? 4 : 2);
       const angles = beams.map(beam => {
         const x1 = Number(beam.getAttribute('x1')) - 500;
         const y1 = Number(beam.getAttribute('y1')) - 500;
@@ -471,16 +472,16 @@ describe('Saturn background', () => {
         const y2 = Number(beam.getAttribute('y2')) - 500;
         expect(beam.tagName).toBe('line');
         expect(Math.hypot(x1, y1)).toBe(radius);
-        expect(Math.hypot(x2 - x1, y2 - y1)).toBe(2500);
+        expect(Math.hypot(x2 - x1, y2 - y1)).toBe(3000);
         expect(x1 * y2 - y1 * x2).toBe(0);
         expect(x1 * x2 + y1 * y2).toBeGreaterThan(0);
-        expect(Math.hypot(x2, y2)).toBe(radius + 2500);
+        expect(Math.hypot(x2, y2)).toBe(radius + 3000);
         expect(beam.getAttribute('stroke-width')).toBe('1');
         expect(beam.getAttribute('vector-effect')).toBe('non-scaling-stroke');
         expect(beam.getAttribute('aria-hidden')).toBe('true');
         return (Math.atan2(y1, x1) * 180 / Math.PI + 360) % 360;
       });
-      expect(angles.sort((a, b) => a - b)).toEqual([0, 90, 180, 270]);
+      expect(angles.sort((a, b) => a - b)).toEqual(name === 'inner' ? [0, 90, 180, 270] : [0, 180]);
     }
   });
 
@@ -496,9 +497,9 @@ describe('Saturn background', () => {
       expect(css).not.toMatch(/solar-orbit-fade|solar-glow-breathe/);
       expect(container.querySelector('[class*="fade"], [class*="breathe"]')).toBeNull();
       for (const [name, opacity, radius, animation] of [
-        ['near', '0.25', 320, 'none'],
-        ['inner', '0.45', 380, 'orbit-spin-inner 85s linear infinite'],
-        ['outer', '0.3', 490, 'orbit-spin-outer 130s linear infinite'],
+        ['near', '1', 320, 'none'],
+        ['inner', '1', 380, 'orbit-spin-inner 85s linear infinite'],
+        ['outer', '1', 490, 'orbit-spin-outer 130s linear infinite'],
       ] as const) {
         const group = container.querySelector(`.solar-orbit-${name}`)!;
         expect(group.parentElement).toBe(container.querySelector('.solar-orbits-spinning'));
@@ -509,7 +510,8 @@ describe('Saturn background', () => {
         expect(style.pointerEvents).toBe('none');
         expect(style.willChange).toBe('transform');
         expect(style.animationDelay).toBe('');
-        expect(style.contain).toBe('layout style paint');
+        expect(style.contain).toBe('layout style');
+        expect(style.overflow).toBe('visible');
         expect(style.backfaceVisibility).toBe('hidden');
         expect(style.transform).toContain('translateZ(0)');
         expect(style.transition).toBe('');
@@ -537,7 +539,7 @@ describe('Saturn background', () => {
     }
   });
 
-  it('keeps beams theme-aware and paint-isolated without intercepting controls', () => {
+  it('keeps beams theme-aware and unclipped without intercepting controls', () => {
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     const beam = css.match(/\.solar-radial-beam\s*\{([^}]+)\}/)![1];
     expect(beam).toContain('stroke: var(--solar-radial-beam-color)');
@@ -548,17 +550,40 @@ describe('Saturn background', () => {
     for (const selector of ['solar-singularity-scene', 'solar-orbits-spinning']) {
       const rule = css.match(new RegExp(`(?:^|\\})\\s*\\.${selector}\\s*\\{([^}]+)\\}`))![1];
       expect(rule).toContain('overflow: visible');
-      expect(rule).toContain('contain: layout style paint');
+      expect(rule).toContain('contain: layout style;');
+      expect(rule).not.toMatch(/contain:[^;]*paint/);
       expect(rule).toContain('translateZ(0)');
     }
     const host = css.match(/\.saturn-background-mount\s*\{([^}]+)\}/)![1];
     expect(host).toContain('position: fixed');
     expect(host).toContain('inset: 0');
-    expect(host).toContain('overflow: hidden');
+    expect(host).toContain('overflow: visible');
     expect(host).toContain('z-index: var(--z-saturn)');
     expect(css).toMatch(/\.screen\s*\{[^}]*z-index: var\(--z-screen\)/);
-    expect(palette(false).get('--solar-radial-beam-color')).toBe('rgba(245, 158, 11, 0.35)');
-    expect(palette(true).get('--solar-radial-beam-color')).toBe('rgba(107, 99, 82, 0.2)');
+    expect(palette(false).get('--solar-radial-beam-color')).toBe('rgba(245, 158, 11, 0.45)');
+    expect(palette(true).get('--solar-radial-beam-color')).toBe('rgba(146, 84, 20, 0.45)');
+  });
+
+  it('sets crisp orbit widths and visible theme colors without group dimming', () => {
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    for (const [name, variable, alpha] of [
+      ['near', '--solar-singularity-orbit', '0.45'],
+      ['inner', '--solar-orbit-inner-color', '0.65'],
+      ['outer', '--solar-orbit-outer-color', '0.55'],
+    ]) {
+      const rule = css.match(new RegExp(`(?:^|\\})\\s*\\.solar-orbit-${name}\\s*\\{([^}]+)\\}`))![1];
+      expect(rule).toContain(`stroke: var(${variable})`);
+      expect(rule).toContain('opacity: 1;');
+      expect(palette(false).get(variable)).toBe(`rgba(245, 158, 11, ${alpha})`);
+      expect(palette(true).get(variable)).toBe(`rgba(146, 84, 20, ${alpha})`);
+    }
+    expect(css).toMatch(/\.solar-orbit-inner > circle\s*\{\s*stroke-width: 1\.2px;/);
+    for (const name of ['near', 'outer']) {
+      expect(css).toMatch(new RegExp(`\\.solar-orbit-${name}\\s*\\{[^}]*stroke-width: 1px;`));
+    }
+    const layers = css.match(/\.solar-rim-static,\s*\.solar-orbits-spinning\s*\{([^}]+)\}/)![1];
+    expect(layers).toContain('overflow: visible');
+    expect(layers).toContain('contain: layout style;');
   });
 
   it('never plays hover audio or changes corona classes on pointer entry and leave', () => {
