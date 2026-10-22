@@ -73,17 +73,10 @@
   --solar-singularity-indigo: #17112b;
   --solar-singularity-space: #0c081c;
   --solar-singularity-core: #030108;
-  --solar-singularity-core-highlight: #090617;
   --solar-singularity-hot: #fef3ad;
-  --solar-singularity-amber: rgba(245, 158, 11, 0.72);
+  --solar-singularity-rim-gold: #f59e0b;
   --solar-singularity-corona-edge: #d97706;
-  --solar-singularity-glow: rgba(245, 158, 11, 0.24);
-  --solar-singularity-haze: rgba(217, 119, 6, 0.06);
-  --solar-singularity-clear: transparent;
-  --solar-singularity-rim: rgba(254, 240, 138, 0.75);
-  --solar-singularity-orbit: rgba(217, 162, 69, 0.17);
-  --solar-singularity-coordinate: rgba(228, 190, 117, 0.46);
-  --solar-singularity-spark: #fde68a;
+  --solar-singularity-orbit: rgba(245, 158, 11, 0.25);
   --solar-menu-text: #f8fafc;
   --solar-menu-button: #151126;
   --solar-menu-button-hover: #29223f;
@@ -247,16 +240,9 @@
   --solar-singularity-indigo: #fcfaf5;
   --solar-singularity-space: #f1f5f9;
   --solar-singularity-core: #e2e8f0;
-  --solar-singularity-core-highlight: #f8fafc;
   --solar-singularity-hot: #fcd34d;
-  --solar-singularity-amber: rgba(245, 158, 11, 0.66);
   --solar-singularity-corona-edge: #d97706;
-  --solar-singularity-glow: rgba(217, 119, 6, 0.2);
-  --solar-singularity-haze: rgba(217, 119, 6, 0.04);
-  --solar-singularity-rim: rgba(217, 119, 6, 0.62);
-  --solar-singularity-orbit: rgba(180, 113, 28, 0.24);
-  --solar-singularity-coordinate: rgba(146, 84, 20, 0.55);
-  --solar-singularity-spark: #d97706;
+  --solar-singularity-orbit: rgba(146, 84, 20, 0.28);
   --solar-menu-text: #0f172a;
   --solar-menu-button: #ffffff;
   --solar-menu-button-hover: #e2e8f0;
@@ -3561,120 +3547,43 @@ body.review-active #app {
   opacity: 0;
 }
 
-.solar-singularity-scene > div {
+.solar-rim-static,
+.solar-orbits-spinning {
   position: absolute;
   left: var(--solar-singularity-center-x);
   top: var(--solar-singularity-center-y);
   width: var(--solar-singularity-size);
   aspect-ratio: 1;
-  border-radius: 50%;
   pointer-events: none;
-  will-change: transform;
+  display: block;
   transform: translate3d(-50%, -50%, 0);
   contain: layout paint style;
 }
 
-.solar-singularity-scene > .solar-singularity-corona {
-  width: calc(var(--solar-singularity-size) * 1.12);
+.solar-rim-static {
+  width: calc(var(--solar-singularity-size) * 1.3115);
+  animation: none;
 }
 
-.solar-singularity-corona::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: radial-gradient(circle closest-side,
-    var(--solar-singularity-clear) 82%, var(--solar-singularity-haze) 85%,
-    var(--solar-singularity-glow) 87%, var(--solar-singularity-hot) 89.2%,
-    var(--solar-singularity-rim) 89.8%, var(--solar-singularity-corona-edge) 90.5%,
-    var(--solar-singularity-haze) 95%, var(--solar-singularity-clear) 100%);
-}
-
-.corona-pulse::before {
-  will-change: transform, opacity;
-  animation: solar-glow-breathe 9s ease-in-out infinite;
-}
-
-.solar-singularity-scene > .solar-singularity-disk {
-  background: radial-gradient(circle at 70% 25%,
-    var(--solar-singularity-core-highlight), var(--solar-singularity-core) 75%);
-  border: 1px solid var(--solar-singularity-rim);
-  transform: translate3d(calc(-50% - 2px), calc(-50% + 2px), 0);
-}
-
-.solar-singularity-scene > .solar-singularity-orbits {
-  width: calc(var(--solar-singularity-size) * 1.62);
-}
-
-.solar-singularity-orbits::before,
-.solar-singularity-orbits::after {
-  content: '00\00b0 / 360\00b0';
-  position: absolute;
-  inset: 0;
-  border: 1px solid var(--solar-singularity-orbit);
-  border-radius: inherit;
-  pointer-events: none;
-  color: var(--solar-singularity-coordinate);
-  font: 9px / 1.5 monospace;
-  letter-spacing: 0.2em;
-  text-align: center;
-  padding: 12px;
+.solar-orbits-spinning {
+  width: calc(var(--solar-singularity-size) * 1.72);
+  stroke: var(--solar-singularity-orbit);
   will-change: transform;
-  animation: orbit-slow-spin 120s linear infinite;
-  background:
-    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) center top / 1px 7px no-repeat,
-    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) center bottom / 1px 7px no-repeat,
-    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) left center / 7px 1px no-repeat,
-    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) right center / 7px 1px no-repeat;
+  transform: translate3d(-50%, -50%, 0) translateZ(0) rotate(0deg);
+  animation: solar-orbit-rotate 90s linear infinite;
 }
 
-.solar-singularity-orbits::after {
-  content: '180\00b0 / 07';
-  inset: 12%;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  animation-direction: reverse;
-}
-
-.solar-singularity-sparks {
-  position: absolute;
-  left: 55%;
-  top: 12%;
-  width: min(280px, 30vw);
-  height: auto;
-  color: var(--solar-singularity-spark);
-  pointer-events: none;
-}
-
-@keyframes solar-glow-breathe {
-  0%,
-  100% {
-    transform: scale(0.99);
-    opacity: 0.75;
-  }
-  50% {
-    transform: scale(1.01);
-    opacity: 1;
-  }
-}
-
-@keyframes orbit-slow-spin {
+@keyframes solar-orbit-rotate {
   from {
-    transform: rotate(0deg);
+    transform: translate3d(-50%, -50%, 0) translateZ(0) rotate(0deg);
   }
   to {
-    transform: rotate(360deg);
+    transform: translate3d(-50%, -50%, 0) translateZ(0) rotate(360deg);
   }
 }
 
-body.bg-anim-off .corona-pulse::before,
-.solar-anim-paused .corona-pulse::before,
-body.bg-anim-off .solar-singularity-orbits::before,
-body.bg-anim-off .solar-singularity-orbits::after,
-.solar-anim-paused .solar-singularity-orbits::before,
-.solar-anim-paused .solar-singularity-orbits::after {
+body.bg-anim-off .solar-orbits-spinning,
+.solar-anim-paused .solar-orbits-spinning {
   animation: none !important;
 }
 
@@ -6278,9 +6187,7 @@ body.review-active .sound-toggle-btn {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .corona-pulse::before,
-  .solar-singularity-orbits::before,
-  .solar-singularity-orbits::after {
+  .solar-orbits-spinning {
     animation: none !important;
   }
 

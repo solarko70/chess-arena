@@ -76,6 +76,7 @@ describe('Saturn background', () => {
     expect(source.match(/export function /g)).toHaveLength(2);
     expect(source).not.toMatch(/addEventListener|removeEventListener|requestAnimationFrame|cancelAnimationFrame/);
     expect(source).not.toMatch(/getBoundingClientRect|solarAudio|mousemove|pointermove|matchMedia/);
+    expect(source).not.toMatch(/setInterval|setTimeout/);
   });
 
   it('provides theme palettes with AA contrast for menu text and button states', () => {
@@ -142,24 +143,26 @@ describe('Saturn background', () => {
     expect(wrapper?.querySelector('svg')?.getAttribute('focusable')).toBe('false');
   });
 
-  it('builds ordered corona, dark disk and coordinate orbit layers over the abyss', () => {
+  it('builds independent static rim and spinning orbit layers over the abyss', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    const layers = [...scene.querySelectorAll(':scope > div')]
+    const layers = [...scene.children]
       .map((element) => element.getAttribute('class'));
     expect(layers).toEqual([
-      'solar-singularity-corona corona-pulse',
-      'solar-singularity-disk',
-      'solar-singularity-orbits',
+      'solar-rim-static solar-singularity-corona',
+      'solar-orbits-spinning solar-singularity-orbits',
     ]);
-    for (const element of [scene, ...scene.querySelectorAll('*')]) {
+    for (const element of [scene, ...scene.children]) {
       expect(element.getAttribute('aria-hidden')).toBe('true');
     }
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     expect(css).toMatch(/\.solar-singularity-scene\s*\{[^}]*background:\s*radial-gradient/);
-    expect(css).toMatch(/\.solar-singularity-disk\s*\{[^}]*background:\s*radial-gradient/);
-    expect(scene.querySelector('.solar-singularity-sparks path')).not.toBeNull();
-    expect(css).toContain("content: '180\\00b0 / 07'");
+    const rim = scene.querySelector('.solar-rim-static')!;
+    expect(rim.querySelector('.solar-singularity-disk')?.getAttribute('fill'))
+      .toBe('var(--solar-singularity-core)');
+    expect(rim.querySelector('radialGradient')).not.toBeNull();
+    expect(rim.querySelector('linearGradient')).not.toBeNull();
+    expect(scene.querySelectorAll('.solar-orbits-spinning > circle')).toHaveLength(4);
   });
 
   it('unmount removes the DOM without allocating frames or installing listeners', () => {
@@ -252,42 +255,74 @@ describe('Saturn background', () => {
     expect(diskMeasure).not.toHaveBeenCalled();
   });
 
-  it('limits the scene to six elements including one static SVG path for star sparks', () => {
+  it('bounds SVG complexity and excludes crosses, sparks and coordinate artifacts', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(6);
-    expect(scene.children).toHaveLength(4);
-    expect(scene.querySelectorAll('svg')).toHaveLength(1);
-    expect(scene.querySelectorAll('svg path')).toHaveLength(1);
-    expect(scene.querySelector('canvas, img, [tabindex], filter, radialGradient')).toBeNull();
+    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(20);
+    expect(scene.children).toHaveLength(2);
+    expect(scene.querySelectorAll('svg')).toHaveLength(2);
+    expect(scene.querySelector('path, text, .stellar-cross, .sparkle, .solar-singularity-sparks'))
+      .toBeNull();
+    expect(scene.querySelector('canvas, img, image, [tabindex], filter, mask')).toBeNull();
     expect(scene.querySelector('.saturn-hitbox')).toBeNull();
   });
 
-  it('provides bleed margins and composite-only pulse without filters or pointer interception', () => {
+  it('keeps the rim static and rotates only unfiltered lines without pointer interception', () => {
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     const wrapper = css.match(/\.solar-singularity-scene\s*\{([^}]+)\}/)![1];
     for (const declaration of ['top: -15%', 'left: -15%', 'width: 130%', 'height: 130%']) {
       expect(wrapper).toContain(declaration);
     }
     for (const [, selectors, declarations] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      if (/singularity|corona-pulse/.test(selectors)) {
+      if (/singularity|solar-rim-static|solar-orbits-spinning/.test(selectors)) {
         expect(declarations).not.toMatch(/(?:backdrop-)?filter\s*:/);
+        expect(declarations).not.toMatch(/(?:box|text)-shadow\s*:/);
         expect(declarations).not.toMatch(/pointer-events:\s*(auto|fill)/);
       }
     }
-    expect(css).toMatch(/\.solar-singularity-scene > div\s*\{[^}]*will-change:\s*transform/);
     expect(wrapper).toContain('user-select: none');
     expect(wrapper).toContain('will-change: transform, opacity');
-    expect(css).toMatch(/\.corona-pulse::before\s*\{[^}]*animation:\s*solar-glow-breathe 9s/);
-    const pulse = css.match(/@keyframes solar-glow-breathe\s*\{([\s\S]*?)\n\}/)![1];
-    expect(pulse).toContain('scale(0.99)');
-    expect(pulse).toContain('scale(1.01)');
-    expect(pulse).toContain('opacity: 0.75');
-    expect(css).toContain('animation: orbit-slow-spin 120s linear infinite');
-    expect([...pulse.matchAll(/([\w-]+)\s*:/g)].map(match => match[1]))
-      .toEqual(['transform', 'opacity', 'transform', 'opacity']);
+    expect(css).toMatch(/\.solar-rim-static\s*\{[^}]*animation:\s*none/);
+    expect(css).toMatch(/\.solar-orbits-spinning\s*\{[^}]*will-change:\s*transform/);
+    expect(css).toContain('animation: solar-orbit-rotate 90s linear infinite');
+    const spin = css.match(/@keyframes solar-orbit-rotate\s*\{([\s\S]*?)\n\}/)![1];
+    expect(spin).toContain('translateZ(0) rotate(0deg)');
+    expect(spin).toContain('translateZ(0) rotate(360deg)');
+    expect([...spin.matchAll(/([\w-]+)\s*:/g)].map(match => match[1]))
+      .toEqual(['transform', 'transform']);
+    expect(css).not.toMatch(/solar-glow-breathe|orbit-slow-spin|solar-singularity-sparks/);
+  });
+
+  it('isolates gradient references from the four plain orbit circles across remounts', () => {
     mountSaturnBackground(container);
-    expect(container.querySelector('svg')?.classList.contains('solar-singularity-sparks')).toBe(true);
+    const firstIds = [...container.querySelectorAll('[id]')].map(element => element.id);
+    mountSaturnBackground(container);
+    const rim = container.querySelector('.solar-rim-static')!;
+    for (const circle of rim.querySelectorAll('circle')) {
+      for (const attribute of ['fill', 'stroke']) {
+        const reference = circle.getAttribute(attribute)?.match(/^url\(#(.+)\)$/)?.[1];
+        if (reference) {
+          expect(rim.querySelector(`[id="${reference}"]`)).not.toBeNull();
+          expect(firstIds).not.toContain(reference);
+        }
+      }
+    }
+    const stops = [...rim.querySelectorAll('radialGradient stop')];
+    expect(stops[0].getAttribute('stop-opacity')).toBe('0');
+    expect(stops[stops.length - 1].getAttribute('stop-opacity')).toBe('0');
+    expect(stops.some(stop => Number(stop.getAttribute('stop-opacity')) > 0)).toBe(true);
+    const orbits = container.querySelector('.solar-orbits-spinning')!;
+    expect(orbits.getAttribute('fill')).toBe('none');
+    expect(orbits.children).toHaveLength(4);
+    for (const circle of orbits.children) {
+      expect(circle.tagName).toBe('circle');
+      expect(circle.getAttribute('stroke-width')).toBe('1');
+      expect(circle.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+      expect(circle.getAttribute('filter')).toBeNull();
+      expect(circle.getAttribute('style')).toBeNull();
+    }
+    expect(orbits.querySelector('[stroke-dasharray]')?.getAttribute('stroke-dasharray')).toBe('4 12');
+    expect(orbits.querySelector('defs, filter, radialGradient, linearGradient')).toBeNull();
   });
 
   it('never plays hover audio or changes corona classes on pointer entry and leave', () => {
@@ -374,7 +409,7 @@ describe('Saturn background', () => {
     unmountSaturnBackground();
     expect(media.removeEventListener).not.toHaveBeenCalled();
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.corona-pulse::before,[\s\S]*?\.solar-singularity-orbits::after\s*\{\s*animation: none !important/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.solar-orbits-spinning\s*\{\s*animation: none !important/);
   });
 
   it('respects disabled background animation without running a parallax loop', () => {
@@ -386,7 +421,7 @@ describe('Saturn background', () => {
     expect(container.querySelector<HTMLElement>('.solar-singularity-corona')!.style.transform)
       .toBe('');
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
-    expect(css).toMatch(/body\.bg-anim-off \.corona-pulse::before,[\s\S]*?animation: none !important/);
+    expect(css).toMatch(/body\.bg-anim-off \.solar-orbits-spinning,[\s\S]*?animation: none !important/);
   });
 
   it('works in JSDOM without Web Audio, matchMedia or requestAnimationFrame', () => {
