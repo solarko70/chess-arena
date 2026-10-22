@@ -10,19 +10,15 @@ describe('Saturn background', () => {
   let container: HTMLElement;
   let frames: Map<number, FrameRequestCallback>;
   let nextFrame: number;
+  let previousTheme: string | null;
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
     document.body.classList.remove('bg-anim-off');
+    previousTheme = document.documentElement.getAttribute('data-theme');
+    document.documentElement.removeAttribute('data-theme');
     vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
-    const measure = HTMLElement.prototype.getBoundingClientRect;
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      if (this.classList.contains('solar-singularity-disk')) {
-        return { left: 600, top: 150, width: 400, height: 400 } as DOMRect;
-      }
-      return measure.call(this);
-    });
     frames = new Map();
     nextFrame = 0;
     vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
@@ -42,6 +38,8 @@ describe('Saturn background', () => {
     document.getElementById('game-over-modal-mount')?.remove();
     document.getElementById('game-solar-bg')?.remove();
     document.body.classList.remove('bg-anim-off');
+    if (previousTheme === null) document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', previousTheme);
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -55,35 +53,116 @@ describe('Saturn background', () => {
     }
   }
 
+  function palette(light: boolean): Map<string, string> {
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const block = light ? css.match(/\[data-theme='light'\]\s*\{([\s\S]*?)\n\}/)![1]
+      : css.match(/:root\s*\{([\s\S]*?)\n\}/)![1];
+    return new Map([...block.matchAll(/(--solar-[\w-]+):\s*([^;]+);/g)]
+      .map(match => [match[1], match[2].trim()]));
+  }
+
+  function contrast(first: string, second: string): number {
+    const luminance = (hex: string): number => {
+      const channels = hex.match(/[\da-f]{2}/gi)!.map(value => parseInt(value, 16) / 255)
+        .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+    };
+    const a = luminance(first), b = luminance(second);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  it('exports only mount and unmount with no audio, layout, event or frame dependencies', () => {
+    const source = readFileSync(resolve(__dirname, '../ui/saturn-background.ts'), 'utf8');
+    expect(source.match(/export function /g)).toHaveLength(2);
+    expect(source).not.toMatch(/addEventListener|removeEventListener|requestAnimationFrame|cancelAnimationFrame/);
+    expect(source).not.toMatch(/getBoundingClientRect|solarAudio|mousemove|pointermove|matchMedia/);
+  });
+
+  it('provides theme palettes with AA contrast for menu text and button states', () => {
+    for (const light of [false, true]) {
+      const colors = palette(light);
+      const text = colors.get('--solar-menu-text')!;
+      for (const background of ['--solar-menu-button', '--solar-menu-button-hover',
+        '--solar-singularity-space', '--solar-singularity-indigo', '--solar-singularity-core']) {
+        expect(contrast(text, colors.get(background)!)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    const light = palette(true);
+    expect(contrast(light.get('--solar-menu-text')!, light.get('--solar-singularity-corona-edge')!))
+      .toBeGreaterThanOrEqual(4.5);
+    expect(palette(false).get('--solar-bg-dark')).toBe('#070412');
+    expect(light.get('--solar-singularity-abyss')).toBe('#e2e8f0');
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const buttonRule = css.match(/\.screen-home \.btn-menu\s*\{([^}]+)\}/)![1];
+    expect(buttonRule).toMatch(/transition:\s*transform[^;]+;/);
+    const transitions = buttonRule.match(/transition:([^;]+);/)![1]
+      .split(',').map(value => value.trim().split(/\s+/)[0]);
+    expect(transitions).not.toContain('background');
+    expect(transitions).not.toContain('background-color');
+    expect(transitions).not.toContain('color');
+  });
+
+  it('inherits live theme changes without remounting or duplicating scene nodes', () => {
+    mountSaturnBackground(container);
+    const scene = container.querySelector('.solar-theme-scene')!;
+    const markup = scene.outerHTML;
+    document.documentElement.setAttribute('data-theme', 'light');
+    expect(scene.matches('[data-theme="light"] .solar-theme-scene')).toBe(true);
+    document.documentElement.setAttribute('data-theme', 'dark');
+    expect(scene.matches('[data-theme="dark"] .solar-theme-scene')).toBe(true);
+    expect(container.querySelector('.solar-theme-scene')).toBe(scene);
+    expect(scene.outerHTML).toBe(markup);
+    expect(scene.hasAttribute('data-theme')).toBe(false);
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+  });
+
+  it('recognizes explicit dark theme and switches both ways through the menu toggle', () => {
+    vi.useFakeTimers();
+    container.id = 'app';
+    window.location.hash = '#/';
+    document.documentElement.setAttribute('data-theme', 'dark');
+    initApp();
+    expect(document.documentElement.getAttribute('data-theme')).not.toBe('light');
+    const scene = container.querySelector('.solar-theme-scene');
+    document.getElementById('theme-btn')!.click();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    document.getElementById('theme-btn')!.click();
+    expect(document.documentElement.getAttribute('data-theme')).not.toBe('light');
+    expect(container.querySelector('.solar-theme-scene')).toBe(scene);
+  });
+
   it('mounts an aria-hidden CSS scene without adding keyboard stops', () => {
     mountSaturnBackground(container);
     const wrapper = container.querySelector('.saturn-scene-wrapper');
     expect(wrapper?.getAttribute('aria-hidden')).toBe('true');
     expect(wrapper?.classList.contains('solar-singularity-scene')).toBe(true);
+    expect(wrapper?.classList.contains('solar-theme-scene')).toBe(true);
     expect(wrapper?.querySelector('[tabindex], button, a')).toBeNull();
-    expect(wrapper?.querySelector('svg, canvas, img')).toBeNull();
+    expect(wrapper?.querySelector('canvas, img')).toBeNull();
+    expect(wrapper?.querySelector('svg')?.getAttribute('focusable')).toBe('false');
   });
 
   it('builds ordered corona, dark disk and coordinate orbit layers over the abyss', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    const layers = [...scene.children]
+    const layers = [...scene.querySelectorAll(':scope > div')]
       .map((element) => element.getAttribute('class'));
     expect(layers).toEqual([
       'solar-singularity-corona corona-pulse',
       'solar-singularity-disk',
       'solar-singularity-orbits',
     ]);
-    for (const element of [scene, ...scene.children]) {
+    for (const element of [scene, ...scene.querySelectorAll('*')]) {
       expect(element.getAttribute('aria-hidden')).toBe('true');
     }
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     expect(css).toMatch(/\.solar-singularity-scene\s*\{[^}]*background:\s*radial-gradient/);
-    expect(css).toMatch(/\.solar-singularity-disk\s*\{[^}]*background:\s*var\(--solar-singularity-core\)/);
+    expect(css).toMatch(/\.solar-singularity-disk\s*\{[^}]*background:\s*radial-gradient/);
+    expect(scene.querySelector('.solar-singularity-sparks path')).not.toBeNull();
     expect(css).toContain("content: '180\\00b0 / 07'");
   });
 
-  it('unmount removes the DOM, frame and exactly the listeners installed by mount', () => {
+  it('unmount removes the DOM without allocating frames or installing listeners', () => {
     const addWindow = vi.spyOn(window, 'addEventListener');
     const removeWindow = vi.spyOn(window, 'removeEventListener');
     const addDocument = vi.spyOn(document, 'addEventListener');
@@ -92,18 +171,18 @@ describe('Saturn background', () => {
     const removeRoot = vi.spyOn(document.documentElement, 'removeEventListener');
     const cleanup = mountSaturnBackground(container);
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 900, clientY: 600 }));
-    expect(frames.size).toBe(1);
+    expect(frames.size).toBe(0);
     cleanup();
     cleanup();
     expect(container.querySelector('.saturn-scene-wrapper')).toBeNull();
     expect(frames.size).toBe(0);
-    for (const type of ['mousemove', 'resize', 'blur']) {
-      const listener = addWindow.mock.calls.find(([name]) => name === type)![1];
-      expect(removeWindow).toHaveBeenCalledWith(type, listener);
-    }
-    const listener = addDocument.mock.calls.find(([name]) => name === 'visibilitychange')![1];
-    expect(removeDocument).toHaveBeenCalledWith('visibilitychange', listener);
-    expect(removeRoot).toHaveBeenCalledWith('mouseleave', addRoot.mock.calls[0]?.[1]);
+    expect(addWindow).not.toHaveBeenCalled();
+    expect(removeWindow).not.toHaveBeenCalled();
+    expect(addDocument.mock.calls.filter(([name]) => name === 'visibilitychange')).toHaveLength(0);
+    expect(removeDocument).not.toHaveBeenCalled();
+    expect(addRoot).not.toHaveBeenCalled();
+    expect(removeRoot).not.toHaveBeenCalled();
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
     window.dispatchEvent(new MouseEvent('mousemove'));
     expect(frames.size).toBe(0);
   });
@@ -120,42 +199,41 @@ describe('Saturn background', () => {
     expect(container.children).toHaveLength(0);
   });
 
-  it('smooths and clamps pointer motion, then stops requesting frames at rest', () => {
+  it('ignores extreme pointer motion without requesting frames or writing transforms', () => {
     mountSaturnBackground(container);
     const corona = container.querySelector<HTMLElement>('.solar-singularity-corona')!;
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 50000, clientY: -50000 }));
     advanceFrames(1);
-    const firstX = Number(corona.style.transform.match(/-50% \+ ([\d.-]+)px/)![1]);
-    expect(firstX).toBeGreaterThan(0);
-    expect(firstX).toBeLessThan(10);
+    expect(corona.style.transform).toBe('');
     advanceFrames();
-    expect(corona.style.transform).toBe('translate3d(calc(-50% + 10.000px), calc(-50% + -10.000px), 0)');
-    expect(corona.style.length).toBe(1);
+    expect(corona.style.transform).toBe('');
+    expect(corona.style.length).toBe(0);
     expect(container.querySelector<HTMLElement>('.solar-singularity-disk')!.style.transform)
-      .toContain('-50% + 6.500px');
+      .toBe('');
     expect(frames.size).toBe(0);
     document.documentElement.dispatchEvent(new MouseEvent('mouseleave'));
     advanceFrames();
-    expect(corona.style.transform).toBe('translate3d(calc(-50% + 0.000px), calc(-50% + 0.000px), 0)');
+    expect(corona.style.transform).toBe('');
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
   });
 
-  it('refreshes viewport bounds on resize and cancels the previous motion', () => {
+  it('leaves responsive sizing to CSS without reading layout on mount or resize', () => {
     const measure = vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
       left: 100, top: 100, width: 400, height: 200,
     } as DOMRect);
     mountSaturnBackground(container);
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 300 }));
-    expect(frames.size).toBe(1);
+    expect(frames.size).toBe(0);
     window.dispatchEvent(new Event('resize'));
-    expect(measure).toHaveBeenCalledTimes(2);
+    expect(measure).not.toHaveBeenCalled();
     expect(frames.size).toBe(0);
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 200 }));
     advanceFrames();
     expect(container.querySelector<HTMLElement>('.solar-singularity-corona')!.style.transform)
-      .toBe('translate3d(calc(-50% + 0.000px), calc(-50% + 0.000px), 0)');
+      .toBe('');
   });
 
-  it('coalesces pointer bursts into one frame without layout reads or immediate style writes', () => {
+  it('ignores pointer bursts without allocating frames, reading layout or writing styles', () => {
     const measure = vi.spyOn(container, 'getBoundingClientRect');
     mountSaturnBackground(container);
     const corona = container.querySelector<HTMLElement>('.solar-singularity-corona')!;
@@ -164,22 +242,24 @@ describe('Saturn background', () => {
     for (let i = 0; i < 200; i++) {
       window.dispatchEvent(new MouseEvent('mousemove', { clientX: i * 20, clientY: 900 }));
     }
-    expect(frames.size).toBe(1);
-    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
-    expect(measure).toHaveBeenCalledTimes(1);
+    expect(frames.size).toBe(0);
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+    expect(measure).not.toHaveBeenCalled();
     expect(transformWrites).not.toHaveBeenCalled();
     advanceFrames();
-    expect(measure).toHaveBeenCalledTimes(1);
-    expect(corona.style.transform).toContain('-50% + 10.000px');
+    expect(measure).not.toHaveBeenCalled();
+    expect(corona.style.transform).toBe('');
     expect(diskMeasure).not.toHaveBeenCalled();
   });
 
-  it('limits the entire singularity scene to four DOM elements without SVG or hitboxes', () => {
+  it('limits the scene to six elements including one static SVG path for star sparks', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(4);
-    expect(scene.children).toHaveLength(3);
-    expect(scene.querySelector('svg, canvas, img, [tabindex]')).toBeNull();
+    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(6);
+    expect(scene.children).toHaveLength(4);
+    expect(scene.querySelectorAll('svg')).toHaveLength(1);
+    expect(scene.querySelectorAll('svg path')).toHaveLength(1);
+    expect(scene.querySelector('canvas, img, [tabindex], filter, radialGradient')).toBeNull();
     expect(scene.querySelector('.saturn-hitbox')).toBeNull();
   });
 
@@ -196,32 +276,36 @@ describe('Saturn background', () => {
       }
     }
     expect(css).toMatch(/\.solar-singularity-scene > div\s*\{[^}]*will-change:\s*transform/);
-    expect(css).toMatch(/\.corona-pulse::before\s*\{[^}]*animation:\s*solarCoronaPulse 9s/);
-    const pulse = css.match(/@keyframes solarCoronaPulse\s*\{([\s\S]*?)\n\}/)![1];
-    expect(pulse).toContain('scale(0.98)');
-    expect(pulse).toContain('scale(1.02)');
+    expect(wrapper).toContain('user-select: none');
+    expect(wrapper).toContain('will-change: transform, opacity');
+    expect(css).toMatch(/\.corona-pulse::before\s*\{[^}]*animation:\s*solar-glow-breathe 9s/);
+    const pulse = css.match(/@keyframes solar-glow-breathe\s*\{([\s\S]*?)\n\}/)![1];
+    expect(pulse).toContain('scale(0.99)');
+    expect(pulse).toContain('scale(1.01)');
+    expect(pulse).toContain('opacity: 0.75');
+    expect(css).toContain('animation: orbit-slow-spin 120s linear infinite');
     expect([...pulse.matchAll(/([\w-]+)\s*:/g)].map(match => match[1]))
       .toEqual(['transform', 'opacity', 'transform', 'opacity']);
     mountSaturnBackground(container);
-    expect(container.querySelector('svg')).toBeNull();
+    expect(container.querySelector('svg')?.classList.contains('solar-singularity-sparks')).toBe(true);
   });
 
-  it('plays one procedural hover tick and clears the warming effect on leave', () => {
+  it('never plays hover audio or changes corona classes on pointer entry and leave', () => {
     const hover = vi.spyOn(solarAudio, 'playButtonHover').mockImplementation(() => {});
     mountSaturnBackground(container);
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 800, clientY: 350 }));
     advanceFrames();
-    expect(hover).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('.solar-singularity-hovered')).not.toBeNull();
+    expect(hover).not.toHaveBeenCalled();
+    expect(container.querySelector('.solar-singularity-hovered')).toBeNull();
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 810, clientY: 350 }));
     advanceFrames();
-    expect(hover).toHaveBeenCalledTimes(1);
+    expect(hover).not.toHaveBeenCalled();
     document.documentElement.dispatchEvent(new MouseEvent('mouseleave'));
     advanceFrames();
     expect(container.querySelector('.solar-singularity-hovered')).toBeNull();
   });
 
-  it('ignores controls over the core and cancels hover and pending motion on blur', () => {
+  it('ignores controls over the core and focus changes without any pending motion', () => {
     const hover = vi.spyOn(solarAudio, 'playButtonHover').mockImplementation(() => {});
     mountSaturnBackground(container);
     const button = document.createElement('button');
@@ -232,9 +316,9 @@ describe('Saturn background', () => {
     expect(container.querySelector('.solar-singularity-hovered')).toBeNull();
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 800, clientY: 350 }));
     advanceFrames(1);
-    expect(hover).toHaveBeenCalledTimes(1);
+    expect(hover).not.toHaveBeenCalled();
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 900, clientY: 350 }));
-    expect(frames.size).toBe(1);
+    expect(frames.size).toBe(0);
     window.dispatchEvent(new Event('blur'));
     expect(frames.size).toBe(0);
     expect(container.querySelector('.solar-singularity-hovered')).toBeNull();
@@ -249,46 +333,48 @@ describe('Saturn background', () => {
     expect(container.querySelector('.solar-singularity-hovered')).toBeNull();
   });
 
-  it('keeps geometric hover with reduced motion without running a parallax loop', () => {
+  it('keeps reduced-motion scenes inert on pointer movement without audio or style writes', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
     const hover = vi.spyOn(solarAudio, 'playButtonHover').mockImplementation(() => {});
     mountSaturnBackground(container);
     const corona = container.querySelector<HTMLElement>('.solar-singularity-corona')!;
     const transformWrites = vi.spyOn(corona.style, 'transform', 'set');
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 800, clientY: 350 }));
-    expect(frames.size).toBe(1);
+    expect(frames.size).toBe(0);
     advanceFrames(1);
     expect(frames.size).toBe(0);
-    expect(hover).toHaveBeenCalledTimes(1);
+    expect(hover).not.toHaveBeenCalled();
     expect(transformWrites).not.toHaveBeenCalled();
   });
 
-  it('pauses a hidden scene and cancels pending animation work', () => {
+  it('does not allocate animation work when the document is hidden', () => {
     mountSaturnBackground(container);
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 1000 }));
-    expect(frames.size).toBe(1);
+    expect(frames.size).toBe(0);
     vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     document.dispatchEvent(new Event('visibilitychange'));
     expect(frames.size).toBe(0);
-    expect(container.querySelector('.solar-anim-paused')).not.toBeNull();
+    expect(container.querySelector('.solar-singularity-scene')).not.toBeNull();
     window.dispatchEvent(new MouseEvent('mousemove'));
     expect(frames.size).toBe(0);
   });
 
-  it('respects reduced motion and detaches its preference listener', () => {
+  it('delegates reduced motion to CSS without installing a preference listener', () => {
     const media = { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() };
     vi.stubGlobal('matchMedia', vi.fn(() => media));
     mountSaturnBackground(container);
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 1000 }));
-    expect(frames.size).toBe(1);
+    expect(frames.size).toBe(0);
     media.matches = true;
-    media.addEventListener.mock.calls[0][1]();
+    expect(media.addEventListener).not.toHaveBeenCalled();
     expect(frames.size).toBe(0);
     window.dispatchEvent(new MouseEvent('mousemove'));
     advanceFrames();
     expect(frames.size).toBe(0);
     unmountSaturnBackground();
-    expect(media.removeEventListener).toHaveBeenCalledWith('change', media.addEventListener.mock.calls[0][1]);
+    expect(media.removeEventListener).not.toHaveBeenCalled();
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.corona-pulse::before,[\s\S]*?\.solar-singularity-orbits::after\s*\{\s*animation: none !important/);
   });
 
   it('respects disabled background animation without running a parallax loop', () => {
@@ -298,7 +384,9 @@ describe('Saturn background', () => {
     advanceFrames();
     expect(frames.size).toBe(0);
     expect(container.querySelector<HTMLElement>('.solar-singularity-corona')!.style.transform)
-      .toBe('translate3d(calc(-50% + 0.000px), calc(-50% + 0.000px), 0)');
+      .toBe('');
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/body\.bg-anim-off \.corona-pulse::before,[\s\S]*?animation: none !important/);
   });
 
   it('works in JSDOM without Web Audio, matchMedia or requestAnimationFrame', () => {
@@ -311,7 +399,7 @@ describe('Saturn background', () => {
       window.dispatchEvent(new MouseEvent('mousemove'));
       unmountSaturnBackground();
     }).not.toThrow();
-    expect(nodes.mock.results.every((result) => result.value === null)).toBe(true);
+    expect(nodes).not.toHaveBeenCalled();
   });
 
   it('safely returns a no-op when mounted without a document', () => {

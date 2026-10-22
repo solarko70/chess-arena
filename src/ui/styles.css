@@ -68,18 +68,29 @@
   --solar-btn-end: #f59e0b;
   --solar-btn-outline: rgba(255, 255, 255, 0.2);
   --z-saturn: 0;
-  --solar-singularity-abyss: #03050c;
-  --solar-singularity-indigo: #17182e;
-  --solar-singularity-space: #080d1d;
-  --solar-singularity-core: #010207;
+  --solar-bg-dark: #070412;
+  --solar-singularity-abyss: var(--solar-bg-dark);
+  --solar-singularity-indigo: #17112b;
+  --solar-singularity-space: #0c081c;
+  --solar-singularity-core: #030108;
+  --solar-singularity-core-highlight: #090617;
   --solar-singularity-hot: #fef3ad;
   --solar-singularity-amber: rgba(245, 158, 11, 0.72);
+  --solar-singularity-corona-edge: #d97706;
   --solar-singularity-glow: rgba(245, 158, 11, 0.24);
   --solar-singularity-haze: rgba(217, 119, 6, 0.06);
   --solar-singularity-clear: transparent;
   --solar-singularity-rim: rgba(254, 240, 138, 0.75);
   --solar-singularity-orbit: rgba(217, 162, 69, 0.17);
   --solar-singularity-coordinate: rgba(228, 190, 117, 0.46);
+  --solar-singularity-spark: #fde68a;
+  --solar-menu-text: #f8fafc;
+  --solar-menu-button: #151126;
+  --solar-menu-button-hover: #29223f;
+  --solar-menu-panel: rgba(12, 8, 28, 0.88);
+  --solar-menu-border: rgba(245, 158, 11, 0.22);
+  --solar-menu-title-glow: rgba(245, 158, 11, 0.24);
+  --solar-menu-title-outline: var(--solar-bg-dark);
   --acc-low: #ef4444;
   --acc-mid: #f59e0b;
   --acc-high: #22c55e;
@@ -230,6 +241,29 @@
   --hero-glass-bg: rgba(255, 255, 255, 0.58);
   --hero-glass-border: rgba(180, 83, 9, 0.15);
   --hero-fallback-bg: rgba(255, 255, 255, 0.94);
+
+  /* The menu scene inherits theme changes without observers or remounting. */
+  --solar-singularity-abyss: #e2e8f0;
+  --solar-singularity-indigo: #fcfaf5;
+  --solar-singularity-space: #f1f5f9;
+  --solar-singularity-core: #e2e8f0;
+  --solar-singularity-core-highlight: #f8fafc;
+  --solar-singularity-hot: #fcd34d;
+  --solar-singularity-amber: rgba(245, 158, 11, 0.66);
+  --solar-singularity-corona-edge: #d97706;
+  --solar-singularity-glow: rgba(217, 119, 6, 0.2);
+  --solar-singularity-haze: rgba(217, 119, 6, 0.04);
+  --solar-singularity-rim: rgba(217, 119, 6, 0.62);
+  --solar-singularity-orbit: rgba(180, 113, 28, 0.24);
+  --solar-singularity-coordinate: rgba(146, 84, 20, 0.55);
+  --solar-singularity-spark: #d97706;
+  --solar-menu-text: #0f172a;
+  --solar-menu-button: #ffffff;
+  --solar-menu-button-hover: #e2e8f0;
+  --solar-menu-panel: rgba(248, 250, 252, 0.92);
+  --solar-menu-border: rgba(146, 84, 20, 0.24);
+  --solar-menu-title-glow: rgba(217, 119, 6, 0.12);
+  --solar-menu-title-outline: #f1f5f9;
 
   /* Solar Modal & Summary variables in light mode */
   --glow-color: rgba(217, 119, 6, 0.16);
@@ -3501,6 +3535,8 @@ body.review-active #app {
   height: 130%;
   overflow: hidden;
   pointer-events: none;
+  user-select: none;
+  will-change: transform, opacity;
   z-index: var(--z-saturn);
   contain: layout paint style;
   opacity: 1;
@@ -3511,6 +3547,14 @@ body.review-active #app {
   --solar-singularity-size: min(54vw, 82vh);
   --solar-singularity-center-x: 70.77%;
   --solar-singularity-center-y: 45.38%;
+}
+
+.solar-theme-scene {
+  color-scheme: dark;
+}
+
+[data-theme='light'] .solar-theme-scene {
+  color-scheme: light;
 }
 
 .solar-singularity-scene.saturn-scene-leaving {
@@ -3534,8 +3578,7 @@ body.review-active #app {
   width: calc(var(--solar-singularity-size) * 1.12);
 }
 
-.solar-singularity-corona::before,
-.solar-singularity-corona::after {
+.solar-singularity-corona::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -3544,28 +3587,20 @@ body.review-active #app {
   background: radial-gradient(circle closest-side,
     var(--solar-singularity-clear) 82%, var(--solar-singularity-haze) 85%,
     var(--solar-singularity-glow) 87%, var(--solar-singularity-hot) 89.2%,
-    var(--solar-singularity-rim) 89.8%, var(--solar-singularity-amber) 90.5%,
+    var(--solar-singularity-rim) 89.8%, var(--solar-singularity-corona-edge) 90.5%,
     var(--solar-singularity-haze) 95%, var(--solar-singularity-clear) 100%);
 }
 
 .corona-pulse::before {
   will-change: transform, opacity;
-  animation: solarCoronaPulse 9s ease-in-out infinite;
+  animation: solar-glow-breathe 9s ease-in-out infinite;
 }
 
-.solar-singularity-corona::after {
-  opacity: 0;
-  will-change: opacity;
-  transition: opacity 350ms ease;
-}
-
-.solar-singularity-hovered .solar-singularity-corona::after {
-  opacity: 0.55;
-}
-
-.solar-singularity-disk {
-  background: var(--solar-singularity-core);
+.solar-singularity-scene > .solar-singularity-disk {
+  background: radial-gradient(circle at 70% 25%,
+    var(--solar-singularity-core-highlight), var(--solar-singularity-core) 75%);
   border: 1px solid var(--solar-singularity-rim);
+  transform: translate3d(calc(-50% - 2px), calc(-50% + 2px), 0);
 }
 
 .solar-singularity-scene > .solar-singularity-orbits {
@@ -3585,6 +3620,8 @@ body.review-active #app {
   letter-spacing: 0.2em;
   text-align: center;
   padding: 12px;
+  will-change: transform;
+  animation: orbit-slow-spin 120s linear infinite;
   background:
     linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) center top / 1px 7px no-repeat,
     linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) center bottom / 1px 7px no-repeat,
@@ -3598,27 +3635,47 @@ body.review-active #app {
   display: flex;
   justify-content: center;
   align-items: flex-end;
+  animation-direction: reverse;
 }
 
-@keyframes solarCoronaPulse {
+.solar-singularity-sparks {
+  position: absolute;
+  left: 55%;
+  top: 12%;
+  width: min(280px, 30vw);
+  height: auto;
+  color: var(--solar-singularity-spark);
+  pointer-events: none;
+}
+
+@keyframes solar-glow-breathe {
   0%,
   100% {
-    transform: scale(0.98);
-    opacity: 0.8;
+    transform: scale(0.99);
+    opacity: 0.75;
   }
   50% {
-    transform: scale(1.02);
+    transform: scale(1.01);
     opacity: 1;
   }
 }
 
-body.bg-anim-off .corona-pulse::before,
-.solar-anim-paused .corona-pulse::before {
-  animation: none !important;
+@keyframes orbit-slow-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-body.bg-anim-off .solar-singularity-scene > div {
-  transform: translate3d(-50%, -50%, 0) !important;
+body.bg-anim-off .corona-pulse::before,
+.solar-anim-paused .corona-pulse::before,
+body.bg-anim-off .solar-singularity-orbits::before,
+body.bg-anim-off .solar-singularity-orbits::after,
+.solar-anim-paused .solar-singularity-orbits::before,
+.solar-anim-paused .solar-singularity-orbits::after {
+  animation: none !important;
 }
 
 /* Retire the occluded menu animations while retaining the router's background mount. */
@@ -3637,6 +3694,26 @@ body.home-active #app {
 
 .screen-home .home-hero {
   pointer-events: auto;
+  background: var(--solar-menu-panel);
+  border-color: var(--solar-menu-border);
+}
+
+.screen-home .home-title {
+  color: var(--solar-menu-text);
+  text-shadow: 0 1px 2px var(--solar-menu-title-outline), 0 0 24px var(--solar-menu-title-glow);
+}
+
+.screen-home .btn-menu {
+  color: var(--solar-menu-text);
+  background: var(--solar-menu-button);
+  border-color: var(--solar-menu-border);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.screen-home .btn-menu:hover,
+.screen-home .btn-menu:focus-visible {
+  background: var(--solar-menu-button-hover);
+  border-color: var(--solar-accent);
 }
 
 body.home-active #solar-bg > .solar-sun,
@@ -5901,14 +5978,14 @@ body.review-active .sound-toggle-btn {
   position: relative;
   z-index: 2;
   text-shadow:
-    0 0 24px rgba(251, 191, 36, 0.28),
-    0 0 50px rgba(245, 158, 11, 0.16);
+    0 1px 2px var(--solar-menu-title-outline),
+    0 0 24px var(--solar-menu-title-glow);
 }
 
 [data-theme='light'] .home-title {
   text-shadow:
-    0 0 20px rgba(245, 158, 11, 0.25),
-    0 0 45px rgba(217, 119, 6, 0.14);
+    0 1px 2px var(--solar-menu-title-outline),
+    0 0 24px var(--solar-menu-title-glow);
 }
 
 /* Home Buttons Container: Placed below the title with Frosted Glass */
@@ -6201,16 +6278,13 @@ body.review-active .sound-toggle-btn {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .corona-pulse::before {
+  .corona-pulse::before,
+  .solar-singularity-orbits::before,
+  .solar-singularity-orbits::after {
     animation: none !important;
   }
 
-  .solar-singularity-scene > div {
-    transform: translate3d(-50%, -50%, 0) !important;
-  }
-
-  .solar-singularity-scene,
-  .solar-singularity-corona::after {
+  .solar-singularity-scene {
     transition: none !important;
   }
 }

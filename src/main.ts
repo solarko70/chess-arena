@@ -955,7 +955,7 @@ export function initApp(): void {
     }
   });
 
-  let isDark = !document.documentElement.getAttribute('data-theme');
+  let isDark = document.documentElement.getAttribute('data-theme') !== 'light';
   const updateThemeUI = (): void => {
     const themeBtn = document.getElementById('theme-btn');
     if (isDark) {
