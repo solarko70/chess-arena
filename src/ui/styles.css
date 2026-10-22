@@ -590,8 +590,12 @@ body.review-active #app {
   background-color: var(--sq-dark);
 }
 
-.chess-square.selected {
+.chess-square.selected,
+.chess-square.selected-square,
+.chess-square.square-selected {
   background-color: var(--sq-selected) !important;
+  box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.75) !important;
+  outline: none;
 }
 
 .chess-square.last-move {

@@ -123,6 +123,7 @@ export class AnalysisBoardUI {
   private selectedBrush: Piece | 'eraser' | null = null;
   private copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   private isPaused = false;
+  private lastEvaluatedFen: string | null = null;
 
   constructor(container: HTMLElement, options: AnalysisBoardOptions = {}) {
     this.container = container;
@@ -405,6 +406,7 @@ export class AnalysisBoardUI {
 
     const performReset = () => {
       if (confirmBox) confirmBox.style.display = 'none';
+      this.lastEvaluatedFen = null;
       this.store.newGame();
       this.store.setActiveVariationNode(null);
       this.boardUI.clearPremoves();
@@ -602,14 +604,17 @@ export class AnalysisBoardUI {
     // Render Move History table
     this.renderMovesTable(liveState, curPly);
 
-    // Run continuous engine evaluation
-    if (!this.isPaused) {
+    // Run continuous engine evaluation only when position actually changes
+    const currentFen = serializeFEN(state);
+    if (!this.isPaused && this.lastEvaluatedFen !== currentFen) {
+      this.lastEvaluatedFen = currentFen;
       this.runLiveAnalysis();
     }
   }
 
   public pause(): void {
     this.isPaused = true;
+    this.lastEvaluatedFen = null;
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
@@ -774,12 +779,14 @@ export class AnalysisBoardUI {
   private runLiveAnalysis(): void {
     if (this.isPaused) return;
 
+    const currentState = this.store.getState();
+    this.lastEvaluatedFen = serializeFEN(currentState);
+
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
     }
 
-    const currentState = this.store.getState();
     const legal = generateLegal(currentState);
 
     const numericEl = this.container.querySelector('#analysis-eval-numeric');

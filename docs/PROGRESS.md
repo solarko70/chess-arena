@@ -623,6 +623,23 @@
   - Verified `npm run build` (production build clean).
   - Verified `npm test` (36 test files passed, 389 tests passed, watchdog clean).
 
+## Stage 6b-5: Stockfish Analysis Idempotency & Board Layout Shift Elimination (Completed)
+- [x] Stockfish Analysis Idempotency (`src/ui/analysis-board.ts`):
+  - Added `lastEvaluatedFen: string | null` tracking in `AnalysisBoardUI`.
+  - Guarded `handleStoreChange`: if current position FEN matches `lastEvaluatedFen`, Stockfish analysis is NOT restarted, search is not aborted, and active MultiPV lines are preserved without interruption.
+  - Evaluation restarts strictly on actual moves, history ply navigation, or new position loads (`lastEvaluatedFen !== currentFen`).
+- [x] Board Layout Shift Elimination & Targeted Selection (`src/ui/board.ts`, `src/ui/styles.css`):
+  - Replaced full board re-render on square selection with selective in-place highlight updates (`handleStoreNotification` and `updateSelectionHighlights`).
+  - Selecting/deselecting pieces or clicking squares toggles `.selected`, `.selected-square`, `.square-selected`, and legal move hint dots directly via `classList` without touching `this.boardEl.innerHTML = ''`.
+  - Preserved 100% of DOM square node identities across selection events.
+  - Box-model protection: styles for `.chess-square.selected` use strictly `box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.75)` and `outline: none;` without dimensions-altering borders.
+- [x] Comprehensive Testing & Verification (`src/tests/analysis-board.test.ts`):
+  - Added 2 new tests in `src/tests/analysis-board.test.ts` verifying that repeated clicks on pieces/squares without FEN change do not restart engine analysis, and that DOM square nodes are preserved by reference without recreation on selection (20 tests passing).
+  - All test names $\le 100$ characters; 100% test pass rate across all suites.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (production build clean).
+  - Verified `npm test` (all test suites passing, watchdog clean).
+
 ## Stage 6b-4: MultiPV 3 Real-time Stream, Reset Board Warning & Chained Multi-premoves (Completed)
 - [x] Autonomous Real-time MultiPV 3 Stream (`src/analysis/engine.ts`, `src/ui/analysis-board.ts`):
   - Created reactive line buffer in `StockfishAnalysisEngine`: tracks candidate lines via `infoByMultiPV = new Map<number, ParsedUCIInfo>()`.

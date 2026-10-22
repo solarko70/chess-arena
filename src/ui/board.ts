@@ -2,7 +2,7 @@ import { ChessStore, type Premove } from '../state/store'
 import { getPieceSvg } from './pieces'
 import { getMoveClassMeta, winChance } from '@/analysis'
 import { solarAudio } from '@/audio/solar-audio'
-import { generatePseudoLegal, type Move, type Piece, type PieceType, type Square } from '@/core'
+import { generatePseudoLegal, serializeFEN, type Move, type Piece, type PieceType, type Square } from '@/core'
 import type { Score } from '@/ai'
 
 export interface ChessBoardUIOptions {
@@ -114,6 +114,16 @@ export class ChessBoardUI {
   private externalArrow: Move | null = null
   private externalScore: Score | null = null
 
+  // Selective rendering cache to eliminate layout shifts on square selection (Stage 6b-5)
+  private lastRenderedFen: string | null = null
+  private lastRenderedFlipped: boolean | null = null
+  private lastRenderedSelectedSq: Square | null = null
+  private lastRenderedHistoryLen = -1
+  private lastRenderedViewIndex: number | null = null
+  private lastRenderedVariationId: string | null = null
+  private lastRenderedPendingPromo = false
+  private lastRenderedPremovesLen = 0
+
   constructor(container: HTMLElement, store: ChessStore, options: ChessBoardUIOptions = {}) {
     this.container = container
     this.store = store
@@ -148,7 +158,7 @@ export class ChessBoardUI {
     this.badgeLayerEl = this.container.querySelector('.board-badge-layer') as HTMLElement
 
     this.initEvents()
-    this.store.subscribe(() => this.render())
+    this.store.subscribe(() => this.handleStoreNotification())
   }
 
   private initEvents(): void {
@@ -339,6 +349,80 @@ export class ChessBoardUI {
     this.render()
   }
 
+  private handleStoreNotification(): void {
+    const state = this.store.getState()
+    const liveState = this.store.getLiveState()
+    const currentFen = serializeFEN(state)
+    const currentFlipped = this.store.isFlipped()
+    const currentSelectedSq = this.store.getSelectedSquare()
+    const currentHistoryLen = liveState.history.length
+    const currentViewIndex = this.store.getViewIndex()
+    const currentVariationId = this.store.getActiveVariationNode()?.id ?? null
+    const currentHasPromo = this.store.getPendingPromotion() !== null
+    const currentPremovesLen = this.store.getPremoves().length
+
+    // If board DOM has not been initialized yet, do full render
+    if (this.boardEl.children.length === 0 || this.lastRenderedFen === null) {
+      this.render()
+      return
+    }
+
+    // Check if ONLY selectedSquare changed (same FEN, flipped, history, viewIndex, variations, promo, premoves)
+    const isOnlySelectionChange =
+      this.lastRenderedFen === currentFen &&
+      this.lastRenderedFlipped === currentFlipped &&
+      this.lastRenderedHistoryLen === currentHistoryLen &&
+      this.lastRenderedViewIndex === currentViewIndex &&
+      this.lastRenderedVariationId === currentVariationId &&
+      this.lastRenderedPendingPromo === currentHasPromo &&
+      this.lastRenderedPremovesLen === currentPremovesLen
+
+    if (isOnlySelectionChange) {
+      if (this.lastRenderedSelectedSq === currentSelectedSq) return
+      this.updateSelectionHighlights(currentSelectedSq)
+      return
+    }
+
+    this.render()
+  }
+
+  private updateSelectionHighlights(selectedSq: Square | null): void {
+    const prevSelected = this.boardEl.querySelectorAll(
+      '.chess-square.selected, .chess-square.selected-square, .chess-square.square-selected'
+    )
+    prevSelected.forEach((el) => {
+      el.classList.remove('selected', 'selected-square', 'square-selected')
+    })
+
+    const oldHints = this.boardEl.querySelectorAll(
+      '.dest-hint:not(.premove-hint), .dest-capture-ring:not(.premove-hint)'
+    )
+    oldHints.forEach((el) => el.remove())
+
+    this.lastRenderedSelectedSq = selectedSq
+
+    if (selectedSq === null) return
+
+    const sqEl = this.boardEl.querySelector(`[data-square="${selectedSq}"]`) as HTMLElement | null
+    if (sqEl) {
+      sqEl.classList.add('selected', 'selected-square', 'square-selected')
+    }
+
+    const validDests = this.store.getValidDestinationsFor(selectedSq)
+    const state = this.store.getState()
+    const pieces = state.board.pieces
+
+    for (const destSq of validDests) {
+      const targetSqEl = this.boardEl.querySelector(`[data-square="${destSq}"]`) as HTMLElement | null
+      if (targetSqEl && !targetSqEl.querySelector('.dest-hint, .dest-capture-ring')) {
+        const hasPiece = !!pieces[destSq]
+        const hint = document.createElement('div')
+        hint.className = hasPiece ? 'dest-capture-ring' : 'dest-hint move-hint-dot'
+        targetSqEl.appendChild(hint)
+      }
+    }
+  }
+
   private render(): void {
     const liveState = this.store.getLiveState()
     const historyLen = liveState.history.length
@@ -458,7 +542,7 @@ export class ChessBoardUI {
         sqEl.className = `chess-square ${isLight ? 'light' : 'dark'}`
         sqEl.dataset.square = sq.toString()
 
-        if (isSelected) sqEl.classList.add('selected')
+        if (isSelected) sqEl.classList.add('selected', 'selected-square', 'square-selected')
         if (isLastMove) sqEl.classList.add('last-move')
         if (isKingInCheck) sqEl.classList.add('in-check')
         if (isPremoveFrom) sqEl.classList.add('square-premove-from', 'square-premove-origin')
@@ -514,6 +598,15 @@ export class ChessBoardUI {
     this.renderMoveBadge(flipped)
     this.handleReviewMoveKinematics(flipped, width, height)
     this.renderSolarWings()
+
+    this.lastRenderedFen = serializeFEN(state)
+    this.lastRenderedFlipped = flipped
+    this.lastRenderedSelectedSq = selectedSq
+    this.lastRenderedHistoryLen = historyLen
+    this.lastRenderedViewIndex = this.store.getViewIndex()
+    this.lastRenderedVariationId = this.store.getActiveVariationNode()?.id ?? null
+    this.lastRenderedPendingPromo = pendingPromo !== null
+    this.lastRenderedPremovesLen = premoves.length
   }
 
   private handleReviewMoveKinematics(flipped: boolean, width: number, height: number): void {

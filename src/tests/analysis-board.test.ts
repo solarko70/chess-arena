@@ -519,4 +519,54 @@ describe('Stage 6b: Analysis Board & Board Editor', () => {
     expect(rows[1].textContent).toContain('+0.20');
     expect(rows[2].textContent).toContain('+0.15');
   });
+
+  it('повторный клик по фигуре без смены FEN не перезапускает анализ движка', () => {
+    const engine = analysisUI.getEngine();
+    const spy = vi.spyOn(engine, 'analyze');
+
+    // Click on white pawn (square 52) to select
+    const sq52 = container.querySelector('[data-square="52"]') as HTMLElement;
+    expect(sq52).toBeTruthy();
+    sq52.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+
+    expect(spy).not.toHaveBeenCalled();
+
+    // Click on white pawn again to deselect
+    sq52.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+    expect(spy).not.toHaveBeenCalled();
+
+    // Click on empty square 36
+    const sq36 = container.querySelector('[data-square="36"]') as HTMLElement;
+    sq36.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+    expect(spy).not.toHaveBeenCalled();
+
+    // Real move commits -> FEN changes -> analysis triggers exactly once
+    analysisUI.getStore().makeMove(52, 36);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('структура DOM доски не пересоздаётся с нуля при клике на фигуру', () => {
+    const initialSq52 = container.querySelector('[data-square="52"]') as HTMLElement;
+    const initialSq60 = container.querySelector('[data-square="60"]') as HTMLElement;
+    expect(initialSq52).toBeTruthy();
+    expect(initialSq60).toBeTruthy();
+
+    // Click square 52 to select
+    initialSq52.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+
+    const afterSelectSq52 = container.querySelector('[data-square="52"]');
+    const afterSelectSq60 = container.querySelector('[data-square="60"]');
+
+    // Exact reference equality: DOM nodes were not replaced with innerHTML = ''
+    expect(afterSelectSq52).toBe(initialSq52);
+    expect(afterSelectSq60).toBe(initialSq60);
+    expect(initialSq52.classList.contains('selected')).toBe(true);
+
+    // Click square 52 again to deselect
+    initialSq52.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+
+    const afterDeselectSq52 = container.querySelector('[data-square="52"]');
+    expect(afterDeselectSq52).toBe(initialSq52);
+    expect(initialSq52.classList.contains('selected')).toBe(false);
+  });
 });
