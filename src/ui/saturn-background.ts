@@ -29,13 +29,24 @@ export function mountSaturnBackground(container: HTMLElement): () => void {
       <circle cx="320" cy="320" r="244" fill="none" stroke="url(#${gradientId}-gold)" stroke-width="1.25" vector-effect="non-scaling-stroke"/>
     </svg>
     <svg class="solar-orbits-spinning solar-singularity-orbits" viewBox="0 0 1000 1000" fill="none" aria-hidden="true" focusable="false">
-      <circle cx="500" cy="500" r="320" stroke-width="1" vector-effect="non-scaling-stroke"/>
-      <circle cx="500" cy="500" r="380" stroke-width="1" vector-effect="non-scaling-stroke"/>
-      <circle cx="500" cy="500" r="440" stroke-width="1" stroke-dasharray="4 12" vector-effect="non-scaling-stroke"/>
-      <circle cx="500" cy="500" r="490" stroke-width="1" vector-effect="non-scaling-stroke"/>
-      <line class="solar-orbit-tick" x1="500" y1="6" x2="500" y2="18" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
-      <text class="solar-orbit-label solar-orbit-label-360" x="512" y="22" aria-hidden="true">360°</text>
-      <text class="solar-orbit-label solar-orbit-label-180" x="134" y="496" aria-hidden="true">180°</text>
+      <g class="solar-orbit-inner" aria-hidden="true">
+        <circle cx="500" cy="500" r="320" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <circle cx="500" cy="500" r="380" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="117" y1="500" x2="123" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="878" y1="500" x2="882" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="878" x2="500" y2="882" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="118" x2="500" y2="122" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <text class="solar-orbit-label solar-orbit-label-180" x="132" y="500" transform="rotate(-90 132 500)" text-anchor="middle" aria-hidden="true">180°</text>
+      </g>
+      <g class="solar-orbit-outer" aria-hidden="true">
+        <circle cx="500" cy="500" r="440" stroke-width="1" stroke-dasharray="4 12" vector-effect="non-scaling-stroke"/>
+        <circle cx="500" cy="500" r="490" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="987" y1="500" x2="993" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="8" y1="500" x2="12" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="988" x2="500" y2="992" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="8" x2="500" y2="12" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <text class="solar-orbit-label solar-orbit-label-360" x="978" y="500" transform="rotate(90 978 500)" text-anchor="middle" aria-hidden="true">360°</text>
+      </g>
     </svg>`;
   container.prepend(wrapper);
   let disposed = false;

@@ -162,7 +162,14 @@ describe('Saturn background', () => {
       .toBe('var(--solar-singularity-core)');
     expect(rim.querySelector('radialGradient')).not.toBeNull();
     expect(rim.querySelector('linearGradient')).not.toBeNull();
-    expect(scene.querySelectorAll('.solar-orbits-spinning > circle')).toHaveLength(4);
+    expect(scene.querySelectorAll('.solar-orbits-spinning circle')).toHaveLength(4);
+    const groups = [...scene.querySelector('.solar-orbits-spinning')!.children];
+    expect(groups.map(group => group.getAttribute('class')))
+      .toEqual(['solar-orbit-inner', 'solar-orbit-outer']);
+    for (const group of groups) {
+      expect(group.tagName).toBe('g');
+      expect(group.getAttribute('aria-hidden')).toBe('true');
+    }
   });
 
   it('unmount removes the DOM without allocating frames or installing listeners', () => {
@@ -261,7 +268,7 @@ describe('Saturn background', () => {
   it('bounds SVG complexity and excludes crosses, sparks and stray coordinate artifacts', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(23);
+    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(32);
     expect(scene.children).toHaveLength(2);
     expect(scene.querySelectorAll('svg')).toHaveLength(2);
     expect(scene.querySelector('path, text:not(.solar-orbit-label), .stellar-cross, .sparkle, .solar-singularity-sparks'))
@@ -277,7 +284,7 @@ describe('Saturn background', () => {
       expect(wrapper).toContain(declaration);
     }
     for (const [, selectors, declarations] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      if (/singularity|solar-rim-static|solar-orbits-spinning|solar-orbit-(?:label|tick)/.test(selectors)) {
+      if (/singularity|solar-rim-static|solar-orbits-spinning|solar-orbit-(?:label|tick|inner|outer)/.test(selectors)) {
         expect(declarations).not.toMatch(/(?:backdrop-)?filter\s*:/);
         expect(declarations).not.toMatch(/(?:box|text)-shadow\s*:/);
         expect(declarations).not.toMatch(/pointer-events:\s*(auto|fill)/);
@@ -286,14 +293,21 @@ describe('Saturn background', () => {
     expect(wrapper).toContain('user-select: none');
     expect(wrapper).toContain('will-change: transform, opacity');
     expect(css).toMatch(/\.solar-rim-static\s*\{[^}]*animation:\s*none/);
-    expect(css).toMatch(/\.solar-orbits-spinning\s*\{[^}]*will-change:\s*transform/);
-    expect(css).toContain('animation: solar-orbit-rotate 90s linear infinite');
-    const spin = css.match(/@keyframes solar-orbit-rotate\s*\{([\s\S]*?)\n\}/)![1];
-    expect(spin).toContain('translateZ(0) rotate(0deg)');
-    expect(spin).toContain('translateZ(0) rotate(360deg)');
-    expect([...spin.matchAll(/([\w-]+)\s*:/g)].map(match => match[1]))
-      .toEqual(['transform', 'transform']);
-    expect(css).not.toMatch(/solar-glow-breathe|orbit-slow-spin|solar-singularity-sparks/);
+    expect(css).toMatch(/\.solar-orbits-spinning\s*\{[^}]*animation:\s*none/);
+    const groupRule = css.match(/\.solar-orbit-inner,\s*\.solar-orbit-outer\s*\{([^}]+)\}/)![1];
+    expect(groupRule).toContain('transform-box: view-box');
+    expect(groupRule).toContain('transform-origin: 50% 50%');
+    expect(groupRule).toContain('will-change: transform');
+    expect(groupRule).toContain('pointer-events: none');
+    for (const [name, seconds] of [['inner', 85], ['outer', 130]] as const) {
+      expect(css).toContain(`animation: orbit-spin-${name} ${seconds}s linear infinite`);
+      const spin = css.match(new RegExp(`@keyframes orbit-spin-${name}\\s*\\{([\\s\\S]*?)\\n\\}`))![1];
+      expect(spin).toContain('rotateZ(0deg) translateZ(0)');
+      expect(spin).toContain('rotateZ(360deg) translateZ(0)');
+      expect([...spin.matchAll(/([\w-]+)\s*:/g)].map(match => match[1]))
+        .toEqual(['transform', 'transform']);
+    }
+    expect(css).not.toMatch(/solar-orbit-rotate|solar-glow-breathe|orbit-slow-spin|solar-singularity-sparks/);
   });
 
   it('isolates gradient references from the four plain orbit circles across remounts', () => {
@@ -316,7 +330,7 @@ describe('Saturn background', () => {
     expect(stops.some(stop => Number(stop.getAttribute('stop-opacity')) > 0)).toBe(true);
     const orbits = container.querySelector('.solar-orbits-spinning')!;
     expect(orbits.getAttribute('fill')).toBe('none');
-    const circles = orbits.querySelectorAll(':scope > circle');
+    const circles = orbits.querySelectorAll('circle');
     expect(circles).toHaveLength(4);
     for (const circle of circles) {
       expect(circle.tagName).toBe('circle');
@@ -329,7 +343,7 @@ describe('Saturn background', () => {
     expect(orbits.querySelector('defs, filter, radialGradient, linearGradient')).toBeNull();
   });
 
-  it('mounts 180° and 360° labels on their orbits without adding animated layers', () => {
+  it('keeps 180° and 360° labels tangent to their own orbit ticks', () => {
     mountSaturnBackground(container);
     const orbits = container.querySelector('.solar-orbits-spinning')!;
     const labels = [...orbits.querySelectorAll('.solar-orbit-label')];
@@ -337,17 +351,32 @@ describe('Saturn background', () => {
     expect(container.querySelector('.solar-singularity-scene')!.children).toHaveLength(2);
     const outer = orbits.querySelector('.solar-orbit-label-360')!;
     const inner = orbits.querySelector('.solar-orbit-label-180')!;
-    const tick = orbits.querySelector('.solar-orbit-tick')!;
+    const tick = orbits.querySelector('.solar-orbit-outer .solar-orbit-tick-major')!;
     const circles = [...orbits.querySelectorAll('circle')];
     const outerRadius = Number(circles[3].getAttribute('r'));
     const secondRadius = Number(circles[1].getAttribute('r'));
-    expect(Number(tick.getAttribute('y1'))).toBeLessThan(500 - outerRadius);
-    expect(Number(tick.getAttribute('y2'))).toBeGreaterThan(500 - outerRadius);
-    expect(Math.abs(Number(outer.getAttribute('x')) - 500)).toBeLessThan(20);
+    expect(Number(tick.getAttribute('x1'))).toBeLessThan(500 + outerRadius);
+    expect(Number(tick.getAttribute('x2'))).toBeGreaterThan(500 + outerRadius);
+    expect(Math.abs(Number(outer.getAttribute('x')) - (500 + outerRadius))).toBeLessThan(20);
     expect(Math.abs(Number(inner.getAttribute('x')) - (500 - secondRadius))).toBeLessThan(20);
     for (const label of labels) {
       expect(label.getAttribute('aria-hidden')).toBe('true');
-      expect(label.parentElement).toBe(orbits);
+      const group = label.parentElement!;
+      expect(group.matches(label.textContent === '180°' ? '.solar-orbit-inner' : '.solar-orbit-outer'))
+        .toBe(true);
+      expect(group.parentElement).toBe(orbits);
+      const major = group.querySelector('.solar-orbit-tick-major')!;
+      const tickX = (Number(major.getAttribute('x1')) + Number(major.getAttribute('x2'))) / 2;
+      const tickY = (Number(major.getAttribute('y1')) + Number(major.getAttribute('y2'))) / 2;
+      const x = Number(label.getAttribute('x')), y = Number(label.getAttribute('y'));
+      expect(Math.hypot(x - tickX, y - tickY)).toBeLessThanOrEqual(16);
+      const rotation = label.getAttribute('transform')!.match(/^rotate\((-?[\d.]+) ([\d.]+) ([\d.]+)\)$/)!;
+      expect(rotation).not.toBeNull();
+      expect(Number(rotation[2])).toBe(x);
+      expect(Number(rotation[3])).toBe(y);
+      const angle = Number(rotation[1]) * Math.PI / 180;
+      expect((x - 500) * Math.cos(angle) + (y - 500) * Math.sin(angle)).toBeCloseTo(0, 5);
+      expect(label.getAttribute('text-anchor')).toBe('middle');
     }
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     const rule = css.match(/\.solar-orbit-label\s*\{([^}]+)\}/)![1];
@@ -358,6 +387,35 @@ describe('Saturn background', () => {
     expect(rule).not.toMatch(/animation\s*:|filter\s*:|shadow\s*:/);
     expect(palette(false).get('--solar-singularity-coordinate'))
       .not.toBe(palette(true).get('--solar-singularity-coordinate'));
+  });
+
+  it('distributes radial major and minor ticks every 90 degrees on both orbit groups', () => {
+    mountSaturnBackground(container);
+    for (const [name, radius] of [['inner', 380], ['outer', 490]] as const) {
+      const group = container.querySelector(`.solar-orbit-${name}`)!;
+      const ticks = [...group.querySelectorAll('.solar-orbit-tick')];
+      expect(ticks).toHaveLength(4);
+      expect(group.querySelectorAll('.solar-orbit-tick-major')).toHaveLength(1);
+      expect(group.querySelectorAll('.solar-orbit-tick-minor')).toHaveLength(3);
+      const angles = ticks.map(tick => {
+        const x1 = Number(tick.getAttribute('x1')) - 500;
+        const y1 = Number(tick.getAttribute('y1')) - 500;
+        const x2 = Number(tick.getAttribute('x2')) - 500;
+        const y2 = Number(tick.getAttribute('y2')) - 500;
+        expect(x1 * y2 - y1 * x2).toBe(0);
+        expect(Math.hypot((x1 + x2) / 2, (y1 + y2) / 2)).toBe(radius);
+        const length = tick.classList.contains('solar-orbit-tick-major') ? 6 : 4;
+        expect(Math.hypot(x2 - x1, y2 - y1)).toBe(length);
+        expect(tick.getAttribute('stroke-width')).toBe('1');
+        expect(tick.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+        return (Math.atan2(y1 + y2, x1 + x2) * 180 / Math.PI + 360) % 360;
+      });
+      expect(angles.sort((a, b) => a - b)).toEqual([0, 90, 180, 270]);
+      const major = group.querySelector('.solar-orbit-tick-major')!;
+      expect(Number(major.getAttribute('x1')) < 500).toBe(name === 'inner');
+    }
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/\.solar-orbit-tick-minor\s*\{\s*opacity:\s*0\.35/);
   });
 
   it('never plays hover audio or changes corona classes on pointer entry and leave', () => {
@@ -444,7 +502,7 @@ describe('Saturn background', () => {
     unmountSaturnBackground();
     expect(media.removeEventListener).not.toHaveBeenCalled();
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.solar-orbits-spinning\s*\{\s*animation: none !important/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.solar-orbit-inner,\s*\.solar-orbit-outer\s*\{\s*animation: none !important/);
   });
 
   it('respects disabled background animation without running a parallax loop', () => {
@@ -456,7 +514,8 @@ describe('Saturn background', () => {
     expect(container.querySelector<HTMLElement>('.solar-singularity-corona')!.style.transform)
       .toBe('');
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
-    expect(css).toMatch(/body\.bg-anim-off \.solar-orbits-spinning,[\s\S]*?animation: none !important/);
+    expect(css).toMatch(/body\.bg-anim-off \.solar-orbit-inner,\s*body\.bg-anim-off \.solar-orbit-outer,[\s\S]*?animation: none !important/);
+    expect(css).toMatch(/\.solar-anim-paused \.solar-orbit-inner,\s*\.solar-anim-paused \.solar-orbit-outer\s*\{\s*animation: none !important/);
   });
 
   it('works in JSDOM without Web Audio, matchMedia or requestAnimationFrame', () => {

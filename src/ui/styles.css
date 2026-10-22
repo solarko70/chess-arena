@@ -3570,9 +3570,24 @@ body.review-active #app {
 .solar-orbits-spinning {
   width: calc(var(--solar-singularity-size) * 1.72);
   stroke: var(--solar-singularity-orbit);
+  animation: none;
+}
+
+.solar-orbit-inner,
+.solar-orbit-outer {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  transform: rotateZ(0deg) translateZ(0);
   will-change: transform;
-  transform: translate3d(-50%, -50%, 0) translateZ(0) rotate(0deg);
-  animation: solar-orbit-rotate 90s linear infinite;
+  pointer-events: none;
+}
+
+.solar-orbit-inner {
+  animation: orbit-spin-inner 85s linear infinite;
+}
+
+.solar-orbit-outer {
+  animation: orbit-spin-outer 130s linear infinite;
 }
 
 .solar-orbit-label {
@@ -3589,17 +3604,32 @@ body.review-active #app {
   pointer-events: none;
 }
 
-@keyframes solar-orbit-rotate {
+.solar-orbit-tick-minor {
+  opacity: 0.35;
+}
+
+@keyframes orbit-spin-inner {
   from {
-    transform: translate3d(-50%, -50%, 0) translateZ(0) rotate(0deg);
+    transform: rotateZ(0deg) translateZ(0);
   }
   to {
-    transform: translate3d(-50%, -50%, 0) translateZ(0) rotate(360deg);
+    transform: rotateZ(360deg) translateZ(0);
   }
 }
 
-body.bg-anim-off .solar-orbits-spinning,
-.solar-anim-paused .solar-orbits-spinning {
+@keyframes orbit-spin-outer {
+  from {
+    transform: rotateZ(0deg) translateZ(0);
+  }
+  to {
+    transform: rotateZ(360deg) translateZ(0);
+  }
+}
+
+body.bg-anim-off .solar-orbit-inner,
+body.bg-anim-off .solar-orbit-outer,
+.solar-anim-paused .solar-orbit-inner,
+.solar-anim-paused .solar-orbit-outer {
   animation: none !important;
 }
 
@@ -6211,7 +6241,8 @@ body.review-active .sound-toggle-btn {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .solar-orbits-spinning {
+  .solar-orbit-inner,
+  .solar-orbit-outer {
     animation: none !important;
   }
 
