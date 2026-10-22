@@ -68,31 +68,18 @@
   --solar-btn-end: #f59e0b;
   --solar-btn-outline: rgba(255, 255, 255, 0.2);
   --z-saturn: 0;
-  --solar-saturn-polar: #aea78d;
-  --solar-saturn-sand: #d9c39b;
-  --solar-saturn-caramel: #b39060;
-  --solar-saturn-gold: #e7ca91;
-  --solar-saturn-ochre: #826445;
-  --solar-saturn-night: #111722;
-  --solar-saturn-ivory: #fff0ca;
-  --solar-saturn-shadow: #080d18;
-  --solar-saturn-band-0: #f0deb6;
-  --solar-saturn-band-1: #7e654c;
-  --solar-saturn-band-2: #aa8555;
-  --solar-saturn-band-3: #e3cba0;
-  --solar-saturn-ring-c-0: #8c8271;
-  --solar-saturn-ring-c-1: #b0a28a;
-  --solar-saturn-ring-c-2: #615b54;
-  --solar-saturn-ring-b-0: #d5c7ac;
-  --solar-saturn-ring-b-1: #a89a80;
-  --solar-saturn-ring-b-2: #eee0c2;
-  --solar-saturn-ring-a-0: #b7ac97;
-  --solar-saturn-ring-a-1: #827969;
-  --solar-saturn-ring-a-2: #d0c3a6;
-  --solar-saturn-hover-glow: rgba(245, 158, 11, 0.55);
-  --solar-saturn-transparent: transparent;
-  --solar-saturn-mask-visible: #fff;
-  --solar-saturn-mask-hidden: #000;
+  --solar-singularity-abyss: #03050c;
+  --solar-singularity-indigo: #17182e;
+  --solar-singularity-space: #080d1d;
+  --solar-singularity-core: #010207;
+  --solar-singularity-hot: #fef3ad;
+  --solar-singularity-amber: rgba(245, 158, 11, 0.72);
+  --solar-singularity-glow: rgba(245, 158, 11, 0.24);
+  --solar-singularity-haze: rgba(217, 119, 6, 0.06);
+  --solar-singularity-clear: transparent;
+  --solar-singularity-rim: rgba(254, 240, 138, 0.75);
+  --solar-singularity-orbit: rgba(217, 162, 69, 0.17);
+  --solar-singularity-coordinate: rgba(228, 190, 117, 0.46);
   --acc-low: #ef4444;
   --acc-mid: #f59e0b;
   --acc-high: #22c55e;
@@ -3501,88 +3488,143 @@ body.review-active #app {
 .saturn-background-mount {
   position: fixed;
   inset: 0;
+  overflow: hidden;
   z-index: var(--z-saturn);
   pointer-events: none;
 }
 
-.saturn-scene-wrapper {
+.solar-singularity-scene {
   position: absolute;
-  inset: 0;
+  top: -15%;
+  left: -15%;
+  width: 130%;
+  height: 130%;
   overflow: hidden;
   pointer-events: none;
   z-index: var(--z-saturn);
-  perspective: 1200px;
+  contain: layout paint style;
   opacity: 1;
   transition: opacity 250ms ease-out;
-  --saturn-x: 0px;
-  --saturn-y: 0px;
-  --saturn-rotate-x: 0deg;
-  --saturn-rotate-y: 0deg;
+  background: radial-gradient(ellipse at 70.77% 45.38%,
+    var(--solar-singularity-indigo), var(--solar-singularity-space) 42%,
+    var(--solar-singularity-abyss) 78%);
+  --solar-singularity-size: min(54vw, 82vh);
+  --solar-singularity-center-x: 70.77%;
+  --solar-singularity-center-y: 45.38%;
 }
 
-.saturn-scene-wrapper.saturn-scene-leaving {
+.solar-singularity-scene.saturn-scene-leaving {
   opacity: 0;
 }
 
-.saturn-parallax,
-.saturn-float,
-.saturn-svg {
+.solar-singularity-scene > div {
+  position: absolute;
+  left: var(--solar-singularity-center-x);
+  top: var(--solar-singularity-center-y);
+  width: var(--solar-singularity-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+  transform: translate3d(-50%, -50%, 0);
+  contain: layout paint style;
+}
+
+.solar-singularity-scene > .solar-singularity-corona {
+  width: calc(var(--solar-singularity-size) * 1.12);
+}
+
+.solar-singularity-corona::before,
+.solar-singularity-corona::after {
+  content: '';
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  border-radius: inherit;
   pointer-events: none;
+  background: radial-gradient(circle closest-side,
+    var(--solar-singularity-clear) 82%, var(--solar-singularity-haze) 85%,
+    var(--solar-singularity-glow) 87%, var(--solar-singularity-hot) 89.2%,
+    var(--solar-singularity-rim) 89.8%, var(--solar-singularity-amber) 90.5%,
+    var(--solar-singularity-haze) 95%, var(--solar-singularity-clear) 100%);
 }
 
-.saturn-parallax {
-  transform-origin: 77% 44%;
-  transform: translate3d(calc(var(--saturn-x) * 0.2), calc(var(--saturn-y) * 0.2), 0)
-    rotateX(var(--saturn-rotate-x)) rotateY(var(--saturn-rotate-y));
+.corona-pulse::before {
+  will-change: transform, opacity;
+  animation: solarCoronaPulse 9s ease-in-out infinite;
 }
 
-.saturn-float {
-  transform-origin: 77% 44%;
-  animation: saturnOrbitalFloat 13s ease-in-out infinite;
-}
-
-.saturn-planet-depth {
-  transform: translate(calc(var(--saturn-x) * 0.35), calc(var(--saturn-y) * 0.35));
-}
-
-.saturn-ring-depth {
-  transform: translate(calc(var(--saturn-x) * 0.8), calc(var(--saturn-y) * 0.8));
-}
-
-.saturn-planet {
-  filter: brightness(1);
-  transition: filter 450ms ease;
-}
-
-.saturn-hovered .saturn-planet {
-  filter: brightness(1.08);
-}
-
-.saturn-ring-glow {
+.solar-singularity-corona::after {
   opacity: 0;
-  filter: drop-shadow(0 0 20px var(--solar-saturn-hover-glow));
-  transition: opacity 450ms ease;
+  will-change: opacity;
+  transition: opacity 350ms ease;
 }
 
-.saturn-hovered .saturn-ring-glow {
-  opacity: 0.8;
+.solar-singularity-hovered .solar-singularity-corona::after {
+  opacity: 0.55;
 }
 
-.saturn-hitbox {
-  pointer-events: auto;
+.solar-singularity-disk {
+  background: var(--solar-singularity-core);
+  border: 1px solid var(--solar-singularity-rim);
 }
 
-.saturn-hit-target {
-  pointer-events: fill;
+.solar-singularity-scene > .solar-singularity-orbits {
+  width: calc(var(--solar-singularity-size) * 1.62);
 }
 
-.saturn-scene-leaving .saturn-hitbox,
-.saturn-scene-leaving .saturn-hit-target {
+.solar-singularity-orbits::before,
+.solar-singularity-orbits::after {
+  content: '00\00b0 / 360\00b0';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--solar-singularity-orbit);
+  border-radius: inherit;
   pointer-events: none;
+  color: var(--solar-singularity-coordinate);
+  font: 9px / 1.5 monospace;
+  letter-spacing: 0.2em;
+  text-align: center;
+  padding: 12px;
+  background:
+    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) center top / 1px 7px no-repeat,
+    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) center bottom / 1px 7px no-repeat,
+    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) left center / 7px 1px no-repeat,
+    linear-gradient(var(--solar-singularity-coordinate), var(--solar-singularity-coordinate)) right center / 7px 1px no-repeat;
+}
+
+.solar-singularity-orbits::after {
+  content: '180\00b0 / 07';
+  inset: 12%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+@keyframes solarCoronaPulse {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+}
+
+body.bg-anim-off .corona-pulse::before,
+.solar-anim-paused .corona-pulse::before {
+  animation: none !important;
+}
+
+body.bg-anim-off .solar-singularity-scene > div {
+  transform: translate3d(-50%, -50%, 0) !important;
+}
+
+/* Retire the occluded menu animations while retaining the router's background mount. */
+body.home-active #solar-bg,
+body.home-active #solar-bg * {
+  animation: none !important;
 }
 
 body.home-active #app {
@@ -3601,26 +3643,6 @@ body.home-active #solar-bg > .solar-sun,
 body.home-active #solar-bg > .solar-orbits,
 body.home-active #solar-bg > .solar-surface {
   visibility: hidden;
-}
-
-@keyframes saturnOrbitalFloat {
-  0%,
-  100% {
-    transform: translate3d(0, -6px, 0) rotate(-0.35deg);
-  }
-  50% {
-    transform: translate3d(0, 6px, 0) rotate(0.35deg);
-  }
-}
-
-body.bg-anim-off .saturn-float {
-  animation: none !important;
-}
-
-body.bg-anim-off .saturn-parallax,
-body.bg-anim-off .saturn-planet-depth,
-body.bg-anim-off .saturn-ring-depth {
-  transform: none !important;
 }
 
 /* Fullscreen Solar Game Background Layer */
@@ -6172,27 +6194,23 @@ body.review-active .sound-toggle-btn {
 }
 
 @media (max-width: 900px) {
-  .saturn-svg {
-    width: 160%;
-    left: -60%;
-    opacity: 0.62;
+  .solar-singularity-scene {
+    --solar-singularity-size: min(112vw, 74vh);
+    --solar-singularity-center-x: 74.62%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .saturn-float {
+  .corona-pulse::before {
     animation: none !important;
   }
 
-  .saturn-parallax,
-  .saturn-planet-depth,
-  .saturn-ring-depth {
-    transform: none !important;
+  .solar-singularity-scene > div {
+    transform: translate3d(-50%, -50%, 0) !important;
   }
 
-  .saturn-scene-wrapper,
-  .saturn-planet,
-  .saturn-ring-glow {
+  .solar-singularity-scene,
+  .solar-singularity-corona::after {
     transition: none !important;
   }
 }
