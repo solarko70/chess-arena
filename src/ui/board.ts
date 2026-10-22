@@ -2,7 +2,8 @@ import { ChessStore, type Premove } from '../state/store'
 import { getPieceSvg } from './pieces'
 import { getMoveClassMeta, winChance } from '@/analysis'
 import { solarAudio } from '@/audio/solar-audio'
-import { generatePseudoLegal, type Piece, type PieceType, type Square } from '@/core'
+import { generatePseudoLegal, type Move, type Piece, type PieceType, type Square } from '@/core'
+import type { Score } from '@/ai'
 
 export class ChessBoardUI {
   private container: HTMLElement
@@ -33,6 +34,10 @@ export class ChessBoardUI {
   private lastTouchEndTime = 0
   private isPremoveDrag = false
   private premoveSelectedSq: Square | null = null
+
+  // Live Analysis external engine data (Stage 6b)
+  private externalArrow: Move | null = null
+  private externalScore: Score | null = null
 
   constructor(container: HTMLElement, store: ChessStore) {
     this.container = container
@@ -147,6 +152,27 @@ export class ChessBoardUI {
     this.clearPremoves()
   }
 
+  public setExternalArrow(move: Move | null): void {
+    this.externalArrow = move
+    this.renderBestMoveArrow(this.store.isFlipped())
+  }
+
+  public setExternalScore(score: Score | null): void {
+    this.externalScore = score
+    this.renderEvalBar(this.store.isFlipped())
+  }
+
+  public clearExternalAnalysis(): void {
+    this.externalArrow = null
+    this.externalScore = null
+    if (this.arrowLayerEl) {
+      this.arrowLayerEl.innerHTML = ''
+    }
+    if (!this.store.isReviewMode()) {
+      this.evalBarWrapperEl.style.display = 'none'
+    }
+  }
+
   private renderPremoveHintDots(fromSq: Square): void {
     this.clearPremoveHintDots()
     const state = this.store.getState()
@@ -202,6 +228,10 @@ export class ChessBoardUI {
     const historyLen = liveState.history.length
     const isReview = this.store.isReviewMode()
     const isViewingHistory = this.store.isViewingHistory()
+
+    if (historyLen !== this.lastHistoryLength) {
+      this.externalArrow = null
+    }
 
     if (!isReview && !isViewingHistory) {
       if (historyLen === this.lastHistoryLength + 1 && historyLen > 0) {
@@ -722,6 +752,22 @@ export class ChessBoardUI {
   }
 
   private renderEvalBar(flipped: boolean): void {
+    if (this.externalScore !== null) {
+      this.evalBarWrapperEl.style.display = 'flex'
+      const whiteChance = Math.max(0, Math.min(100, winChance(this.externalScore)))
+      const fillHeight = flipped ? 100 - whiteChance : whiteChance
+      this.evalBarFillEl.style.height = `${fillHeight}%`
+      if (this.externalScore.type === 'mate') {
+        const val = this.externalScore.value
+        this.evalBarTextEl.textContent = val > 0 ? `M${Math.abs(val)}` : `-M${Math.abs(val)}`
+      } else {
+        const cp = this.externalScore.value / 100
+        const sign = cp > 0 ? '+' : ''
+        this.evalBarTextEl.textContent = `${sign}${cp.toFixed(1)}`
+      }
+      return
+    }
+
     const isReviewActive = this.store.isReviewMode()
     const activeVar = this.store.getActiveVariationNode()
     if (isReviewActive && activeVar && activeVar.score) {
@@ -774,7 +820,7 @@ export class ChessBoardUI {
     const review = this.store.getReviewResult()
     const viewIndex = this.store.getViewIndex()
 
-    let bestMove = activeVar?.bestMove ?? null
+    let bestMove = this.externalArrow ?? activeVar?.bestMove ?? null
     if (!bestMove && review && viewIndex !== null && viewIndex >= 0 && viewIndex < review.moves.length) {
       bestMove = review.moves[viewIndex]?.bestMove ?? null
     }

@@ -15,6 +15,7 @@ import { HistoryUI } from './ui/history';
 import { ReviewPanelUI } from './ui/reviewpanel';
 import { GameOverModalUI } from './ui/gameovermodal';
 import { GameSetupModalUI } from './ui/setupmodals';
+import { AnalysisBoardUI, mountAnalysisBoard } from './ui/analysis-board';
 import { LEVELS } from './ai';
 import { getPieceSvg } from './ui/pieces';
 import { buildGameScene, buildReviewScene } from './ui/space-scenes';
@@ -93,6 +94,7 @@ let clockIntervalId: ReturnType<typeof setInterval> | null = null;
 let keydownCleanup: (() => void) | null = null;
 let visibilityCleanup: (() => void) | null = null;
 let clickCleanup: (() => void) | null = null;
+let analysisBoardInstance: AnalysisBoardUI | null = null;
 
 export function getRouter(): HashRouter | null {
   return currentRouter;
@@ -115,6 +117,11 @@ export function initApp(): void {
   if (!app) return;
 
   disposeSaturnBackground();
+
+  if (analysisBoardInstance) {
+    analysisBoardInstance.destroy();
+    analysisBoardInstance = null;
+  }
 
   if (clockIntervalId !== null) {
     clearInterval(clockIntervalId);
@@ -340,19 +347,8 @@ export function initApp(): void {
       </div>
     </div>
 
-    <!-- Screen 3: Analysis Stub -->
-    <div class="screen screen-analysis" id="screen-analysis" style="display: none;">
-      <header class="chess-header">
-        <button class="btn-back-to-main" id="btn-analysis-back-to-main">${t('header.backToMain')}</button>
-        <div class="chess-title">
-          <span>${t('menu.analysis')}</span>
-        </div>
-      </header>
-      <div class="analysis-stub-body">
-        <h2>${t('menu.analysis')}</h2>
-        <p class="stub-badge">${t('common.soon')}</p>
-      </div>
-    </div>
+    <!-- Screen 3: Analysis Screen (Stage 6b) -->
+    <div class="screen screen-analysis" id="screen-analysis" style="display: none;"></div>
   `;
 
   // Fullscreen Solar Game background mounted directly into document.body
@@ -461,10 +457,32 @@ export function initApp(): void {
       gameScreen.classList.toggle('active', isGame);
     }
     if (analysisScreen) {
-      analysisScreen.style.display = route === 'analysis' ? 'flex' : 'none';
-      analysisScreen.classList.toggle('active', route === 'analysis');
+      const isAnalysis = route === 'analysis';
+      analysisScreen.style.display = isAnalysis ? 'flex' : 'none';
+      analysisScreen.classList.toggle('active', isAnalysis);
+      if (isAnalysis) {
+        if (!analysisBoardInstance) {
+          analysisBoardInstance = mountAnalysisBoard(analysisScreen, {
+            onBackToMain: () => currentRouter?.navigate('home'),
+          });
+        } else {
+          analysisBoardInstance.resume();
+        }
+      } else if (analysisBoardInstance) {
+        analysisBoardInstance.pause();
+      }
     }
   });
+
+  const originalRouterDestroy = currentRouter.destroy.bind(currentRouter);
+  currentRouter.destroy = () => {
+    if (analysisBoardInstance) {
+      analysisBoardInstance.destroy();
+      analysisBoardInstance = null;
+    }
+    originalRouterDestroy();
+  };
+
   currentRouter.init();
 
   // Setup modal for local and bot games
@@ -512,7 +530,7 @@ export function initApp(): void {
     showToast(t('common.soon'));
   });
   document.getElementById('btn-analysis')?.addEventListener('click', () => {
-    showToast(t('common.soon'));
+    currentRouter?.navigate('analysis');
   });
 
   // Mount Board, History, and Review Panel

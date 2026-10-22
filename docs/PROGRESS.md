@@ -623,4 +623,40 @@
   - Verified `npm run build` (production build clean).
   - Verified `npm test` (36 test files passed, 389 tests passed, watchdog clean).
 
+## Stage 6b: Full Analysis Board & Setup Position Editor (chess.com style) (Completed)
+- [x] Dedicated Analysis Route & Clean Navigation (`src/main.ts`, `src/router.ts`, `src/ui/styles.css`):
+  - Main menu button «Анализ» (`#btn-analysis`) navigates to route `#/analysis` revealing `.screen-analysis`.
+  - «В главное меню» (`#btn-analysis-back-to-main`) with sleek SVG left arrow cleanly routes back to `#/`.
+  - Lazy mounting and pause/resume lifecycle: `AnalysisBoardUI` is mounted when entering `#/analysis`, pauses live analysis when leaving, and disposes engine when destroyed.
+- [x] Free Play Board & Turn-by-Turn Navigation (`src/ui/analysis-board.ts`, `src/ui/board.ts`):
+  - Two-player free play on board without clocks or timers for both White and Black.
+  - Full procedural audio via `SolarAudio` on moves, captures, checks, promotions, and castling.
+  - Complete history navigation via `|<` (`#btn-nav-start`), `<` (`#btn-nav-prev`), `>` (`#btn-nav-next`), and `>|` (`#btn-nav-end`).
+  - Keyboard arrow navigation (`ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`) and board flip (`KeyF` / `f` / `F`).
+  - Move list table (`.analysis-moves-table`) with move numbering, clickable SAN tokens (`.move-item[data-ply]`), and automatic scroll to active move.
+- [x] Continuous Live Stockfish Evaluation & Visual Overlays (`src/ui/analysis-board.ts`, `src/ui/board.ts`):
+  - Background streaming analysis at depth 18+ powered by Stockfish (with fallback engine support).
+  - Previous searches cleanly aborted via `AbortController` (`signal.abort()`).
+  - Dynamic vertical Eval Bar (`.eval-bar`) with numeric score (`#analysis-eval-numeric`), depth indicator (`#analysis-engine-depth`), and principal variation line (`#analysis-pv-line`).
+  - Best move arrow drawn directly on the board's SVG overlay layer with automatic clearance upon user move.
+  - Terminal checkmate and stalemate detection with formatted results (`1-0`, `0-1`, `½-½`).
+- [x] FEN & PGN Notation Hub (`src/ui/analysis-board.ts`):
+  - Live FEN input (`#analysis-fen-input`) updating dynamically with custom position load button (`#btn-analysis-load-fen`).
+  - Temporary «Скопировано» feedback on FEN and PGN copy buttons (`#btn-analysis-copy-fen`, `#btn-analysis-copy-pgn`).
+  - Position validation checking for exactly one White king and one Black king, and valid FEN syntax.
+  - PGN text area with game import and error handling (`#btn-analysis-load-pgn`, `#analysis-pgn-error`).
+- [x] Interactive Board Editor / Setup Position Overlay (`src/ui/analysis-board.ts`, `src/ui/styles.css`):
+  - Modal overlay (`#analysis-editor-overlay`) with responsive board editor grid.
+  - Pure SVG piece palette for White and Black pieces (K, Q, R, B, N, P) and eraser tool (`#tool-eraser`).
+  - Click-to-place and click-to-erase square interactions with real-time SVG updates.
+  - Active turn radio selector (White / Black) and castling rights checkboxes (White O-O, O-O-O; Black O-O, O-O-O).
+  - Quick action buttons: «Очистить доску» (`#btn-editor-clear`) and «Начальная позиция» (`#btn-editor-initial`).
+  - Position validation on «Применить» (`#btn-editor-apply`): requires exactly 1 White king and 1 Black king, non-moving king not in check, and no pawns on 1st or 8th ranks.
+- [x] Comprehensive Testing & Verification (`src/tests/analysis-board.test.ts`, `src/tests/screens-navigation.test.ts`):
+  - Created 9 integration tests in `src/tests/analysis-board.test.ts` covering UI mounting, free play moves, FEN/PGN updates, history navigation buttons, FEN validation/loading, PGN import, editor opening/clearing/piece placement, editor king/pawn validation, position application, and safe `engine.dispose()` teardown.
+  - Preserved 100% of existing tests; all test names $\le 100$ characters.
+  - Verified `npm run lint` (0 errors, 0 warnings).
+  - Verified `npm run build` (production build clean).
+  - Verified `npm test` (all test suites passing, watchdog clean).
+
 

@@ -60,11 +60,9 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(toast.textContent).toBe(t('common.soon'));
     expect(window.location.hash).toBe('#/');
 
-    // 3. Analysis
+    // 3. Analysis navigates to analysis screen
     document.getElementById('btn-analysis')?.click();
-    expect(toast.style.display).toBe('block');
-    expect(toast.textContent).toBe(t('common.soon'));
-    expect(window.location.hash).toBe('#/');
+    expect(window.location.hash).toBe('#/analysis');
   });
 
   it('hash router switches screens between home, game, and analysis', () => {
