@@ -6089,10 +6089,10 @@ body.review-active .sound-toggle-btn {
 
 .home-title-queen {
   position: absolute;
-  bottom: 18px;
+  bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
-  width: clamp(100px, 11vw, 140px);
+  width: clamp(75px, 7.5vw, 96px);
   height: auto;
   flex-shrink: 0;
   margin-bottom: 16px;
@@ -6108,6 +6108,28 @@ body.review-active .sound-toggle-btn {
 
 .solar-queen-logo {
   pointer-events: none;
+}
+
+/* Dark mode includes the default theme without an explicit attribute. */
+:root:not([data-theme='light']) .solar-queen-logo {
+  --solar-brand-edge: var(--solar-brand-piece-stroke);
+}
+
+:root:not([data-theme='light']) .solar-logo-keyline {
+  stroke-width: 2.2px;
+}
+
+:root:not([data-theme='light']) .solar-logo-queen {
+  stroke-width: 2.2px;
+}
+
+:root:not([data-theme='light']) .solar-queen-sun {
+  stroke: var(--solar-brand-gold-mid);
+}
+
+:root:not([data-theme='light']) .solar-queen-top-sun {
+  stroke: var(--solar-brand-gold);
+  fill: var(--solar-brand-gold);
 }
 
 .title-solar {

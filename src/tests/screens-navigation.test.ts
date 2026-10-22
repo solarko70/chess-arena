@@ -369,9 +369,9 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(css).toMatch(/\.home-title\s*\{[^}]*line-height:\s*1\.1;/);
     expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*var\(--z-brand-logo\);/);
     expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*var\(--z-brand-title\);/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*width:\s*clamp\(100px,\s*11vw,\s*140px\);/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*width:\s*clamp\(75px,\s*7\.5vw,\s*96px\);/);
     expect(css).toMatch(/\.home-title-queen\s*\{[^}]*height:\s*auto;/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*bottom:\s*18px;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*bottom:\s*6px;/);
     expect(css).toMatch(/\.home-title-queen\s*\{[^}]*position:\s*absolute;/);
     expect(css).toMatch(/\.home-hero\s*\{[^}]*margin-top:\s*calc\(var\(--sun-y\) \+ max\(12vh, 120px\)\);/);
   });
@@ -400,6 +400,17 @@ describe('Screens & Navigation (Stage A1)', () => {
     const light = css.match(/\[data-theme='light'\]\s*\{([^}]+)\}/)![1];
     expect(dark).toContain('--solar-brand-gold: #fbbf24;');
     expect(dark).toContain('--solar-brand-figure: #ffffff;');
+    expect(css).toContain(" :root:not([data-theme='light'])".trim());
+    expect(css).toMatch(/\.solar-logo-queen\s*\{[^}]*stroke-width:\s*2\.2px/);
+    expect(dark).toContain('--solar-brand-piece-stroke: #0f172a;');
+    expect(dark).toContain('--solar-brand-piece-fill: #ffffff;');
+    expect(css).toContain('--solar-brand-edge: var(--solar-brand-piece-stroke)');
+    const queenRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(rule => rule[1].trim().endsWith('.home-title-queen'));
+    expect(queenRules).toHaveLength(1);
+    expect(queenRules[0][1].trim()).toBe('.home-title-queen');
+    expect(queenRules[0][2]).toContain('margin-bottom: 16px;');
+    expect(queenRules[0][2]).not.toContain('filter:');
     expect(light).toContain('--solar-brand-figure: #0f172a;');
     expect(light).toContain('--solar-brand-silver: #0f172a;');
     expect(light).toContain('--solar-brand-gold-light: #b45309;');
