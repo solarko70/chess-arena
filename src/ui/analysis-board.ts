@@ -13,6 +13,7 @@ import {
   type CastlingRights,
   type Color,
   type GameState,
+  type Move,
   type Piece,
   type PieceType,
   type Square,
@@ -125,6 +126,7 @@ export class AnalysisBoardUI {
   private copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   private isPaused = false;
   private lastEvaluatedFen: string | null = null;
+  private currentBestMove: Move | null = null;
 
   constructor(container: HTMLElement, options: AnalysisBoardOptions = {}) {
     this.container = container;
@@ -408,6 +410,8 @@ export class AnalysisBoardUI {
     const performReset = () => {
       if (confirmBox) confirmBox.style.display = 'none';
       this.lastEvaluatedFen = null;
+      this.currentBestMove = null;
+      this.renderBestMoveArrow(null);
       this.store.newGame();
       this.store.setActiveVariationNode(null);
       this.boardUI.clearPremoves();
@@ -609,13 +613,19 @@ export class AnalysisBoardUI {
     const currentFen = serializeFEN(state);
     if (!this.isPaused && this.lastEvaluatedFen !== currentFen) {
       this.lastEvaluatedFen = currentFen;
+      this.currentBestMove = null;
+      this.renderBestMoveArrow(null);
       this.runLiveAnalysis();
+    } else {
+      this.renderBestMoveArrow(this.currentBestMove);
     }
   }
 
   public pause(): void {
     this.isPaused = true;
     this.lastEvaluatedFen = null;
+    this.currentBestMove = null;
+    this.renderBestMoveArrow(null);
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
@@ -820,6 +830,8 @@ export class AnalysisBoardUI {
         const mateScore = { type: 'mate' as const, value: isWhiteMated ? -1 : 1 };
         this.boardUI.setExternalScore(mateScore);
         this.boardUI.setExternalArrow(null);
+        this.currentBestMove = null;
+        this.renderBestMoveArrow(null);
         if (numericEl) numericEl.textContent = isWhiteMated ? '0-1' : '1-0';
         if (bestMoveEl) bestMoveEl.textContent = `Мат! ${isWhiteMated ? 'Чёрные победили' : 'Белые победили'}`;
         if (depthEl) depthEl.textContent = 'depth=0';
@@ -836,6 +848,8 @@ export class AnalysisBoardUI {
         const drawScore = { type: 'cp' as const, value: 0 };
         this.boardUI.setExternalScore(drawScore);
         this.boardUI.setExternalArrow(null);
+        this.currentBestMove = null;
+        this.renderBestMoveArrow(null);
         if (numericEl) numericEl.textContent = '½-½';
         if (bestMoveEl) bestMoveEl.textContent = 'Ничья (Пат)';
         if (depthEl) depthEl.textContent = 'depth=0';
@@ -887,11 +901,9 @@ export class AnalysisBoardUI {
     const pvEl = this.container.querySelector('#analysis-pv-line');
 
     this.boardUI.setExternalScore(res.score);
-    if (res.bestMove) {
-      this.boardUI.setExternalArrow(res.bestMove);
-    } else {
-      this.boardUI.setExternalArrow(null);
-    }
+    this.boardUI.setExternalArrow(null);
+    this.currentBestMove = res.bestMove ?? null;
+    this.renderBestMoveArrow(this.currentBestMove);
 
     if (depthEl) {
       depthEl.textContent = `depth=${res.depth}`;
@@ -1361,8 +1373,60 @@ export class AnalysisBoardUI {
       this.keydownHandler = null;
     }
     this.engine.dispose();
+    this.currentBestMove = null;
+    this.renderBestMoveArrow(null);
     this.boardUI.clearExternalAnalysis();
     this.container.innerHTML = '';
+  }
+
+  private renderBestMoveArrow(move: Move | null): void {
+    const arrowLayer = this.container.querySelector('.board-arrow-layer') as SVGElement | null;
+    if (!arrowLayer) return;
+
+    if (!move || typeof move.from !== 'number' || typeof move.to !== 'number') {
+      arrowLayer.innerHTML = '';
+      return;
+    }
+
+    const flipped = this.store.isFlipped();
+    const { width, height } = this.store.getState().board;
+
+    const sqW = 800 / width;
+    const sqH = 800 / height;
+
+    const fromX = move.from % width;
+    const fromY = Math.floor(move.from / width);
+    const toX = move.to % width;
+    const toY = Math.floor(move.to / width);
+
+    const fromCol = flipped ? width - 1 - fromX : fromX;
+    const fromRow = flipped ? height - 1 - fromY : fromY;
+    const toCol = flipped ? width - 1 - toX : toX;
+    const toRow = flipped ? height - 1 - toY : toY;
+
+    const x1 = fromCol * sqW + sqW / 2;
+    const y1 = fromRow * sqH + sqH / 2;
+    const targetCenterX = toCol * sqW + sqW / 2;
+    const targetCenterY = toRow * sqH + sqH / 2;
+
+    const dx = targetCenterX - x1;
+    const dy = targetCenterY - y1;
+    const angle = Math.atan2(dy, dx);
+    const offset = 8; // 6-8px offset from target square center so the arrowhead points to piece edge
+
+    const x2 = Number((targetCenterX - Math.cos(angle) * offset).toFixed(1));
+    const y2 = Number((targetCenterY - Math.sin(angle) * offset).toFixed(1));
+
+    arrowLayer.innerHTML = `
+      <defs>
+        <marker id="analysis-best-arrowhead" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
+          <polygon points="0 0, 6 3, 0 6" fill="var(--class-best, #22c55e)" />
+        </marker>
+      </defs>
+      <line class="analysis-best-move-arrow" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+            stroke="var(--class-best, #22c55e)" stroke-width="8" stroke-linecap="round"
+            marker-end="url(#analysis-best-arrowhead)" />
+    `;
   }
 }
 

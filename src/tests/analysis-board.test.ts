@@ -602,4 +602,94 @@ describe('Stage 6b: Analysis Board & Board Editor', () => {
       Element.prototype.scrollIntoView = origScrollIntoView;
     }
   });
+
+  it('наличие маркера #analysis-best-arrowhead и атрибута marker-end у элемента стрелки', async () => {
+    const engine = analysisUI.getEngine();
+    const mvE4 = { from: 52, to: 36, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+
+    vi.spyOn(engine, 'analyze').mockResolvedValue({
+      bestMove: mvE4,
+      score: { type: 'cp', value: 35 },
+      depth: 18,
+      nodes: 1000,
+      lines: [
+        {
+          move: mvE4,
+          san: 'e4',
+          score: { type: 'cp' as const, value: 35 },
+          pv: [mvE4],
+          pvSan: ['e4', 'e5'],
+        },
+      ],
+      pv: [mvE4],
+      timeMs: 40,
+      engineName: 'Stockfish 19 Lite WASM',
+    });
+
+    (analysisUI as unknown as { runLiveAnalysis: () => void }).runLiveAnalysis();
+    await new Promise((r) => setTimeout(r, 60));
+
+    const marker = container.querySelector('#analysis-best-arrowhead');
+    expect(marker).toBeTruthy();
+    expect(marker?.getAttribute('markerWidth')).toBe('6');
+    expect(marker?.getAttribute('markerHeight')).toBe('6');
+    expect(marker?.getAttribute('refX')).toBe('4');
+    expect(marker?.getAttribute('refY')).toBe('3');
+    expect(marker?.getAttribute('orient')).toBe('auto');
+
+    const polygon = marker?.querySelector('polygon');
+    expect(polygon).toBeTruthy();
+    expect(polygon?.getAttribute('points')).toBe('0 0, 6 3, 0 6');
+    expect(polygon?.getAttribute('fill')).toBe('var(--class-best, #22c55e)');
+
+    const arrowLine = container.querySelector('.analysis-best-move-arrow') as SVGLineElement | null;
+    expect(arrowLine).toBeTruthy();
+    expect(arrowLine?.getAttribute('marker-end')).toBe('url(#analysis-best-arrowhead)');
+    expect(arrowLine?.getAttribute('stroke')).toBe('var(--class-best, #22c55e)');
+    expect(arrowLine?.getAttribute('stroke-width')).toBe('8');
+    expect(arrowLine?.getAttribute('stroke-linecap')).toBe('round');
+
+    // From e2 (sq 52) to e4 (sq 36) in standard orientation (800x800)
+    // x1 = 450, y1 = 650, targetCenter = (450, 450), offset 8px -> x2 = 450, y2 = 458
+    expect(arrowLine?.getAttribute('x1')).toBe('450');
+    expect(arrowLine?.getAttribute('y1')).toBe('650');
+    expect(arrowLine?.getAttribute('x2')).toBe('450');
+    expect(arrowLine?.getAttribute('y2')).toBe('458');
+  });
+
+  it('переворот доски пересчитывает координаты стрелки лучшего хода, а сброс удаляет её', async () => {
+    const engine = analysisUI.getEngine();
+    const mvE4 = { from: 52, to: 36, piece: { type: 'pawn', color: 'white' } } as unknown as Move;
+
+    vi.spyOn(engine, 'analyze').mockResolvedValue({
+      bestMove: mvE4,
+      score: { type: 'cp', value: 35 },
+      depth: 18,
+      nodes: 1000,
+      lines: [],
+      pv: [mvE4],
+      timeMs: 40,
+      engineName: 'Stockfish 19 Lite WASM',
+    });
+
+    (analysisUI as unknown as { runLiveAnalysis: () => void }).runLiveAnalysis();
+    await new Promise((r) => setTimeout(r, 60));
+
+    expect(container.querySelector('.analysis-best-move-arrow')).toBeTruthy();
+
+    // Flip board
+    analysisUI.getStore().toggleFlip();
+
+    const flippedArrow = container.querySelector('.analysis-best-move-arrow') as SVGLineElement | null;
+    expect(flippedArrow).toBeTruthy();
+    expect(flippedArrow?.getAttribute('x1')).toBe('350');
+    expect(flippedArrow?.getAttribute('y1')).toBe('150');
+    expect(flippedArrow?.getAttribute('x2')).toBe('350');
+    expect(flippedArrow?.getAttribute('y2')).toBe('342');
+
+    // Reset clears arrow
+    const resetBtn = container.querySelector('#btn-analysis-reset-board') as HTMLButtonElement;
+    resetBtn.click();
+    expect(container.querySelector('.analysis-best-move-arrow')).toBeNull();
+  });
 });

@@ -6441,6 +6441,20 @@ body:has(#screen-analysis.active) #app {
   height: 100%;
 }
 
+/* Analysis Best Move Arrow (Stage 6b-7) */
+.analysis-board-mount .analysis-best-move-arrow,
+.analysis-best-move-arrow {
+  pointer-events: none;
+  stroke: var(--class-best, #22c55e);
+  stroke-width: 8px;
+  stroke-linecap: round;
+  opacity: 0.95;
+}
+
+#analysis-best-arrowhead polygon {
+  fill: var(--class-best, #22c55e);
+}
+
 .analysis-board-mount .eval-bar-fill {
   height: 50%;
 }
