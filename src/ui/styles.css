@@ -78,6 +78,7 @@
   --solar-singularity-corona-edge: #d97706;
   --solar-singularity-orbit: rgba(245, 158, 11, 0.25);
   --solar-singularity-coordinate: rgba(245, 158, 11, 0.45);
+  --solar-singularity-tick: rgba(245, 158, 11, 0.65);
   --solar-menu-text: #f8fafc;
   --solar-menu-button: #151126;
   --solar-menu-button-hover: #29223f;
@@ -245,6 +246,7 @@
   --solar-singularity-corona-edge: #d97706;
   --solar-singularity-orbit: rgba(146, 84, 20, 0.28);
   --solar-singularity-coordinate: rgba(146, 84, 20, 0.6);
+  --solar-singularity-tick: rgba(146, 84, 20, 0.75);
   --solar-menu-text: #0f172a;
   --solar-menu-button: #ffffff;
   --solar-menu-button-hover: #e2e8f0;
@@ -3570,6 +3572,7 @@ body.review-active #app {
 .solar-orbits-spinning {
   width: calc(var(--solar-singularity-size) * 1.72);
   stroke: var(--solar-singularity-orbit);
+  transform: translate3d(-50%, -50%, 0) translateZ(0);
   animation: none;
 }
 
@@ -3597,15 +3600,38 @@ body.review-active #app {
   font-size: 9px;
   letter-spacing: 1px;
   pointer-events: none;
+  transform-box: view-box;
+  transform-origin: var(--solar-orbit-label-origin);
+  transform: rotateZ(var(--solar-orbit-label-angle)) translateZ(0);
+}
+
+.solar-orbit-label-180 {
+  --solar-orbit-label-angle: 90deg;
+  --solar-orbit-label-origin: 132px 500px;
+}
+
+.solar-orbit-label-360 {
+  --solar-orbit-label-angle: 270deg;
+  --solar-orbit-label-origin: 978px 500px;
+}
+
+.solar-orbits-spinning,
+.solar-orbit-inner,
+.solar-orbit-outer,
+.solar-orbit-label {
+  text-rendering: geometricPrecision;
+  shape-rendering: geometricPrecision;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 .solar-orbit-tick {
-  stroke: var(--solar-singularity-coordinate);
+  stroke: var(--solar-singularity-tick);
   pointer-events: none;
 }
 
 .solar-orbit-tick-minor {
-  opacity: 0.35;
+  opacity: 0.45;
 }
 
 @keyframes orbit-spin-inner {

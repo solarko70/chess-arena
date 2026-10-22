@@ -28,24 +28,32 @@ export function mountSaturnBackground(container: HTMLElement): () => void {
       <circle class="solar-singularity-disk" cx="320" cy="320" r="244" fill="var(--solar-singularity-core)"/>
       <circle cx="320" cy="320" r="244" fill="none" stroke="url(#${gradientId}-gold)" stroke-width="1.25" vector-effect="non-scaling-stroke"/>
     </svg>
-    <svg class="solar-orbits-spinning solar-singularity-orbits" viewBox="0 0 1000 1000" fill="none" aria-hidden="true" focusable="false">
+    <svg class="solar-orbits-spinning solar-singularity-orbits" viewBox="0 0 1000 1000" fill="none" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" aria-hidden="true" focusable="false">
       <g class="solar-orbit-inner" aria-hidden="true">
         <circle cx="500" cy="500" r="320" stroke-width="1" vector-effect="non-scaling-stroke"/>
         <circle cx="500" cy="500" r="380" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-major" x1="117" y1="500" x2="123" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="878" y1="500" x2="882" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="878" x2="500" y2="882" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="118" x2="500" y2="122" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <text class="solar-orbit-label solar-orbit-label-180" x="132" y="500" transform="rotate(-90 132 500)" text-anchor="middle" aria-hidden="true">180°</text>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="115.5" y1="500" x2="124.5" y2="500" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="875.5" y1="500" x2="884.5" y2="500" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="500" y1="875.5" x2="500" y2="884.5" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="500" y1="115.5" x2="500" y2="124.5" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="877" y1="500" x2="883" y2="500" transform="rotate(45 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="877" y1="500" x2="883" y2="500" transform="rotate(135 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="877" y1="500" x2="883" y2="500" transform="rotate(225 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="877" y1="500" x2="883" y2="500" transform="rotate(315 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <text class="solar-orbit-label solar-orbit-label-180" x="132" y="500" transform="rotate(90 132 500)" dominant-baseline="central" text-anchor="middle" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" aria-hidden="true">180°</text>
       </g>
       <g class="solar-orbit-outer" aria-hidden="true">
         <circle cx="500" cy="500" r="440" stroke-width="1" stroke-dasharray="4 12" vector-effect="non-scaling-stroke"/>
         <circle cx="500" cy="500" r="490" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-major" x1="987" y1="500" x2="993" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="8" y1="500" x2="12" y2="500" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="988" x2="500" y2="992" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="500" y1="8" x2="500" y2="12" stroke-width="1" vector-effect="non-scaling-stroke"/>
-        <text class="solar-orbit-label solar-orbit-label-360" x="978" y="500" transform="rotate(90 978 500)" text-anchor="middle" aria-hidden="true">360°</text>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="985.5" y1="500" x2="994.5" y2="500" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="5.5" y1="500" x2="14.5" y2="500" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="500" y1="985.5" x2="500" y2="994.5" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-major" x1="500" y1="5.5" x2="500" y2="14.5" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="987" y1="500" x2="993" y2="500" transform="rotate(45 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="987" y1="500" x2="993" y2="500" transform="rotate(135 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="987" y1="500" x2="993" y2="500" transform="rotate(225 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <line class="solar-orbit-tick solar-orbit-tick-minor" x1="987" y1="500" x2="993" y2="500" transform="rotate(315 500 500)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <text class="solar-orbit-label solar-orbit-label-360" x="978" y="500" transform="rotate(270 978 500)" dominant-baseline="central" text-anchor="middle" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" aria-hidden="true">360°</text>
       </g>
     </svg>`;
   container.prepend(wrapper);

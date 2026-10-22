@@ -268,7 +268,7 @@ describe('Saturn background', () => {
   it('bounds SVG complexity and excludes crosses, sparks and stray coordinate artifacts', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(32);
+    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(40);
     expect(scene.children).toHaveLength(2);
     expect(scene.querySelectorAll('svg')).toHaveLength(2);
     expect(scene.querySelector('path, text:not(.solar-orbit-label), .stellar-cross, .sparkle, .solar-singularity-sparks'))
@@ -374,9 +374,11 @@ describe('Saturn background', () => {
       expect(rotation).not.toBeNull();
       expect(Number(rotation[2])).toBe(x);
       expect(Number(rotation[3])).toBe(y);
+      expect(Number(rotation[1])).toBe(label.textContent === '180°' ? 90 : 270);
       const angle = Number(rotation[1]) * Math.PI / 180;
       expect((x - 500) * Math.cos(angle) + (y - 500) * Math.sin(angle)).toBeCloseTo(0, 5);
       expect(label.getAttribute('text-anchor')).toBe('middle');
+      expect(label.getAttribute('dominant-baseline')).toBe('central');
     }
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     const rule = css.match(/\.solar-orbit-label\s*\{([^}]+)\}/)![1];
@@ -389,14 +391,14 @@ describe('Saturn background', () => {
       .not.toBe(palette(true).get('--solar-singularity-coordinate'));
   });
 
-  it('distributes radial major and minor ticks every 90 degrees on both orbit groups', () => {
+  it('distributes larger major and minor ticks every 45 degrees on both orbit groups', () => {
     mountSaturnBackground(container);
     for (const [name, radius] of [['inner', 380], ['outer', 490]] as const) {
       const group = container.querySelector(`.solar-orbit-${name}`)!;
       const ticks = [...group.querySelectorAll('.solar-orbit-tick')];
-      expect(ticks).toHaveLength(4);
-      expect(group.querySelectorAll('.solar-orbit-tick-major')).toHaveLength(1);
-      expect(group.querySelectorAll('.solar-orbit-tick-minor')).toHaveLength(3);
+      expect(ticks).toHaveLength(8);
+      expect(group.querySelectorAll('.solar-orbit-tick-major')).toHaveLength(4);
+      expect(group.querySelectorAll('.solar-orbit-tick-minor')).toHaveLength(4);
       const angles = ticks.map(tick => {
         const x1 = Number(tick.getAttribute('x1')) - 500;
         const y1 = Number(tick.getAttribute('y1')) - 500;
@@ -404,18 +406,53 @@ describe('Saturn background', () => {
         const y2 = Number(tick.getAttribute('y2')) - 500;
         expect(x1 * y2 - y1 * x2).toBe(0);
         expect(Math.hypot((x1 + x2) / 2, (y1 + y2) / 2)).toBe(radius);
-        const length = tick.classList.contains('solar-orbit-tick-major') ? 6 : 4;
+        const length = tick.classList.contains('solar-orbit-tick-major') ? 9 : 6;
         expect(Math.hypot(x2 - x1, y2 - y1)).toBe(length);
-        expect(tick.getAttribute('stroke-width')).toBe('1');
+        expect(tick.getAttribute('stroke-width')).toBe('1.5');
         expect(tick.getAttribute('vector-effect')).toBe('non-scaling-stroke');
-        return (Math.atan2(y1 + y2, x1 + x2) * 180 / Math.PI + 360) % 360;
+        const rotation = tick.getAttribute('transform')?.match(/^rotate\(([\d.]+) 500 500\)$/);
+        if (tick.hasAttribute('transform')) expect(rotation).not.toBeNull();
+        const angle = Math.atan2(y1 + y2, x1 + x2) * 180 / Math.PI + Number(rotation?.[1] ?? 0);
+        return (angle + 360) % 360;
       });
-      expect(angles.sort((a, b) => a - b)).toEqual([0, 90, 180, 270]);
+      expect(angles.sort((a, b) => a - b)).toEqual([0, 45, 90, 135, 180, 225, 270, 315]);
+      expect(ticks.filter(tick => tick.classList.contains('solar-orbit-tick-major'))
+        .every(tick => !tick.hasAttribute('transform'))).toBe(true);
       const major = group.querySelector('.solar-orbit-tick-major')!;
       expect(Number(major.getAttribute('x1')) < 500).toBe(name === 'inner');
     }
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
-    expect(css).toMatch(/\.solar-orbit-tick-minor\s*\{\s*opacity:\s*0\.35/);
+    expect(css).toMatch(/\.solar-orbit-tick-minor\s*\{\s*opacity:\s*0\.45/);
+    expect(css).toMatch(/\.solar-orbit-tick\s*\{[^}]*stroke:\s*var\(--solar-singularity-tick\)/);
+    expect(palette(false).get('--solar-singularity-tick')).toBe('rgba(245, 158, 11, 0.65)');
+    expect(palette(true).get('--solar-singularity-tick'))
+      .not.toBe(palette(false).get('--solar-singularity-tick'));
+  });
+
+  it('preserves centered label rotation while applying geometric rendering and compositing styles', () => {
+    mountSaturnBackground(container);
+    const svg = container.querySelector('.solar-orbits-spinning')!;
+    for (const element of [svg, ...svg.querySelectorAll('text')]) {
+      expect(element.getAttribute('text-rendering')).toBe('geometricPrecision');
+      expect(element.getAttribute('shape-rendering')).toBe('geometricPrecision');
+    }
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const rendering = css.match(/\.solar-orbits-spinning,\s*\.solar-orbit-inner,\s*\.solar-orbit-outer,\s*\.solar-orbit-label\s*\{([^}]+)\}/)![1];
+    expect(rendering).toContain('text-rendering: geometricPrecision');
+    expect(rendering).toContain('shape-rendering: geometricPrecision');
+    expect(rendering).toContain('backface-visibility: hidden');
+    expect(rendering).toContain('-webkit-font-smoothing: antialiased');
+    const labelRule = css.match(/\.solar-orbit-label\s*\{([^}]+)\}/)![1];
+    expect(labelRule).toContain('transform-box: view-box');
+    expect(labelRule).toContain('transform-origin: var(--solar-orbit-label-origin)');
+    expect(labelRule).toContain('transform: rotateZ(var(--solar-orbit-label-angle)) translateZ(0)');
+    for (const degrees of [180, 360]) {
+      const label = svg.querySelector(`.solar-orbit-label-${degrees}`)!;
+      const rotation = label.getAttribute('transform')!.match(/^rotate\(([\d.]+) ([\d.]+) ([\d.]+)\)$/)!;
+      const variant = css.match(new RegExp(`\\.solar-orbit-label-${degrees}\\s*\\{([^}]+)\\}`))![1];
+      expect(variant).toContain(`--solar-orbit-label-angle: ${rotation[1]}deg`);
+      expect(variant).toContain(`--solar-orbit-label-origin: ${rotation[2]}px ${rotation[3]}px`);
+    }
   });
 
   it('never plays hover audio or changes corona classes on pointer entry and leave', () => {
