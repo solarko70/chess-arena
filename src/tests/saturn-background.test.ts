@@ -268,7 +268,7 @@ describe('Saturn background', () => {
   it('bounds SVG complexity and excludes crosses, sparks and stray coordinate artifacts', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(40);
+    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(48);
     expect(scene.children).toHaveLength(2);
     expect(scene.querySelectorAll('svg')).toHaveLength(2);
     expect(scene.querySelector('path, text:not(.solar-orbit-label), .stellar-cross, .sparkle, .solar-singularity-sparks'))
@@ -284,7 +284,7 @@ describe('Saturn background', () => {
       expect(wrapper).toContain(declaration);
     }
     for (const [, selectors, declarations] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      if (/singularity|solar-rim-static|solar-orbits-spinning|solar-orbit-(?:label|tick|inner|outer)/.test(selectors)) {
+      if (/singularity|solar-rim-static|solar-orbits-spinning|solar-radial-beam|solar-orbit-(?:label|tick|inner|outer)/.test(selectors)) {
         expect(declarations).not.toMatch(/(?:backdrop-)?filter\s*:/);
         expect(declarations).not.toMatch(/(?:box|text)-shadow\s*:/);
         expect(declarations).not.toMatch(/pointer-events:\s*(auto|fill)/);
@@ -453,6 +453,57 @@ describe('Saturn background', () => {
       expect(variant).toContain(`--solar-orbit-label-angle: ${rotation[1]}deg`);
       expect(variant).toContain(`--solar-orbit-label-origin: ${rotation[2]}px ${rotation[3]}px`);
     }
+  });
+
+  it('mounts eight radial beams starting on their own orbits and extending outward by 2500 units', () => {
+    mountSaturnBackground(container);
+    expect(container.querySelectorAll('.solar-radial-beam')).toHaveLength(8);
+    for (const [name, radius] of [['inner', 380], ['outer', 490]] as const) {
+      const group = container.querySelector(`.solar-orbit-${name}`)!;
+      const beams = [...group.querySelectorAll(':scope > .solar-radial-beam')];
+      expect(beams).toHaveLength(4);
+      const angles = beams.map(beam => {
+        const x1 = Number(beam.getAttribute('x1')) - 500;
+        const y1 = Number(beam.getAttribute('y1')) - 500;
+        const x2 = Number(beam.getAttribute('x2')) - 500;
+        const y2 = Number(beam.getAttribute('y2')) - 500;
+        expect(beam.tagName).toBe('line');
+        expect(Math.hypot(x1, y1)).toBe(radius);
+        expect(Math.hypot(x2 - x1, y2 - y1)).toBe(2500);
+        expect(x1 * y2 - y1 * x2).toBe(0);
+        expect(x1 * x2 + y1 * y2).toBeGreaterThan(0);
+        expect(Math.hypot(x2, y2)).toBe(radius + 2500);
+        expect(beam.getAttribute('stroke-width')).toBe('1');
+        expect(beam.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+        expect(beam.getAttribute('aria-hidden')).toBe('true');
+        return (Math.atan2(y1, x1) * 180 / Math.PI + 360) % 360;
+      });
+      expect(angles.sort((a, b) => a - b)).toEqual([0, 90, 180, 270]);
+    }
+  });
+
+  it('keeps beams theme-aware and unclipped until the viewport without intercepting controls', () => {
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const beam = css.match(/\.solar-radial-beam\s*\{([^}]+)\}/)![1];
+    expect(beam).toContain('stroke: var(--solar-radial-beam-color)');
+    expect(beam).toContain('stroke-width: 1');
+    expect(beam).toContain('pointer-events: none');
+    expect(beam).toContain('user-select: none');
+    expect(beam).not.toMatch(/animation\s*:|filter\s*:|shadow\s*:/);
+    for (const selector of ['solar-singularity-scene', 'solar-orbits-spinning']) {
+      const rule = css.match(new RegExp(`(?:^|\\})\\s*\\.${selector}\\s*\\{([^}]+)\\}`))![1];
+      expect(rule).toContain('overflow: visible');
+      expect(rule).toContain('contain: layout style');
+      expect(rule).not.toMatch(/contain:[^;]*paint/);
+    }
+    const host = css.match(/\.saturn-background-mount\s*\{([^}]+)\}/)![1];
+    expect(host).toContain('position: fixed');
+    expect(host).toContain('inset: 0');
+    expect(host).toContain('overflow: hidden');
+    expect(host).toContain('z-index: var(--z-saturn)');
+    expect(css).toMatch(/\.screen\s*\{[^}]*z-index: var\(--z-screen\)/);
+    expect(palette(false).get('--solar-radial-beam-color')).toBe('rgba(245, 158, 11, 0.35)');
+    expect(palette(true).get('--solar-radial-beam-color')).toBe('rgba(107, 99, 82, 0.2)');
   });
 
   it('never plays hover audio or changes corona classes on pointer entry and leave', () => {

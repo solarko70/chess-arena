@@ -79,6 +79,7 @@
   --solar-singularity-orbit: rgba(245, 158, 11, 0.25);
   --solar-singularity-coordinate: rgba(245, 158, 11, 0.45);
   --solar-singularity-tick: rgba(245, 158, 11, 0.65);
+  --solar-radial-beam-color: rgba(245, 158, 11, 0.35);
   --solar-menu-text: #f8fafc;
   --solar-menu-button: #151126;
   --solar-menu-button-hover: #29223f;
@@ -263,6 +264,7 @@
   --solar-singularity-orbit: rgba(146, 84, 20, 0.28);
   --solar-singularity-coordinate: rgba(146, 84, 20, 0.6);
   --solar-singularity-tick: rgba(146, 84, 20, 0.75);
+  --solar-radial-beam-color: rgba(107, 99, 82, 0.2);
   --solar-menu-text: #0f172a;
   --solar-menu-button: #ffffff;
   --solar-menu-button-hover: #e2e8f0;
@@ -3573,12 +3575,12 @@ body.review-active #app {
   left: -15%;
   width: 130%;
   height: 130%;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
   user-select: none;
   will-change: transform, opacity;
   z-index: var(--z-saturn);
-  contain: layout paint style;
+  contain: layout style;
   opacity: 1;
   transition: opacity 250ms ease-out;
   background: radial-gradient(ellipse at 70.77% 45.38%,
@@ -3624,6 +3626,8 @@ body.review-active #app {
   stroke: var(--solar-singularity-orbit);
   transform: translate3d(-50%, -50%, 0) translateZ(0);
   animation: none;
+  overflow: visible;
+  contain: layout style;
 }
 
 .solar-orbit-inner,
@@ -3633,6 +3637,7 @@ body.review-active #app {
   transform: rotateZ(0deg) translateZ(0);
   will-change: transform;
   pointer-events: none;
+  overflow: visible;
 }
 
 .solar-orbit-inner {
@@ -3682,6 +3687,13 @@ body.review-active #app {
 
 .solar-orbit-tick-minor {
   opacity: 0.45;
+}
+
+.solar-radial-beam {
+  stroke: var(--solar-radial-beam-color);
+  stroke-width: 1;
+  pointer-events: none;
+  user-select: none;
 }
 
 @keyframes orbit-spin-inner {

@@ -30,6 +30,10 @@ export function mountSaturnBackground(container: HTMLElement): () => void {
     </svg>
     <svg class="solar-orbits-spinning solar-singularity-orbits" viewBox="0 0 1000 1000" fill="none" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" aria-hidden="true" focusable="false">
       <g class="solar-orbit-inner" aria-hidden="true">
+        <line class="solar-radial-beam" x1="880" y1="500" x2="3380" y2="500" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
+        <line class="solar-radial-beam" x1="500" y1="880" x2="500" y2="3380" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
+        <line class="solar-radial-beam" x1="120" y1="500" x2="-2380" y2="500" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
+        <line class="solar-radial-beam" x1="500" y1="120" x2="500" y2="-2380" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
         <circle cx="500" cy="500" r="320" stroke-width="1" vector-effect="non-scaling-stroke"/>
         <circle cx="500" cy="500" r="380" stroke-width="1" vector-effect="non-scaling-stroke"/>
         <line class="solar-orbit-tick solar-orbit-tick-major" x1="115.5" y1="500" x2="124.5" y2="500" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
@@ -43,6 +47,10 @@ export function mountSaturnBackground(container: HTMLElement): () => void {
         <text class="solar-orbit-label solar-orbit-label-180" x="132" y="500" transform="rotate(90 132 500)" dominant-baseline="central" text-anchor="middle" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" aria-hidden="true">180°</text>
       </g>
       <g class="solar-orbit-outer" aria-hidden="true">
+        <line class="solar-radial-beam" x1="990" y1="500" x2="3490" y2="500" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
+        <line class="solar-radial-beam" x1="500" y1="990" x2="500" y2="3490" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
+        <line class="solar-radial-beam" x1="10" y1="500" x2="-2490" y2="500" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
+        <line class="solar-radial-beam" x1="500" y1="10" x2="500" y2="-2490" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true"/>
         <circle cx="500" cy="500" r="440" stroke-width="1" stroke-dasharray="4 12" vector-effect="non-scaling-stroke"/>
         <circle cx="500" cy="500" r="490" stroke-width="1" vector-effect="non-scaling-stroke"/>
         <line class="solar-orbit-tick solar-orbit-tick-major" x1="985.5" y1="500" x2="994.5" y2="500" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
