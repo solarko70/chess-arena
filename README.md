@@ -1,4 +1,4 @@
-# Chess Arena
+# SOLAR CHESS
 
 A browser-based almost fully vibecoded chess game with classic rules, variants, and original "Chess with Abilities" mode.
 
