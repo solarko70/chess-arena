@@ -42,12 +42,13 @@ describe('Screens & Navigation (Stage A1)', () => {
     const homeTitle = document.getElementById('home-app-title');
     const gameTitle = document.getElementById('game-app-title');
 
-    expect(homeTitle?.textContent).toContain(APP_NAME);
-    expect(homeTitle?.querySelector('.home-title-solar')?.textContent).toBe('Solar');
-    expect(homeTitle?.querySelector('.home-title-chess')?.textContent).toBe('Chess');
+    expect(homeTitle?.textContent).toBe(APP_NAME.toUpperCase());
+    expect(homeTitle?.matches('h1.main-title')).toBe(true);
+    expect(homeTitle?.querySelector('.title-solar')?.textContent).toBe('SOLAR');
+    expect(homeTitle?.querySelector('.title-chess')?.textContent).toBe('CHESS');
     const logo = document.querySelector('.home-solar-logo .solar-logo');
     expect(logo?.getAttribute('aria-hidden')).toBe('true');
-    expect(logo?.querySelector('.solar-logo-king')).not.toBeNull();
+    expect(logo?.querySelector('.solar-logo-queen')).not.toBeNull();
     expect(logo?.querySelector('.solar-logo-corona')).not.toBeNull();
     expect(gameTitle).toBeNull();
   });
@@ -220,10 +221,10 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(window.location.hash).toBe('#/');
   });
 
-  it('home screen title has no emojis and equals APP_NAME', () => {
+  it('home screen title has no emojis and equals uppercase APP_NAME', () => {
     const homeTitle = document.getElementById('home-app-title');
     expect(homeTitle).not.toBeNull();
-    expect(homeTitle?.textContent?.trim()).toBe(APP_NAME);
+    expect(homeTitle?.textContent?.trim()).toBe('SOLAR CHESS');
     expect(homeTitle?.textContent).not.toMatch(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}]/u);
 
     const gameTitle = document.getElementById('game-app-title');
@@ -326,8 +327,10 @@ describe('Screens & Navigation (Stage A1)', () => {
 
     const cssPath = path.resolve(__dirname, '../ui/styles.css');
     const css = fs.readFileSync(cssPath, 'utf-8');
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*1;/);
-    expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*2;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*var\(--z-brand-logo\);/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*var\(--z-brand-title\);/);
+    expect(css).toContain('--z-brand-logo: 1;');
+    expect(css).toContain('--z-brand-title: 2;');
   });
 
   it('home title is outside .home-hero and hero contains exactly 5 buttons', () => {
@@ -357,15 +360,53 @@ describe('Screens & Navigation (Stage A1)', () => {
     expect(css).toMatch(/\.home-title-wrapper\s*\{[^}]*left:\s*var\(--sun-x\);/);
   });
 
-  it('home title font-size uses clamp and queen icon uses em sizing with lower z-index', () => {
+  it('home title uses compact clamp sizing and queen stays 16px above the text', () => {
     const cssPath = path.resolve(__dirname, '../ui/styles.css');
     const css = fs.readFileSync(cssPath, 'utf-8');
-    expect(css).toMatch(/\.home-title\s*\{[^}]*font-size:\s*clamp\(2\.6rem,\s*9vmin,\s*7rem\);/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*1;/);
-    expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*2;/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*width:\s*1\.2em;/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*height:\s*1\.2em;/);
-    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*top:\s*-0\.55em;/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*font-size:\s*clamp\(2\.4rem,\s*4\.5vw,\s*3\.4rem\);/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*letter-spacing:\s*0\.08em;/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*line-height:\s*1\.1;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*z-index:\s*var\(--z-brand-logo\);/);
+    expect(css).toMatch(/\.home-title\s*\{[^}]*z-index:\s*var\(--z-brand-title\);/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*width:\s*clamp\(88px,\s*10vw,\s*116px\);/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*height:\s*clamp\(88px,\s*10vw,\s*116px\);/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*margin-bottom:\s*16px;/);
+    expect(css).toMatch(/\.home-title-queen\s*\{[^}]*position:\s*relative;/);
+    expect(css).toMatch(/\.home-hero\s*\{[^}]*margin-top:\s*calc\(var\(--sun-y\) \+ max\(12vh, 120px\)\);/);
+  });
+
+  it('solar queen has five tips, a radiant sun, an open halo and four axial ticks', () => {
+    const logo = document.querySelector('svg.solar-queen-logo')!;
+    expect(logo.getAttribute('fill')).toBe('none');
+    expect(logo.querySelectorAll('.solar-queen-tip')).toHaveLength(5);
+    expect(logo.querySelector('.solar-queen-sun circle')).not.toBeNull();
+    expect(logo.querySelector('.solar-queen-sun path')).not.toBeNull();
+    expect(logo.querySelector('.solar-logo-corona circle')).not.toBeNull();
+    expect(logo.querySelector('.solar-logo-ticks')?.getAttribute('d')?.match(/M/g)).toHaveLength(4);
+    expect(logo.querySelector('rect')?.getAttribute('rx')).toBe('2.8');
+    expect(logo.querySelector('.solar-logo-king, filter, image')).toBeNull();
+    for (const outline of logo.querySelectorAll('use')) {
+      expect(logo.querySelector(outline.getAttribute('href')!)).not.toBeNull();
+    }
+    const css = fs.readFileSync(path.resolve(__dirname, '../ui/styles.css'), 'utf8');
+    expect(css).toMatch(/\.solar-queen-logo\s*\{[^}]*pointer-events:\s*none;/);
+  });
+
+  it('title and queen use theme colors with transparent text fill and no inherited shadow', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const dark = css.match(/:root\s*\{([^}]+)\}/)![1];
+    const light = css.match(/\[data-theme='light'\]\s*\{([^}]+)\}/)![1];
+    expect(dark).toContain('--solar-brand-gold: #fbbf24;');
+    expect(dark).toContain('--solar-brand-figure: #ffffff;');
+    expect(light).toContain('--solar-brand-figure: #0f172a;');
+    expect(light).toContain('--solar-brand-silver: #0f172a;');
+    expect(light).toContain('--solar-brand-gold-light: #b45309;');
+    expect(css).toMatch(/\.title-solar\s*\{[^}]*-webkit-text-fill-color:\s*var\(--solar-brand-transparent\);/);
+    expect(css).toMatch(/\.title-chess\s*\{[^}]*-webkit-text-fill-color:\s*var\(--solar-brand-silver\);/);
+    expect(css).toMatch(/\[data-theme='light'\] \.title-solar\s*\{[^}]*-webkit-text-stroke:\s*0\.6px var\(--solar-brand-gold-light\);/);
+    for (const rule of css.matchAll(/(?:\.screen-home )?\.home-title\s*\{([^}]+)\}/g)) {
+      expect(rule[1]).not.toContain('text-shadow');
+    }
   });
 
   it('prefers-reduced-motion disables title wrapper and button animations', () => {

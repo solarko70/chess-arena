@@ -233,7 +233,7 @@ export function initApp(): void {
     <div class="screen screen-home" id="screen-home">
       <div class="home-title-wrapper" id="home-title-wrapper">
         <div class="home-title-queen home-solar-logo" aria-hidden="true">${buildSolarLogo()}</div>
-        <h1 class="home-title" id="home-app-title"><span class="home-title-solar">Solar</span> <span class="home-title-chess">Chess</span></h1>
+        <h1 class="home-title main-title" id="home-app-title"><span class="title-solar">SOLAR</span> <span class="title-chess">CHESS</span></h1>
       </div>
       <div class="home-hero">
         <div class="home-menu">

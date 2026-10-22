@@ -2,13 +2,31 @@ import type { AppRoute } from '@/router';
 import { mountSaturnBackground } from './saturn-background';
 
 export function buildSolarLogo(): string {
-  return `<svg class="solar-logo" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-    <circle class="solar-logo-corona" cx="50" cy="50" r="43" fill="none" stroke="var(--solar-brand-gold)" stroke-width="1" />
-    <circle cx="50" cy="50" r="36" fill="var(--solar-brand-disc)" stroke="var(--solar-brand-gold)" stroke-width="3" />
-    <path d="M50 2v5m0 86v5M2 50h5m86 0h5M16 16l4 4m60 60 4 4M16 84l4-4m60-60 4-4"
-      fill="none" stroke="var(--solar-brand-gold)" stroke-width="2" stroke-linecap="round" />
-    <path class="solar-logo-king" d="M48 23h4v6h6v4h-6v6h-4v-6h-6v-4h6zM36 43h28l-5 12 4 15H37l4-15zM34 73h32v6H34z"
-      fill="var(--solar-brand-silver)" />
+  return `<svg class="solar-logo solar-queen-logo" viewBox="0 0 100 100" fill="none" aria-hidden="true" focusable="false">
+    <defs>
+      <g id="solar-queen-outline">
+        <path d="M18 36 32 64H68L82 36 65 53 68 28 56 47 50 24 44 47 32 28 35 53Z" />
+        <path d="M34 64 32 77H68L66 64M36 71H64" />
+        <rect x="24" y="77" width="52" height="8" rx="2.8" />
+        <circle class="solar-queen-tip" cx="18" cy="33" r="3" />
+        <circle class="solar-queen-tip" cx="32" cy="25" r="3" />
+        <circle class="solar-queen-tip" cx="50" cy="21" r="3.3" />
+        <circle class="solar-queen-tip" cx="68" cy="25" r="3" />
+        <circle class="solar-queen-tip" cx="82" cy="33" r="3" />
+      </g>
+    </defs>
+    <g class="solar-logo-corona" stroke="var(--solar-brand-gold)" stroke-width="1.5">
+      <circle cx="50" cy="50" r="46" />
+      <path class="solar-logo-ticks" d="M50 1V9M91 50H99M50 91V99M1 50H9" />
+    </g>
+    <g stroke-linecap="round" stroke-linejoin="round">
+      <use class="solar-logo-keyline" href="#solar-queen-outline" stroke="var(--solar-brand-edge)" stroke-width="4.8" />
+      <use class="solar-logo-queen" href="#solar-queen-outline" stroke="var(--solar-brand-figure)" stroke-width="2.2" />
+      <g class="solar-queen-sun" stroke="var(--solar-brand-gold)" stroke-width="1.4">
+        <circle cx="50" cy="57" r="2.8" />
+        <path d="M50 50V52M50 62V64M43 57H45M55 57H57M45 52 46.5 53.5M53.5 60.5 55 62M45 62 46.5 60.5M53.5 53.5 55 52" />
+      </g>
+    </g>
   </svg>`;
 }
 

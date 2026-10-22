@@ -1,9 +1,15 @@
 :root {
   --solar-brand-gold: #fbbf24;
-  --solar-brand-gold-light: #fff1a8;
-  --solar-brand-silver: #f8fafc;
-  --solar-brand-disc: #0a0d16;
+  --solar-brand-gold-light: #fef08a;
+  --solar-brand-gold-mid: #f59e0b;
+  --solar-brand-gold-end: #d97706;
+  --solar-brand-silver: #ffffff;
+  --solar-brand-figure: #ffffff;
+  --solar-brand-edge: #0f172a;
+  --solar-brand-title-glow: rgba(245, 158, 11, 0.35);
   --solar-brand-transparent: transparent;
+  --z-brand-logo: 1;
+  --z-brand-title: 2;
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-tertiary: #334155;
@@ -220,6 +226,13 @@
 }
 
 [data-theme='light'] {
+  --solar-brand-gold: #d97706;
+  --solar-brand-gold-light: #b45309;
+  --solar-brand-gold-mid: #c46507;
+  --solar-brand-silver: #0f172a;
+  --solar-brand-figure: #0f172a;
+  --solar-brand-edge: transparent;
+  --solar-brand-title-glow: transparent;
   --bg-primary: #f1f5f9;
   --bg-secondary: #ffffff;
   --bg-tertiary: #e2e8f0;
@@ -3803,8 +3816,7 @@ body.home-active #app {
 }
 
 .screen-home .home-title {
-  color: var(--solar-menu-text);
-  text-shadow: 0 1px 2px var(--solar-menu-title-outline), 0 0 24px var(--solar-menu-title-glow);
+  color: var(--solar-brand-silver);
 }
 
 .screen-home .btn-menu {
@@ -6056,22 +6068,20 @@ body.review-active .sound-toggle-btn {
   align-items: center;
   justify-content: center;
   z-index: 2;
-  font-size: clamp(2.6rem, 9vmin, 7rem);
+  max-width: calc(100vw - 32px);
   text-align: center;
   white-space: nowrap;
   animation: homeTitleAppear 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .home-title-queen {
-  position: absolute;
-  top: -0.55em;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1.2em;
-  height: 1.2em;
-  z-index: 1;
+  position: relative;
+  width: clamp(88px, 10vw, 116px);
+  height: clamp(88px, 10vw, 116px);
+  flex-shrink: 0;
+  margin-bottom: 16px;
+  z-index: var(--z-brand-logo);
   pointer-events: none;
-  opacity: 0.95;
 }
 
 .home-title-queen svg {
@@ -6080,48 +6090,49 @@ body.review-active .sound-toggle-btn {
   display: block;
 }
 
-.home-solar-logo {
-  top: -1.35em;
+.solar-queen-logo {
+  pointer-events: none;
 }
 
-.home-title-solar {
-  background: linear-gradient(135deg, var(--solar-brand-gold-light), var(--solar-brand-gold));
+.title-solar {
+  background: linear-gradient(135deg, var(--solar-brand-gold-light) 0%, var(--solar-brand-gold-mid) 60%, var(--solar-brand-gold-end) 100%);
   background-clip: text;
   -webkit-background-clip: text;
   color: var(--solar-brand-transparent);
+  -webkit-text-fill-color: var(--solar-brand-transparent);
+  filter: drop-shadow(0 0 16px var(--solar-brand-title-glow));
 }
 
-.home-title-chess {
+.title-chess {
   color: var(--solar-brand-silver);
+  -webkit-text-fill-color: var(--solar-brand-silver);
+}
+
+[data-theme='light'] .title-solar {
+  background-image: linear-gradient(135deg, var(--solar-brand-gold-light) 0%, var(--solar-brand-gold-end) 100%);
+  -webkit-text-stroke: 0.6px var(--solar-brand-gold-light);
 }
 
 .home-title {
   font-family:
     system-ui,
     -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Helvetica,
-    Arial,
+    'Space Grotesk',
+    'Inter',
     sans-serif;
-  font-size: clamp(2.6rem, 9vmin, 7rem);
+  font-size: clamp(2.4rem, 4.5vw, 3.4rem);
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.08em;
   margin: 0;
-  color: var(--text-primary);
-  line-height: 1.05;
+  color: var(--solar-brand-silver);
+  line-height: 1.1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 0.3em;
+  row-gap: 0.1em;
   position: relative;
-  z-index: 2;
-  text-shadow:
-    0 1px 2px var(--solar-menu-title-outline),
-    0 0 24px var(--solar-menu-title-glow);
-}
-
-[data-theme='light'] .home-title {
-  text-shadow:
-    0 1px 2px var(--solar-menu-title-outline),
-    0 0 24px var(--solar-menu-title-glow);
+  z-index: var(--z-brand-title);
 }
 
 /* Home Buttons Container: Placed below the title with Frosted Glass */
@@ -6134,7 +6145,7 @@ body.review-active .sound-toggle-btn {
   width: 100%;
   max-width: 420px;
   text-align: center;
-  margin-top: calc(var(--sun-y) + 12vh);
+  margin-top: calc(var(--sun-y) + max(12vh, 120px));
   padding: 24px 20px;
   border-radius: 24px;
   background: var(--hero-glass-bg);
@@ -7052,12 +7063,8 @@ body:has(#screen-analysis.active) #app {
     position: static;
     transform: none;
     margin: 16px auto 20px;
-    font-size: clamp(1.8rem, 6vmin, 2.8rem);
     animation: none;
     opacity: 1;
-  }
-  .home-title {
-    font-size: clamp(1.8rem, 6vmin, 2.8rem);
   }
   .home-hero {
     position: static;
@@ -7123,13 +7130,15 @@ body:has(#screen-analysis.active) #app {
   }
 }
 
+@media (prefers-reduced-motion: reduce) and (max-height: 600px) {
+  .home-title-wrapper {
+    transform: none !important;
+  }
+}
+
 @media (min-width: 901px) and (min-height: 601px) {
   .screen-home .home-title-wrapper {
     left: 25%;
-  }
-
-  .screen-home .home-title {
-    font-size: clamp(2.6rem, 5.5vw, 6rem);
   }
 
   .screen-home .home-hero {
