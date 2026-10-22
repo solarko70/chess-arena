@@ -166,6 +166,7 @@ describe('Saturn background', () => {
   });
 
   it('unmount removes the DOM without allocating frames or installing listeners', () => {
+    vi.useFakeTimers();
     const addWindow = vi.spyOn(window, 'addEventListener');
     const removeWindow = vi.spyOn(window, 'removeEventListener');
     const addDocument = vi.spyOn(document, 'addEventListener');
@@ -173,6 +174,7 @@ describe('Saturn background', () => {
     const addRoot = vi.spyOn(document.documentElement, 'addEventListener');
     const removeRoot = vi.spyOn(document.documentElement, 'removeEventListener');
     const cleanup = mountSaturnBackground(container);
+    expect(vi.getTimerCount()).toBe(0);
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 900, clientY: 600 }));
     expect(frames.size).toBe(0);
     cleanup();
@@ -186,6 +188,7 @@ describe('Saturn background', () => {
     expect(addRoot).not.toHaveBeenCalled();
     expect(removeRoot).not.toHaveBeenCalled();
     expect(requestAnimationFrame).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
     window.dispatchEvent(new MouseEvent('mousemove'));
     expect(frames.size).toBe(0);
   });
@@ -255,26 +258,26 @@ describe('Saturn background', () => {
     expect(diskMeasure).not.toHaveBeenCalled();
   });
 
-  it('bounds SVG complexity and excludes crosses, sparks and coordinate artifacts', () => {
+  it('bounds SVG complexity and excludes crosses, sparks and stray coordinate artifacts', () => {
     mountSaturnBackground(container);
     const scene = container.querySelector('.solar-singularity-scene')!;
-    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(20);
+    expect(1 + scene.querySelectorAll('*').length).toBeLessThanOrEqual(23);
     expect(scene.children).toHaveLength(2);
     expect(scene.querySelectorAll('svg')).toHaveLength(2);
-    expect(scene.querySelector('path, text, .stellar-cross, .sparkle, .solar-singularity-sparks'))
+    expect(scene.querySelector('path, text:not(.solar-orbit-label), .stellar-cross, .sparkle, .solar-singularity-sparks'))
       .toBeNull();
     expect(scene.querySelector('canvas, img, image, [tabindex], filter, mask')).toBeNull();
     expect(scene.querySelector('.saturn-hitbox')).toBeNull();
   });
 
-  it('keeps the rim static and rotates only unfiltered lines without pointer interception', () => {
+  it('keeps the rim static and rotates unfiltered orbits and labels without pointer interception', () => {
     const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
     const wrapper = css.match(/\.solar-singularity-scene\s*\{([^}]+)\}/)![1];
     for (const declaration of ['top: -15%', 'left: -15%', 'width: 130%', 'height: 130%']) {
       expect(wrapper).toContain(declaration);
     }
     for (const [, selectors, declarations] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      if (/singularity|solar-rim-static|solar-orbits-spinning/.test(selectors)) {
+      if (/singularity|solar-rim-static|solar-orbits-spinning|solar-orbit-(?:label|tick)/.test(selectors)) {
         expect(declarations).not.toMatch(/(?:backdrop-)?filter\s*:/);
         expect(declarations).not.toMatch(/(?:box|text)-shadow\s*:/);
         expect(declarations).not.toMatch(/pointer-events:\s*(auto|fill)/);
@@ -313,8 +316,9 @@ describe('Saturn background', () => {
     expect(stops.some(stop => Number(stop.getAttribute('stop-opacity')) > 0)).toBe(true);
     const orbits = container.querySelector('.solar-orbits-spinning')!;
     expect(orbits.getAttribute('fill')).toBe('none');
-    expect(orbits.children).toHaveLength(4);
-    for (const circle of orbits.children) {
+    const circles = orbits.querySelectorAll(':scope > circle');
+    expect(circles).toHaveLength(4);
+    for (const circle of circles) {
       expect(circle.tagName).toBe('circle');
       expect(circle.getAttribute('stroke-width')).toBe('1');
       expect(circle.getAttribute('vector-effect')).toBe('non-scaling-stroke');
@@ -323,6 +327,37 @@ describe('Saturn background', () => {
     }
     expect(orbits.querySelector('[stroke-dasharray]')?.getAttribute('stroke-dasharray')).toBe('4 12');
     expect(orbits.querySelector('defs, filter, radialGradient, linearGradient')).toBeNull();
+  });
+
+  it('mounts 180° and 360° labels on their orbits without adding animated layers', () => {
+    mountSaturnBackground(container);
+    const orbits = container.querySelector('.solar-orbits-spinning')!;
+    const labels = [...orbits.querySelectorAll('.solar-orbit-label')];
+    expect(labels.map(label => label.textContent).sort()).toEqual(['180°', '360°']);
+    expect(container.querySelector('.solar-singularity-scene')!.children).toHaveLength(2);
+    const outer = orbits.querySelector('.solar-orbit-label-360')!;
+    const inner = orbits.querySelector('.solar-orbit-label-180')!;
+    const tick = orbits.querySelector('.solar-orbit-tick')!;
+    const circles = [...orbits.querySelectorAll('circle')];
+    const outerRadius = Number(circles[3].getAttribute('r'));
+    const secondRadius = Number(circles[1].getAttribute('r'));
+    expect(Number(tick.getAttribute('y1'))).toBeLessThan(500 - outerRadius);
+    expect(Number(tick.getAttribute('y2'))).toBeGreaterThan(500 - outerRadius);
+    expect(Math.abs(Number(outer.getAttribute('x')) - 500)).toBeLessThan(20);
+    expect(Math.abs(Number(inner.getAttribute('x')) - (500 - secondRadius))).toBeLessThan(20);
+    for (const label of labels) {
+      expect(label.getAttribute('aria-hidden')).toBe('true');
+      expect(label.parentElement).toBe(orbits);
+    }
+    const css = readFileSync(resolve(__dirname, '../ui/styles.css'), 'utf8');
+    const rule = css.match(/\.solar-orbit-label\s*\{([^}]+)\}/)![1];
+    expect(rule).toContain('font-family: monospace');
+    expect(rule).toContain('font-size: 9px');
+    expect(rule).toContain('letter-spacing: 1px');
+    expect(rule).toContain('fill: var(--solar-singularity-coordinate)');
+    expect(rule).not.toMatch(/animation\s*:|filter\s*:|shadow\s*:/);
+    expect(palette(false).get('--solar-singularity-coordinate'))
+      .not.toBe(palette(true).get('--solar-singularity-coordinate'));
   });
 
   it('never plays hover audio or changes corona classes on pointer entry and leave', () => {

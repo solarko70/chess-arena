@@ -499,7 +499,8 @@ export const ASTEROID_POINTS: Point[] = [
 /**
  * Builds the Game Screen cosmic scene markup:
  * - Static fullscreen SVG layer (Sun, orbits, Saturn with ring, asteroid belt, constellations, static stars)
- * - 4 isolated animated layers (Saturn's moon, Sun's 4 planets in free zones, pulsating sparkles, twinkling stars)
+ * - Fixed moon, planets and stars; legacy layer classes retain router cleanup compatibility.
+ * - space-game-static disables animations and releases compositing hints on every game layer.
  */
 export function buildGameScene(): string {
   const circles: ExclusionZone[] = [
@@ -534,7 +535,7 @@ export function buildGameScene(): string {
   const asteroidDotsD = pointsToZeroLengthLines(ASTEROID_POINTS);
 
   return `
-    <svg class="game-solar-stars space-static-svg space-scene-svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="pointer-events: none;">
+    <svg class="game-solar-stars space-static-svg space-scene-svg space-game-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="pointer-events: none;">
       <defs>
         <radialGradient id="space-sun-glow-grad" cx="1720" cy="60" r="460" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stop-color="var(--sun-glow)" stop-opacity="1" />
@@ -599,8 +600,8 @@ export function buildGameScene(): string {
       </g>
     </svg>
 
-    <!-- Animated Layer 1: Saturn Moon on elliptical orbit (rx=280, ry=154 >= 143) -->
-    <svg class="space-anim-layer space-layer-moon" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Fixed moon on its elliptical orbit (rx=280, ry=154 >= 143) -->
+    <svg class="space-anim-layer space-layer-moon space-game-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-moon-orbit-tilt" transform="translate(140, 960) rotate(-15) scale(1, 0.55)">
         <g class="space-moon-orbit-spin">
           <g transform="translate(280, 0)">
@@ -612,8 +613,8 @@ export function buildGameScene(): string {
       </g>
     </svg>
 
-    <!-- Animated Layer 2: Sun System Planets in free zones (x >= 1572, periods 90-240s) -->
-    <svg class="space-anim-layer space-layer-planets" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Fixed planets along the four solar ellipses, outside the content area -->
+    <svg class="space-anim-layer space-layer-planets space-game-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-sun-planets-group">
         <circle cx="1817" cy="187" r="6" fill="var(--sun-planet-1)" class="space-sun-planet space-sun-planet-1" />
         <circle cx="1581" cy="264" r="9" fill="var(--sun-planet-2)" class="space-sun-planet space-sun-planet-2" />
@@ -622,15 +623,15 @@ export function buildGameScene(): string {
       </g>
     </svg>
 
-    <!-- Animated Layer 3: Pulsating Pointed Star Sparkles (<use> from <defs>) -->
-    <svg class="space-anim-layer space-layer-sparkles" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Static pointed stars reuse the shared symbol definitions -->
+    <svg class="space-anim-layer space-layer-sparkles space-game-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-sparkles-group">
         ${renderSparkleUses(GAME_SPARKLES)}
       </g>
     </svg>
 
-    <!-- Animated Layer 4: Anti-phase Twinkling Star Groups (2 groups of ~30% stars) -->
-    <svg class="space-anim-layer space-layer-twinkle" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
+    <!-- Former twinkle groups remain static parts of the star map -->
+    <svg class="space-anim-layer space-layer-twinkle space-game-static" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="overflow: visible;">
       <g class="space-twinkle-group">
         <path d="${twinkleAD}" fill="none" stroke="var(--star-color)" stroke-width="1.6" stroke-linecap="round" class="space-stars-twinkle space-stars-twinkle-a" />
         <path d="${twinkleBD}" fill="none" stroke="var(--star-color)" stroke-width="1.8" stroke-linecap="round" class="space-stars-twinkle space-stars-twinkle-b" />

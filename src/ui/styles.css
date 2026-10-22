@@ -77,6 +77,7 @@
   --solar-singularity-rim-gold: #f59e0b;
   --solar-singularity-corona-edge: #d97706;
   --solar-singularity-orbit: rgba(245, 158, 11, 0.25);
+  --solar-singularity-coordinate: rgba(245, 158, 11, 0.45);
   --solar-menu-text: #f8fafc;
   --solar-menu-button: #151126;
   --solar-menu-button-hover: #29223f;
@@ -243,6 +244,7 @@
   --solar-singularity-hot: #fcd34d;
   --solar-singularity-corona-edge: #d97706;
   --solar-singularity-orbit: rgba(146, 84, 20, 0.28);
+  --solar-singularity-coordinate: rgba(146, 84, 20, 0.6);
   --solar-menu-text: #0f172a;
   --solar-menu-button: #ffffff;
   --solar-menu-button-hover: #e2e8f0;
@@ -3573,6 +3575,20 @@ body.review-active #app {
   animation: solar-orbit-rotate 90s linear infinite;
 }
 
+.solar-orbit-label {
+  fill: var(--solar-singularity-coordinate);
+  stroke: none;
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+
+.solar-orbit-tick {
+  stroke: var(--solar-singularity-coordinate);
+  pointer-events: none;
+}
+
 @keyframes solar-orbit-rotate {
   from {
     transform: translate3d(-50%, -50%, 0) translateZ(0) rotate(0deg);
@@ -3954,6 +3970,14 @@ body.home-active #solar-bg > .solar-surface {
 .space-eclipse-corona {
   will-change: opacity;
   animation: spaceGlowPulse 9s ease-in-out infinite;
+}
+
+/* Keep gameplay scenery still, including legacy layers retained for router cleanup. */
+.space-game-static,
+.space-game-static * {
+  animation: none !important;
+  transition: none !important;
+  will-change: auto !important;
 }
 
 .space-scene-paused,
