@@ -983,7 +983,8 @@ body.review-active #app {
   background: var(--class-blunder-gradient);
 }
 
-.board-move-badge.badge-missed {
+.board-move-badge.badge-missed,
+.board-move-badge.badge-miss {
   background: var(--class-missed-gradient);
   border: 1.5px solid #e11d48;
   box-sizing: border-box;
@@ -1566,7 +1567,8 @@ body.review-active #app {
   color: #ffffff;
 }
 
-.badge-missed {
+.badge-missed,
+.badge-miss {
   background: var(--class-missed-gradient);
   color: #ffffff;
   border: 1.5px solid #e11d48;
@@ -1626,7 +1628,8 @@ body.review-active #app {
   background: var(--class-blunder-gradient);
   color: #ffffff;
 }
-.review-move-badge.badge-missed {
+.review-move-badge.badge-missed,
+.badge-miss {
   background: var(--class-missed-gradient);
   color: #ffffff;
   border: 1.5px solid #e11d48;
@@ -1721,7 +1724,10 @@ body.review-active #app {
   border-color: rgba(255, 255, 255, 0.4);
 }
 .class-row-badge.badge-missed,
-.move-class-badge.class-row-badge.badge-missed {
+.move-class-badge.class-row-badge.badge-miss,
+.move-class-badge.class-row-badge.badge-missed,
+.class-row-badge.badge-miss,
+.badge-miss {
   background: var(--class-missed-gradient);
   color: #ffffff;
   border: 1.5px solid #e11d48;

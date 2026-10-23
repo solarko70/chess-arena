@@ -61,3 +61,64 @@ export function povWinChance(scoreOrCp: number | Score, color: 'white' | 'black'
   const whiteWin = winChance(scoreOrCp);
   return color === 'white' ? whiteWin : 100 - whiteWin;
 }
+
+/**
+ * Compute the virtual win-probability loss (in percentage points [0, 100])
+ * when a player prolongs a forced checkmate or drops from forced mate to non-mate.
+ *
+ * Rules:
+ * - If checkmate is delivered on the board (mateInAfter === 0): loss = 0.
+ * - If best move delivers mate in 1 (mateInBefore === 1):
+ *   - Missed for mate in 2 or 3: virtual loss = 10% (classified as 'good', never 'best'/'excellent').
+ *   - Delayed to mate in 4+ or dropped to non-mate: virtual loss = 25% (classified as 'miss').
+ * - If best move delivers mate in N <= 3:
+ *   - Delayed by 3+ moves (M >= N + 3) or dropped to non-mate: virtual loss = 25% (classified as 'miss').
+ *   - Delayed by 1-2 moves: virtual loss = 4-8% (never 'best').
+ * - If distant mate (N >= 8) and delayed by <= 1 move: virtual loss = 0 ('best').
+ */
+export function computeMateProlongationLoss(mateInBefore: number, mateInAfter: number | null): number {
+  if (mateInBefore <= 0) return 0;
+  // Delivering checkmate on the board is always optimal
+  if (mateInAfter === 0) return 0;
+
+  // Case 1: Missed mate in 1
+  if (mateInBefore === 1) {
+    if (mateInAfter === null || mateInAfter >= 4) {
+      return 25.0;
+    }
+    if (mateInAfter === 2 || mateInAfter === 3) {
+      return 10.0;
+    }
+    return 0;
+  }
+
+  // Case 2: Short mate (N <= 3)
+  if (mateInBefore <= 3) {
+    if (mateInAfter === null || mateInAfter >= mateInBefore + 3) {
+      return 25.0;
+    }
+    if (mateInAfter > mateInBefore) {
+      const diff = mateInAfter - mateInBefore;
+      return diff === 1 ? 4.0 : 8.0;
+    }
+    return 0;
+  }
+
+  // Case 3: Distant mate (N >= 8) allows 1-move slack
+  if (mateInBefore >= 8 && mateInAfter !== null && mateInAfter <= mateInBefore + 1) {
+    return 0;
+  }
+
+  // Case 4: Mate N >= 4 dropped to non-mate or prolonged
+  if (mateInAfter === null) {
+    return 20.0;
+  }
+
+  if (mateInAfter > mateInBefore) {
+    const diff = mateInAfter - mateInBefore;
+    return Math.min(20.0, diff * 3.0);
+  }
+
+  return 0;
+}
+

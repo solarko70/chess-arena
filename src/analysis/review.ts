@@ -75,6 +75,7 @@ export type MoveClassCounts = {
   mistake: number;
   blunder: number;
   missed?: number;
+  miss?: number;
 };
 
 export interface EvalPoint {
@@ -495,6 +496,9 @@ export async function reviewGame(
 
       moves.push(reviewedMove);
       counts[moverColor][classification.moveClass] = (counts[moverColor][classification.moveClass] ?? 0) + 1;
+      if (classification.moveClass === 'miss') {
+        counts[moverColor].missed = (counts[moverColor].missed ?? 0) + 1;
+      }
 
       if (moverColor === 'white') {
         whiteAccuracies.push(acc);

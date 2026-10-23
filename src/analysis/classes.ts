@@ -144,6 +144,7 @@ export const MOVE_CLASS_REGISTRY: readonly MoveClassMeta[] = [
 export const MOVE_CLASS_MAP: Record<MoveClass, MoveClassMeta> = Object.fromEntries(
   MOVE_CLASS_REGISTRY.map((meta) => [meta.id, meta])
 ) as Record<MoveClass, MoveClassMeta>
+;(MOVE_CLASS_MAP as Record<string, MoveClassMeta>).miss = MOVE_CLASS_MAP.missed;
 
 export function getMoveClassSvg(id: MoveClass): string {
   return getMoveClassMeta(id).svg

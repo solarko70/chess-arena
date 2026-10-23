@@ -2,6 +2,7 @@ export {
   winChance,
   povWinChance,
   scoreToCp,
+  computeMateProlongationLoss,
   LICHESS_WIN_MULTIPLIER,
   MATE_CP_BASE,
   MATE_CP_STEP,
@@ -20,6 +21,8 @@ export {
   isSameMove,
   isForcedMateAgainstMover,
   isForcedMateForMover,
+  extractMateDistanceBefore,
+  extractMateDistanceAfter,
 } from './classify';
 export type { MoveClass, ClassifyMoveInput, ClassifyMoveResult } from './classify';
 

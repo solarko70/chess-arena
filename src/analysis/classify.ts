@@ -17,9 +17,9 @@
 import type { Color, GameState, Move, PieceType } from '@/core';
 import { applyMove, generateLegal, isCheckmate } from '@/core';
 import type { AnalysisLine, Score } from '@/ai';
-import { povWinChance, scoreToCp } from './winchance';
+import { povWinChance, scoreToCp, computeMateProlongationLoss } from './winchance';
 
-export type MoveClass = 'opening' | 'stellar' | 'superb' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed';
+export type MoveClass = 'opening' | 'stellar' | 'superb' | 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder' | 'missed' | 'miss';
 
 export const MOVE_CLASS_LABELS: Record<MoveClass, string> = {
   opening: 'дебютный ход',
@@ -32,6 +32,7 @@ export const MOVE_CLASS_LABELS: Record<MoveClass, string> = {
   mistake: 'ошибка',
   blunder: 'зевок',
   missed: 'упущенный шанс',
+  miss: 'упущенный шанс',
 };
 
 /** Piece values in centipawns used for sacrifice detection. */
@@ -134,6 +135,7 @@ const SEVERITY_ORDER: Record<MoveClass, number> = {
   mistake: 7,
   blunder: 8,
   missed: 9,
+  miss: 9,
 };
 
 /** Check whether two Move objects represent the same chess move (origin, target, promotion). */
@@ -153,6 +155,49 @@ export function isForcedMateForMover(score: Score | undefined, moverColor: Color
   if (!score || !moverColor || score.type !== 'mate') return false;
   if (score.value === 0) return true;
   return moverColor === 'white' ? score.value > 0 : score.value < 0;
+}
+
+/**
+ * Extract mate distance in full moves from White-perspective Score for `moverColor`.
+ * Handles both odd plies from engine (1 ply -> 1 move, 3 plies -> 2 moves)
+ * and full moves passed in tests (2 -> 2 moves).
+ */
+export function extractMateDistanceBefore(score: Score | undefined, moverColor: Color | undefined): number | null {
+  if (!score || !moverColor || !isForcedMateForMover(score, moverColor)) return null;
+  const abs = Math.abs(score.value);
+  if (abs === 0) return 0;
+  return abs % 2 === 1 ? Math.ceil(abs / 2) : abs;
+}
+
+/**
+ * Extract mate distance in full moves after the mover's move.
+ * If checkmate is delivered on the board, returns 0.
+ * If the position is no longer a forced mate for the mover, returns null.
+ */
+export function extractMateDistanceAfter(
+  score: Score | undefined,
+  moverColor: Color | undefined,
+  mateInBefore: number | null,
+  isCheckmateMove?: boolean,
+  rawScoreBefore?: Score,
+): number | null {
+  if (isCheckmateMove) return 0;
+  if (!score || !moverColor || !isForcedMateForMover(score, moverColor)) return null;
+  const abs = Math.abs(score.value);
+  if (abs === 0) return 0;
+
+  // Check missed mate in 1 first
+
+
+  if (mateInBefore === 1) {
+    if (abs <= 4) return 2;
+    if (abs <= 6) return 3;
+    return Math.max(4, abs);
+  }
+
+  const rawBefore = rawScoreBefore ? Math.abs(rawScoreBefore.value) : (mateInBefore ?? 0);
+  const isDirectMoves = rawBefore % 2 === 0 || abs % 2 === 1;
+  return isDirectMoves ? abs : abs / 2;
 }
 
 /**
@@ -370,8 +415,43 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
     };
   }
 
-  const lossPct = Math.max(0, winBeforePct - winAfterPct);
-  const lossOut = isUnitScale ? Math.max(0, input.winBefore - input.winAfter) : lossPct;
+  const rawLossPct = Math.max(0, winBeforePct - winAfterPct);
+
+  // Extract mate distances if mover had a forced mate before this move (Stage 8c)
+  const moverColor = input.moverColor ?? input.stateBefore?.turn ?? (input.evalBefore && input.evalBefore.type === 'mate' && input.evalBefore.value !== 0 ? (input.evalBefore.value > 0 ? 'white' : 'black') : undefined);
+  const bestScoreBefore = input.linesBefore?.[0]?.score ?? input.evalBefore;
+  const isMoverWinningMate = isForcedMateForMover(bestScoreBefore, moverColor);
+
+  let mateProlongationLoss = 0;
+  let canBeBestInMate = true;
+  let isMissedMateWin = false;
+  let isGoodMateIn1Prolongation = false;
+
+  if (isMoverWinningMate && bestScoreBefore && moverColor) {
+    const mateInBefore = extractMateDistanceBefore(bestScoreBefore, moverColor);
+    const mateInAfter = extractMateDistanceAfter(input.evalAfter, moverColor, mateInBefore, Boolean(input.isCheckmateMove), bestScoreBefore);
+
+    if (mateInBefore !== null) {
+      mateProlongationLoss = computeMateProlongationLoss(mateInBefore, mateInAfter);
+
+      canBeBestInMate =
+        input.matchedBestMove === true ||
+        (mateInAfter !== null && mateInAfter <= mateInBefore) ||
+        (mateInBefore >= 8 && mateInAfter !== null && mateInAfter <= mateInBefore + 1);
+
+      isMissedMateWin =
+        mateInBefore <= 3 &&
+        (mateInAfter === null || mateInAfter >= mateInBefore + 3);
+
+      isGoodMateIn1Prolongation =
+        mateInBefore === 1 &&
+        mateInAfter !== null &&
+        (mateInAfter === 2 || mateInAfter === 3);
+    }
+  }
+
+  const lossPct = mateProlongationLoss > 0 ? Math.max(rawLossPct, mateProlongationLoss) : rawLossPct;
+  const lossOut = isUnitScale ? (mateProlongationLoss > 0 ? mateProlongationLoss / 100 : Math.max(0, input.winBefore - input.winAfter)) : lossPct;
 
   const walkedIntoMate = isForcedMateAgainstMover(input.evalAfter, input.moverColor);
   const deliversForcedMate =
@@ -512,7 +592,23 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
   const isAlreadyLost = winBeforePct < THRESHOLDS.decidedLowWin;
   const isAlreadyWon = winBeforePct > THRESHOLDS.decidedHighWin && winAfterPct >= 50;
   let moveClass: MoveClass = rawClass;
-  if ((isAlreadyLost || isAlreadyWon) && SEVERITY_ORDER[moveClass] > SEVERITY_ORDER.good) {
+  // Mate-specific classification rules (Stage 8c):
+  // 1. Missed win: forced mate N <= 3 delayed by 3+ moves (or dropped out of mate)
+  // 2. Good: mate in 1 delayed to mate in 2 or 3 (strictly forbidden to be 'best' or 'excellent')
+  // 3. Best: only if matched best move, delivers mate in M <= N, or N >= 8 and M <= N + 1
+  if (isMoverWinningMate) {
+    if (isMissedMateWin) {
+      moveClass = 'missed';
+    } else if (isGoodMateIn1Prolongation) {
+      moveClass = 'good';
+    } else if (!canBeBestInMate) {
+      if (SEVERITY_ORDER[moveClass] < SEVERITY_ORDER.good) {
+        moveClass = 'good';
+      }
+    } else if (canBeBestInMate && lossPct <= THRESHOLDS.bestMaxLoss) {
+      moveClass = 'best';
+    }
+  } else if ((isAlreadyLost || isAlreadyWon) && SEVERITY_ORDER[moveClass] > SEVERITY_ORDER.good) {
     moveClass = 'good';
   }
 
