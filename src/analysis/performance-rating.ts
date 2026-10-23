@@ -7,6 +7,7 @@ export interface PerformanceRatingParams {
   accuracy: number;
   totalMoves: number;
   blunderCount: number;
+  missedCount?: number;
   isWin: boolean;
   isDraw: boolean;
 }
@@ -16,11 +17,14 @@ export interface PerformanceRatingParams {
  */
 const CALIBRATION: readonly [number, number][] = [
   [0, 350],
-  [25, 500],
-  [45, 800],
-  [60, 1150],
-  [75, 1575],
-  [85, 1975],
+  [25, 430],
+  [40, 620],
+  [42, 660],
+  [58, 920],
+  [60, 960],
+  [75, 1380],
+  [85, 1850],
+  [90, 2200],
   [92, 2375],
   [98, 2800],
   [100, 2900],
@@ -31,7 +35,7 @@ const CALIBRATION: readonly [number, number][] = [
  * Returns null if the sample size is too small (< 6 moves for the side).
  */
 export function estimatePerformanceRating(params: PerformanceRatingParams): number | null {
-  const { accuracy, totalMoves, blunderCount, isWin } = params;
+  const { accuracy, totalMoves, blunderCount, missedCount = 0, isWin } = params;
 
   if (totalMoves < 6) {
     return null;
@@ -51,8 +55,9 @@ export function estimatePerformanceRating(params: PerformanceRatingParams): numb
   }
 
   // Adjustments:
-  // - Penalty of 50 points per blunder
-  let rating = baseRating - blunderCount * 50;
+  // Blunders and missed wins are mutually exclusive review classes.
+  // Penalize both explicitly, including missed wins that are absent from blunderCount.
+  let rating = baseRating - blunderCount * 80 - missedCount * 100;
 
   // - Bonus of 50 points for victory
   if (isWin) {
@@ -73,8 +78,8 @@ export function getSidePerformanceRating(
   review: {
     accuracy: { white: number; black: number };
     counts: {
-      white: { blunder: number };
-      black: { blunder: number };
+      white: { blunder: number; missed?: number };
+      black: { blunder: number; missed?: number };
     };
     moves: readonly { color: 'white' | 'black' }[];
   },
@@ -91,6 +96,7 @@ export function getSidePerformanceRating(
     accuracy,
     totalMoves: sideMoves,
     blunderCount,
+    missedCount: review.counts[side]?.missed ?? 0,
     isWin,
     isDraw,
   });

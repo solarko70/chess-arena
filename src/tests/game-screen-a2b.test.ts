@@ -197,7 +197,7 @@ describe('Stage A2b: New Game Screen & Review Overlay', () => {
     globalStore.setReviewEngine(undefined);
   });
 
-  it('bot setup modal level descriptions do not contain Elo', () => {
+  it('bot setup modal keeps Elo in badges and out of descriptions', () => {
     for (const lvl of BOT_LEVELS) {
       expect(lvl.desc).not.toContain('Elo');
     }
@@ -206,7 +206,7 @@ describe('Stage A2b: New Game Screen & Review Overlay', () => {
     playBotBtn.click();
 
     const overlay = document.getElementById('setup-modal-overlay') as HTMLElement;
-    expect(overlay.textContent).not.toContain('Elo');
+    expect(overlay.querySelectorAll('.setup-level-elo')).toHaveLength(8);
   });
 
   it('styles.css includes @media (max-width: 800px) rule for mobile game layout', () => {

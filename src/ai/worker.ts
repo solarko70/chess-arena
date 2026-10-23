@@ -77,7 +77,7 @@ if (typeof self !== 'undefined' && typeof (self as unknown as Worker).postMessag
     handleWorkerMessage(msg, (res) => {
       if (msg.type === 'search' && res.type === 'result') {
         const levelId = typeof msg.level === 'string' ? msg.level : msg.level.id;
-        const isWeakLevel = levelId === 'novice' || levelId === 'amateur' || levelId === 'club';
+        const isWeakLevel = levelId === 'novice' || levelId === 'student' || levelId === 'amateur' || levelId === 'club';
         if (isWeakLevel) {
           const targetDelay = 300 + Math.floor(Math.random() * 301); // 300..600 ms
           const remaining = targetDelay - res.elapsedMs;

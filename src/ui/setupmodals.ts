@@ -61,11 +61,14 @@ export interface BotLevelOption {
 }
 
 export const BOT_LEVELS: BotLevelOption[] = [
-  { id: 'novice', name: 'Новичок', desc: 'часто ошибается' },
-  { id: 'amateur', name: 'Любитель', desc: 'ошибается реже' },
-  { id: 'club', name: 'Клубный', desc: 'играет уверенно' },
-  { id: 'expert', name: 'Эксперт', desc: 'играет сильно' },
-  { id: 'master', name: 'Мастер', desc: 'полная сила движка' },
+  { id: 'novice', name: LEVELS.novice.name, desc: 'Учится ходам, частые зевки' },
+  { id: 'student', name: LEVELS.student.name, desc: 'Знает правила, отдаёт материал' },
+  { id: 'amateur', name: LEVELS.amateur.name, desc: 'Простые взятия и размены' },
+  { id: 'club', name: LEVELS.club.name, desc: 'Базовая тактика и защита' },
+  { id: 'candidate', name: LEVELS.candidate.name, desc: 'Позиционная игра, 2–3 полухода' },
+  { id: 'expert', name: LEVELS.expert.name, desc: 'Глубокий расчёт и тактика' },
+  { id: 'master', name: LEVELS.master.name, desc: 'Точная игра, сильный эндшпиль' },
+  { id: 'singularity', name: LEVELS.singularity.name, desc: 'Максимальная глубина движка' },
 ];
 
 export interface LocalSetupState {
@@ -327,6 +330,7 @@ export class GameSetupModalUI {
   }
 
   private renderForm(): void {
+    this.dialog.classList.toggle('setup-modal-bot', this.currentMode === 'bot');
     this.titleEl.textContent = this.currentMode === 'local' ? 'Играть локально' : 'Играть с ботом';
 
     let html = '';
@@ -369,14 +373,15 @@ export class GameSetupModalUI {
       html += `
         <div class="setup-section setup-level-section">
           <label class="setup-section-label">Уровень сложности</label>
-          <div class="setup-level-cards">
+          <div class="setup-level-cards bot-grid">
       `;
       for (const lvl of BOT_LEVELS) {
         const isSelected = lvl.id === this.selectedLevel;
         html += `
-          <button type="button" class="setup-level-card ${isSelected ? 'selected' : ''}" data-level-id="${lvl.id}">
+          <button type="button" class="setup-level-card ${isSelected ? 'selected' : ''}" data-level-id="${lvl.id}" aria-pressed="${isSelected}">
             <div class="setup-level-header">
               <span class="setup-level-name">${lvl.name}</span>
+              <span class="setup-level-elo">${LEVELS[lvl.id].elo}${lvl.id === 'singularity' ? '+' : ''} Elo</span>
             </div>
             <span class="setup-level-desc">${lvl.desc}</span>
           </button>
@@ -431,8 +436,12 @@ export class GameSetupModalUI {
           const id = card.getAttribute('data-level-id') as LevelId;
           if (id) {
             this.selectedLevel = id;
-            this.bodyEl.querySelectorAll('.setup-level-card').forEach((c) => c.classList.remove('selected'));
+            this.bodyEl.querySelectorAll('.setup-level-card').forEach((c) => {
+              c.classList.remove('selected');
+              c.setAttribute('aria-pressed', 'false');
+            });
             card.classList.add('selected');
+            card.setAttribute('aria-pressed', 'true');
           }
         });
       });

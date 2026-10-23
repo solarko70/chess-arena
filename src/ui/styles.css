@@ -3353,20 +3353,34 @@ body.review-active #app {
 }
 
 /* Bot Level cards */
+.setup-modal-bot .setup-time-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+.setup-modal-bot .setup-time-cards {
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+}
+
+.setup-modal-bot .setup-section {
+  margin-bottom: 14px;
+}
+
 .setup-level-cards {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 10px;
 }
 
 .setup-level-card {
   display: flex;
   flex-direction: column;
-  padding: 10px 14px;
+  padding: 8px 10px;
   border-radius: 8px;
-  background: var(--bg-primary);
-  border: 1px solid var(--bg-tertiary);
-  color: var(--text-primary);
+  background: var(--solar-analysis-input);
+  border: 1px solid var(--solar-analysis-border);
+  color: var(--solar-text);
   cursor: pointer;
   text-align: left;
   transition:
@@ -3377,8 +3391,8 @@ body.review-active #app {
 }
 
 .setup-level-card:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--text-secondary);
+  background: var(--solar-analysis-hover);
+  border-color: var(--solar-accent);
   transform: translateY(-1px);
 }
 
@@ -3389,10 +3403,8 @@ body.review-active #app {
 
 .setup-level-card.selected {
   border-color: var(--solar-accent);
-  background: rgba(245, 158, 11, 0.12);
-  box-shadow:
-    0 0 14px var(--solar-halo),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+  background: var(--solar-glow);
+  box-shadow: 0 0 10px var(--solar-halo);
 }
 
 .setup-level-header {
@@ -3400,25 +3412,29 @@ body.review-active #app {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 3px;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .setup-level-name {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.86rem;
 }
 
 .setup-level-elo {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  background: var(--bg-tertiary);
+  background: var(--solar-analysis-hover);
   padding: 2px 6px;
   border-radius: 4px;
-  color: var(--accent);
+  color: var(--solar-accent);
+  white-space: nowrap;
 }
 
 .setup-level-desc {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  color: var(--solar-analysis-muted);
 }
 
 /* Bot Color cards */

@@ -42,7 +42,7 @@ describe('Performance Rating Module (Stage A3.1)', () => {
     expect(res99!).toBeGreaterThanOrEqual(2700);
   });
 
-  it('medium accuracy 70% produces rating in 1400 to 1700 range', () => {
+  it('medium accuracy 70% produces rating in 1200 to 1250 range', () => {
     const res70 = estimatePerformanceRating({
       accuracy: 70,
       totalMoves: 15,
@@ -51,8 +51,8 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res70).not.toBeNull();
-    expect(res70!).toBeGreaterThanOrEqual(1400);
-    expect(res70!).toBeLessThanOrEqual(1700);
+    expect(res70!).toBeGreaterThanOrEqual(1200);
+    expect(res70!).toBeLessThanOrEqual(1250);
   });
 
   it('low accuracy 35% with multiple blunders gives rating below 800', () => {

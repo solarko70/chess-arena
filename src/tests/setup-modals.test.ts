@@ -54,19 +54,22 @@ describe('Game Setup Modals & Resignation (Stage A2)', () => {
     const timeCards = overlay.querySelectorAll('.setup-time-card');
     expect(timeCards.length).toBe(6);
 
-    // 5 Bot levels with name and short description without Elo
+    // Eight bot levels with descriptions and target Elo badges.
     const levelCards = overlay.querySelectorAll('.setup-level-card');
-    expect(levelCards.length).toBe(5);
+    expect(levelCards.length).toBe(8);
 
     const levelDescs = Array.from(overlay.querySelectorAll('.setup-level-desc')).map((el) => el.textContent);
     expect(levelDescs).toEqual([
-      'часто ошибается',
-      'ошибается реже',
-      'играет уверенно',
-      'играет сильно',
-      'полная сила движка',
+      'Учится ходам, частые зевки',
+      'Знает правила, отдаёт материал',
+      'Простые взятия и размены',
+      'Базовая тактика и защита',
+      'Позиционная игра, 2–3 полухода',
+      'Глубокий расчёт и тактика',
+      'Точная игра, сильный эндшпиль',
+      'Максимальная глубина движка',
     ]);
-    expect(overlay.textContent).not.toContain('Elo');
+    expect(overlay.querySelectorAll('.setup-level-elo')).toHaveLength(8);
 
     // 3 Color options
     const colorCards = overlay.querySelectorAll('.setup-color-card');

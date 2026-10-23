@@ -5,6 +5,60 @@ import { ReviewPanelUI } from '@/ui/reviewpanel'
 import { HistoryUI } from '@/ui/history'
 import { generateLegal } from '@/core'
 import type { AnalysisEngineResult, GameReviewResult, MoveClass } from '@/analysis'
+import { estimatePerformanceRating, getSidePerformanceRating } from '@/analysis'
+
+describe('Stricter review performance rating', () => {
+  it.each([
+    [40, 620], [41, 640], [42, 660], [58, 920], [59, 940], [60, 960],
+    [75, 1380], [90, 2200], [92, 2380], [95, 2590],
+  ])('maps accuracy %s to approximately %s Elo', (accuracy, expected) => {
+    expect(estimatePerformanceRating({
+      accuracy, totalMoves: 20, blunderCount: 0, isWin: false, isDraw: true,
+    })).toBe(expected)
+  })
+
+  it('penalizes blunders by 80 Elo and missed wins by 100 Elo for the correct side', () => {
+    const review = {
+      accuracy: { white: 75, black: 75 },
+      counts: { white: { blunder: 2, missed: 1 }, black: { blunder: 0 } },
+      moves: Array.from({ length: 12 }, (_, index) => ({
+        color: index % 2 === 0 ? 'white' as const : 'black' as const,
+      })),
+    }
+    expect(getSidePerformanceRating(review, 'white')).toBe(1120)
+    expect(getSidePerformanceRating(review, 'black')).toBe(1380)
+    expect(getSidePerformanceRating(review, 'white', 'white')).toBe(1170)
+  })
+
+  it('renders the new ratings and missed-win penalty in the review panel', () => {
+    const store = new ChessStore()
+    const panel = document.createElement('div')
+    new ReviewPanelUI(panel, store)
+    const sequence = [
+      [52, 36], [12, 28], [62, 45], [1, 18], [61, 34], [6, 21],
+      [51, 43], [5, 26], [50, 42], [11, 27], [36, 27], [21, 27],
+    ]
+    // Use a legal twelve-ply opening so each side has the minimum sample size.
+    for (const [from, to] of sequence) expect(store.makeMove(from, to)).toBe(true)
+    const counts = { best: 6, excellent: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 }
+    const review: GameReviewResult = {
+      engineName: 'MockEngine', reanalyzed: 0, accuracy: { white: 41, black: 59 },
+      counts: { white: { ...counts }, black: { ...counts, missed: 1 } },
+      keyMoments: [], evalHistory: [],
+      moves: store.getLiveState().history.map((move, index) => ({
+        move, ply: index + 1, san: '', color: index % 2 === 0 ? 'white' : 'black',
+        evalBefore: { type: 'cp', value: 0 }, evalAfter: { type: 'cp', value: 0 },
+        bestMove: move, bestSan: '', winBefore: 50, winAfter: 50, loss: 0,
+        accuracy: 100, class: 'best', onlyMove: false,
+      })),
+    }
+    store.setReviewResult(review)
+    store.setReviewMode(true)
+    expect(panel.querySelector('#review-rating-white .rating-value')?.textContent).toBe('~640')
+    expect(panel.querySelector('#review-rating-black .rating-value')?.textContent).toBe('~840')
+    store.setReviewMode(false)
+  })
+})
 
 describe('Variation badges and stellar cleanup', () => {
   let store: ChessStore

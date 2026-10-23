@@ -5,12 +5,14 @@ import type { GameState, Move } from '@/core';
 import { analyzePosition, type Score } from './api';
 import { MAX_DEPTH } from './search';
 
-export type LevelId = 'novice' | 'amateur' | 'club' | 'expert' | 'master';
+export type LevelId = 'novice' | 'student' | 'amateur' | 'club' | 'candidate' | 'expert' | 'master' | 'singularity';
 
 export interface LevelConfig {
   id: LevelId;
   /** Display name (UI label) */
   name: string;
+  /** Target rating for display; actual playing strength depends on the engine. */
+  elo: number;
   /** Maximum main search depth in plies */
   depth: number;
   /** Maximum search nodes (undefined = unlimited, used for strength control independent of CPU speed) */
@@ -23,33 +25,45 @@ export interface LevelConfig {
   temperature: number;
   /** Probability of making a deliberate blunder (picking a weaker move from top-10) */
   blunderChance: number;
-  /** Time budget in ms (used by Master level and as a UI/clock reference) */
+  /** Time budget in ms for levels without a node cap; otherwise a UI/clock reference. */
   timeMs: number;
 }
 
 /**
  * Tunable difficulty table:
- * - novice   (~600-800):  1 ply, no quiescence, tight node cap, high softmax temperature + frequent blunders
- * - amateur  (~1000-1200): 2 plies, 1-ply quiescence, moderate node cap, medium temperature + occasional blunders
- * - club     (~1500):     3 plies, full quiescence, node-capped, mild softmax temperature, no deliberate blunders
- * - expert   (~1900):     4 plies, full quiescence, higher node cap, low softmax temperature
- * - master   (full):      unlimited nodes & full quiescence up to MAX_DEPTH within timeMs, zero noise
+ * Eight target ratings from 400 to 2700+ Elo. Depth and node budgets increase
+ * while sampling noise decreases. Singularity uses MAX_DEPTH with no node cap
+ * and no intentional errors, bounded by its per-move time budget.
  */
 export const LEVELS: Record<LevelId, LevelConfig> = {
   novice: {
     id: 'novice',
     name: 'Новичок',
+    elo: 400,
     depth: 1,
     maxNodes: 60,
     quiescence: false,
     topMoves: 6,
-    temperature: 180,
-    blunderChance: 0.38,
+    temperature: 260,
+    blunderChance: 0.55,
     timeMs: 300,
+  },
+  student: {
+    id: 'student',
+    name: 'Ученик',
+    elo: 800,
+    depth: 1,
+    maxNodes: 120,
+    quiescence: 1,
+    topMoves: 6,
+    temperature: 140,
+    blunderChance: 0.28,
+    timeMs: 400,
   },
   amateur: {
     id: 'amateur',
     name: 'Любитель',
+    elo: 1000,
     depth: 2,
     maxNodes: 250,
     quiescence: 1,
@@ -61,6 +75,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
   club: {
     id: 'club',
     name: 'Клубный',
+    elo: 1200,
     depth: 3,
     maxNodes: 1000,
     quiescence: true,
@@ -69,9 +84,22 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     blunderChance: 0,
     timeMs: 1000,
   },
+  candidate: {
+    id: 'candidate',
+    name: 'Кандидат',
+    elo: 1500,
+    depth: 3,
+    maxNodes: 1800,
+    quiescence: true,
+    topMoves: 3,
+    temperature: 24,
+    blunderChance: 0,
+    timeMs: 1500,
+  },
   expert: {
     id: 'expert',
     name: 'Эксперт',
+    elo: 1900,
     depth: 4,
     maxNodes: 3200,
     quiescence: true,
@@ -83,7 +111,8 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
   master: {
     id: 'master',
     name: 'Мастер',
-    depth: MAX_DEPTH,
+    elo: 2300,
+    depth: 8,
     maxNodes: undefined,
     quiescence: true,
     topMoves: 1,
@@ -91,9 +120,23 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     blunderChance: 0,
     timeMs: 3000,
   },
+  singularity: {
+    id: 'singularity',
+    name: 'Сингулярность',
+    elo: 2700,
+    depth: MAX_DEPTH,
+    maxNodes: undefined,
+    quiescence: true,
+    topMoves: 1,
+    temperature: 0,
+    blunderChance: 0,
+    timeMs: 5000,
+  },
 };
 
-export const LEVEL_ORDER: LevelId[] = ['novice', 'amateur', 'club', 'expert', 'master'];
+export const LEVEL_ORDER: LevelId[] = [
+  'novice', 'student', 'amateur', 'club', 'candidate', 'expert', 'master', 'singularity',
+];
 
 export interface FindMoveOptions {
   /** Random source in [0, 1); defaults to Math.random */
@@ -156,12 +199,12 @@ export function findBestMove(state: GameState, level: LevelId | LevelConfig, opt
 
   // Levels above Novice always play mate in 1; Club and above always play any forced mate they find
   if (cfg.id !== 'novice' && hasWinningMate) {
-    if (matePlies === 1 || cfg.id === 'club' || cfg.id === 'expert' || cfg.id === 'master') {
+    if (matePlies === 1 || cfg.elo >= LEVELS.club.elo) {
       return res.bestMove;
     }
   }
 
-  // Roll for a deliberate blunder (Novice and Amateur)
+  // Roll for a deliberate blunder on weaker levels.
   const isBlunder = lines.length > 1 && rng() < cfg.blunderChance;
 
   // Even Novice plays mate in 1 when it exists and a blunder did not trigger

@@ -1,0 +1,35 @@
+{
+  "output": {
+    "filePath": ".repomix-context.xml",
+    "style": "xml",
+    "removeComments": false,
+    "removeEmptyLines": true,
+    "topFiles": [
+      "package.json",
+      "vite.config.ts",
+      "src/main.ts",
+      "src/ui/board.ts",
+      "src/ui/navigation.ts"
+    ]
+  },
+  "include": [
+    "src/**/*",
+    "package.json",
+    "vite.config.ts",
+    "index.html"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "customPatterns": [
+      "dist/**",
+      "coverage/**",
+      "node_modules/**",
+      "package-lock.json",
+      "**/*.test.ts",
+      "src/tests/**",
+      "**/*.svg",
+      "**/*.png",
+      "**/*.jpg"
+    ]
+  }
+}
