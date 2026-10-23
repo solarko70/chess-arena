@@ -745,6 +745,117 @@ body.review-active #app {
   will-change: transform;
 }
 
+/* Board juice uses only compositor transforms and opacity. */
+.board-effects-layer,
+.board-effects-layer *,
+.solar-landing-ripple,
+.solar-king-halo {
+  pointer-events: none;
+}
+
+.board-effects-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+
+.solar-capture-slot,
+.solar-trail-slot {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.solar-capture-slot { z-index: 1; }
+
+.solar-piece-land > .piece-wrapper {
+  transform-origin: 50% 85%;
+  animation: solar-piece-land 140ms ease-out;
+}
+
+@keyframes solar-piece-land {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1, 1); }
+  35% { transform: translate3d(0, 0, 0) scale(1.06, 0.94); }
+  70% { transform: translate3d(0, 0, 0) scale(0.98, 1.02); }
+}
+
+.solar-landing-ripple {
+  position: absolute;
+  inset: 13%;
+  border: 1px solid #fbbf24;
+  border-radius: 50%;
+  z-index: 2;
+  animation: solar-landing-ripple 180ms ease-out forwards;
+}
+
+@keyframes solar-landing-ripple {
+  from { transform: translate3d(0, 0, 0) scale(0.4); opacity: 0.6; }
+  to { transform: translate3d(0, 0, 0) scale(1.2); opacity: 0; }
+}
+
+.solar-warp-trail {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 22%;
+  transform-origin: left center;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #f59e0b66 35%, #fde68a99 85%, transparent);
+  animation: solar-warp-fade 240ms ease-out forwards;
+}
+
+@keyframes solar-warp-fade {
+  from { opacity: 0.7; }
+  to { opacity: 0; }
+}
+
+.piece-dematerialize {
+  filter: brightness(1.8);
+  animation: solar-dematerialize 190ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes solar-dematerialize {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+  to { transform: translate3d(0, -16px, 0) scale(0.82); opacity: 0; }
+}
+
+.chess-square.solar-king-shock {
+  animation: solar-king-tremor 340ms ease-out;
+}
+
+@keyframes solar-king-tremor {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-2px, 1px, 0) rotate(-1deg); }
+  40% { transform: translate3d(2px, -1px, 0) rotate(1deg); }
+  60% { transform: translate3d(-1px, -1px, 0); }
+  80% { transform: translate3d(1px, 2px, 0); }
+}
+
+.solar-king-halo {
+  position: absolute;
+  inset: 4%;
+  z-index: 2;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fbbf2444, #e11d4888 45%, transparent 72%);
+  animation: solar-danger-pulse 340ms ease-out;
+}
+
+@keyframes solar-danger-pulse {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.8); opacity: 0; }
+  40% { transform: translate3d(0, 0, 0) scale(1.1); opacity: 0.85; }
+}
+
+.board-container[data-instant-motion='true'] .solar-piece-land > .piece-wrapper,
+.board-container[data-instant-motion='true'] .solar-king-shock,
+.board-container[data-instant-motion='true'] .board-effects-layer *,
+.board-container[data-instant-motion='true'] .solar-landing-ripple,
+.board-container[data-instant-motion='true'] .solar-king-halo,
+.board-container[data-instant-motion='true'] .piece-sliding {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* Solar Wings Angelic Effect for Stellar Moves (Stage 5a-2.2) */
 .stellar-wings-mount {
   position: absolute;
@@ -7151,6 +7262,11 @@ body:has(#screen-analysis.active) #app {
 
 @media (prefers-reduced-motion: reduce) {
   .solar-sun,
+  .solar-piece-land > .piece-wrapper,
+  .solar-king-shock,
+  .board-effects-layer *,
+  .solar-landing-ripple,
+  .solar-king-halo,
   .solar-orbit,
   .solar-piece-counter,
   .solar-star,

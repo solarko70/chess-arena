@@ -90,6 +90,11 @@ export class ChessBoardUI {
   private arrowLayerEl: SVGElement
   private badgeLayerEl: HTMLElement
   private planningLayerEl: SVGElement
+  private effectsLayerEl: HTMLElement
+  private effectCleanups = new Set<() => void>()
+  private clearingEffects = false
+  private readonly instantMotion = typeof process !== 'undefined' && process.env?.VITEST === 'true' ||
+    /jsdom/i.test(window.navigator.userAgent)
   private planningFromSquare: Square | null = null
   private planningArrows = new Map<string, { from: Square; to: Square }>()
   private planningHighlights = new Set<Square>()
@@ -150,6 +155,7 @@ export class ChessBoardUI {
         </div>
         <div class="board-container">
           <div class="chess-board"></div>
+          <div class="board-effects-layer" aria-hidden="true"></div>
           <div class="board-badge-layer" aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; z-index: 5;"></div>
           <svg class="board-arrow-layer" viewBox="0 0 800 800" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; z-index: 4;"></svg>
           <svg class="board-planning-overlay" viewBox="0 0 800 800" aria-hidden="true"></svg>
@@ -159,6 +165,12 @@ export class ChessBoardUI {
     `
 
     this.boardEl = this.container.querySelector('.chess-board') as HTMLElement
+    this.effectsLayerEl = this.container.querySelector('.board-effects-layer') as HTMLElement
+    const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    this.container.querySelector('.board-container')?.setAttribute('data-instant-motion', String(this.instantMotion))
+    motionQuery?.addEventListener('change', () => {
+      if (motionQuery.matches) this.clearBoardEffects()
+    })
     this.promoOverlayEl = this.container.querySelector('.promo-overlay') as HTMLElement
     this.evalBarWrapperEl = this.container.querySelector('#eval-bar-wrapper') as HTMLElement
     this.evalBarFillEl = this.container.querySelector('#eval-bar-fill') as HTMLElement
@@ -569,6 +581,12 @@ export class ChessBoardUI {
     const inCheck = this.store.isInCheck()
     const kingSq = inCheck ? this.store.getKingSquare() : null
     const premoves = this.store.getPremoves()
+    const newLiveMove = !isReview && !isViewingHistory && this.lastRenderedHistoryLen >= 0 &&
+      historyLen > this.lastRenderedHistoryLen && this.lastRenderedViewIndex === null &&
+      this.lastRenderedFlipped === flipped ? lastMove : null
+    const shock = kingSq !== null && this.lastRenderedFen !== serializeFEN(state)
+    this.clearBoardEffects()
+    if (newLiveMove?.captured) this.dematerializeCapturedPiece(newLiveMove, flipped, width, height)
 
     if (this.lastRenderedFen !== serializeFEN(state) ||
       this.lastRenderedHistoryLen !== historyLen ||
@@ -669,6 +687,15 @@ export class ChessBoardUI {
     this.handleReviewMoveKinematics(flipped, width, height)
     this.renderSolarWings()
     this.renderPlanning()
+    if (newLiveMove) {
+      const land = () => this.animateLanding(newLiveMove.to)
+      if (newLiveMove.piece.color !== this.store.getPlayerColor() && !this.isDragging) {
+        this.animatePieceSlide(newLiveMove.from, newLiveMove.to, flipped, width, height, land, true)
+      } else {
+        land()
+      }
+    }
+    if (shock && kingSq !== null) this.animateKingShock(kingSq)
 
     this.lastRenderedFen = serializeFEN(state)
     this.lastRenderedFlipped = flipped
@@ -680,6 +707,114 @@ export class ChessBoardUI {
     this.lastRenderedPremovesLen = premoves.length
     this.lastRenderedAnalysisKey = this.getAnalysisRenderKey()
     this.lastRenderedReview = this.store.getReviewResult()
+  }
+
+  private animationsEnabled(): boolean {
+    return !this.instantMotion && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  }
+
+  private clearBoardEffects(): void {
+    this.clearingEffects = true
+    for (const cleanup of [...this.effectCleanups]) cleanup()
+    this.effectsLayerEl.replaceChildren()
+    this.clearingEffects = false
+  }
+
+  private finishEffect(el: HTMLElement, duration: number, done: () => void, transition = false): void {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const eventName = transition ? 'transitionend' : 'animationend'
+    const cleanup = () => {
+      if (!this.effectCleanups.delete(cleanup)) return
+      if (timer !== undefined) clearTimeout(timer)
+      el.removeEventListener(eventName, onEnd)
+      done()
+    }
+    const onEnd = (event: Event) => {
+      if (event.target === el && (!transition || (event as TransitionEvent).propertyName === 'transform')) cleanup()
+    }
+    this.effectCleanups.add(cleanup)
+    el.addEventListener(eventName, onEnd)
+    if (this.animationsEnabled()) timer = setTimeout(cleanup, duration + 30)
+    else cleanup()
+  }
+
+  private effectElement(className: string): HTMLElement {
+    const el = document.createElement('div')
+    el.className = className
+    el.setAttribute('aria-hidden', 'true')
+    return el
+  }
+
+  private positionEffect(el: HTMLElement, sq: Square, flipped: boolean, width: number, height: number): void {
+    const col = flipped ? width - 1 - sq % width : sq % width
+    const row = flipped ? height - 1 - Math.floor(sq / width) : Math.floor(sq / width)
+    el.style.left = `${col * 100 / width}%`
+    el.style.top = `${row * 100 / height}%`
+    el.style.width = `${100 / width}%`
+    el.style.height = `${100 / height}%`
+  }
+
+  private animateLanding(sq: Square): void {
+    const target = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"]`)
+    if (!target) return
+    target.classList.add('solar-piece-land')
+    const piece = target.querySelector<HTMLElement>('.piece-wrapper')
+    if (!this.animationsEnabled()) {
+      target.classList.remove('solar-piece-land')
+      return
+    }
+    if (piece) this.finishEffect(piece, 140, () => target.classList.remove('solar-piece-land'))
+    const ripple = this.effectElement('solar-landing-ripple')
+    target.prepend(ripple)
+    this.finishEffect(ripple, 180, () => ripple.remove())
+  }
+
+  private dematerializeCapturedPiece(move: Move, flipped: boolean, width: number, height: number): void {
+    if (!this.animationsEnabled()) return
+    const sq = move.capturedAt ?? move.to
+    const piece = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"] .piece-wrapper`)
+    if (!piece) return
+    const slot = this.effectElement('solar-capture-slot')
+    this.positionEffect(slot, sq, flipped, width, height)
+    piece.className = 'piece-wrapper piece-dematerialize'
+    piece.style.transform = ''
+    piece.style.transition = ''
+    piece.setAttribute('aria-hidden', 'true')
+    slot.appendChild(piece)
+    this.effectsLayerEl.appendChild(slot)
+    this.finishEffect(piece, 190, () => slot.remove())
+  }
+
+  private animateKingShock(sq: Square): void {
+    if (!this.animationsEnabled()) return
+    const target = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"]`)
+    const piece = target?.querySelector<HTMLElement>('.piece-wrapper')
+    if (!target || !piece) return
+    target.classList.add('solar-king-shock')
+    piece.classList.add('solar-king-shock')
+    const halo = this.effectElement('solar-king-halo')
+    target.prepend(halo)
+    this.finishEffect(target, 340, () => {
+      target.classList.remove('solar-king-shock')
+      piece.classList.remove('solar-king-shock')
+      halo.remove()
+    })
+  }
+
+  private animateWarpTrail(from: Square, to: Square, flipped: boolean, width: number, height: number): void {
+    if (!this.animationsEnabled()) return
+    const rect = this.boardEl.getBoundingClientRect()
+    const sign = flipped ? -1 : 1
+    const dx = (to % width - from % width) * rect.width / width * sign
+    const dy = (Math.floor(to / width) - Math.floor(from / width)) * rect.height / height * sign
+    const slot = this.effectElement('solar-trail-slot')
+    this.positionEffect(slot, from, flipped, width, height)
+    const trail = this.effectElement('solar-warp-trail')
+    trail.style.width = `${Math.hypot(dx, dy)}px`
+    trail.style.transform = `translate3d(0, -50%, 0) rotate(${Math.atan2(dy, dx)}rad)`
+    slot.appendChild(trail)
+    this.effectsLayerEl.appendChild(slot)
+    this.finishEffect(trail, 240, () => slot.remove())
   }
 
   private handleReviewMoveKinematics(flipped: boolean, width: number, height: number): void {
@@ -779,13 +914,24 @@ export class ChessBoardUI {
     toSq: Square,
     flipped: boolean,
     width: number,
-    height: number
+    height: number,
+    onLanding?: () => void,
+    warp = false,
   ): void {
     const targetSqEl = this.boardEl.querySelector(`[data-square="${toSq}"]`) as HTMLElement | null
     if (!targetSqEl) return
 
     const pieceEl = targetSqEl.querySelector('.piece-wrapper') as HTMLElement | null
     if (!pieceEl) return
+    if (!this.animationsEnabled()) {
+      // Preserve the existing review marker without running motion in tests.
+      if (!onLanding) {
+        pieceEl.classList.add('piece-sliding')
+      }
+      onLanding?.()
+      return
+    }
+    if (warp) this.animateWarpTrail(fromSq, toSq, flipped, width, height)
 
     const fromX = fromSq % width
     const fromY = Math.floor(fromSq / width)
@@ -809,7 +955,7 @@ export class ChessBoardUI {
 
     // Invert phase (FLIP)
     pieceEl.style.transition = 'none'
-    pieceEl.style.transform = `translate(${dx}, ${dy})`
+    pieceEl.style.transform = `translate3d(${dx}, ${dy}, 0)`
 
     // Force reflow
     void pieceEl.offsetHeight
@@ -817,14 +963,14 @@ export class ChessBoardUI {
     // Play phase (FLIP)
     pieceEl.classList.add('piece-sliding')
     pieceEl.style.transition = ''
-    pieceEl.style.transform = 'translate(0px, 0px)'
+    pieceEl.style.transform = 'translate3d(0, 0, 0)'
 
     const cleanup = () => {
       pieceEl.classList.remove('piece-sliding')
       pieceEl.style.transform = ''
-      pieceEl.removeEventListener('transitionend', cleanup)
+      if (pieceEl.isConnected && !this.clearingEffects) onLanding?.()
     }
-    pieceEl.addEventListener('transitionend', cleanup)
+    this.finishEffect(pieceEl, 170, cleanup, true)
   }
 
   private clearStellarDecorations(): void {

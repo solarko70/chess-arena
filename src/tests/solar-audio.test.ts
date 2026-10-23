@@ -168,17 +168,21 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(lastOsc.frequency.setValueAtTime).toHaveBeenCalledWith(240, 10);
     expect(lastOsc.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(90, 10.05);
 
-    // Test playCapture synthesis (chess.com wooden knock: 140Hz -> 45Hz + 550Hz lowpass)
+    // Capture retains the wooden transient and adds a sine sub-impact and metallic resonance.
     createdOscillators.length = 0;
     createdFilters.length = 0;
     solarAudio.playCapture();
-    expect(createdOscillators.length).toBe(1);
+    expect(createdOscillators.length).toBe(3);
     expect(createdOscillators[0].type).toBe('triangle');
     expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(140, 10);
     expect(createdOscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(45, 10.08);
-    expect(createdFilters.length).toBe(1);
+    expect(createdFilters.length).toBe(2);
     expect(createdFilters[0].type).toBe('lowpass');
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(550, 10);
+    expect(createdOscillators[1].type).toBe('sine');
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(140, 10);
+    expect(createdOscillators[1].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(45, 10.12);
+    expect(createdFilters[1].type).toBe('bandpass');
 
     // Test playCheck synthesis (B4 493.88Hz + D#5 622.25Hz + 1100Hz lowpass + reduced peak gain 0.09)
     createdOscillators.length = 0;

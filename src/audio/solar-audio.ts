@@ -1,4 +1,6 @@
 // Procedural audio engine for Solar Chess using Web Audio API
+import { createSoundThemes, SOUND_THEME_STORAGE_KEY, type SoundThemeId, type SoundTheme, type GameEndSound } from './sound-theme';
+export type { SoundTheme, SoundThemeId, GameEndSound } from './sound-theme';
 
 export interface AmbientChord {
   osc1: number;
@@ -23,6 +25,8 @@ export const AMBIENT_CHORDS: AmbientChord[] = [
 
 function getAudioContextClass(): typeof AudioContext | null {
   if (typeof window === 'undefined') return null;
+  if (typeof process !== 'undefined' && process.versions?.node) return null;
+  if (/jsdom/i.test(window.navigator?.userAgent ?? '')) return null;
   const win = window as unknown as {
     AudioContext?: typeof AudioContext;
     webkitAudioContext?: typeof AudioContext;
@@ -31,6 +35,8 @@ function getAudioContextClass(): typeof AudioContext | null {
 }
 
 export class SolarAudio {
+  private themeId: SoundThemeId = 'cosmic';
+  public readonly themes: Readonly<Record<SoundThemeId, SoundTheme>>;
   private ctx: AudioContext | null = null;
   private isMutedState = false;
   private unlockListenersAttached = false;
@@ -43,15 +49,46 @@ export class SolarAudio {
   } | null = null;
 
   constructor() {
+    this.themes = createSoundThemes({
+      playMove: () => this.playCosmicMove(),
+      playCapture: () => this.playCosmicCapture(),
+      playCheck: () => this.playCosmicCheck(),
+      playGameEnd: (type) => this.playCosmicGameEnd(type),
+    }, () => this.isMutedState ? null : this.ensureContext());
     try {
       if (typeof localStorage !== 'undefined') {
         this.isMutedState = localStorage.getItem('solar_chess_sound_muted') === 'true';
+        this.themeId = localStorage.getItem(SOUND_THEME_STORAGE_KEY) === 'classic' ? 'classic' : 'cosmic';
       }
     } catch {
       this.isMutedState = false;
     }
     this.initUnlockListeners();
   }
+
+  public getSoundTheme(): SoundThemeId {
+    return this.themeId;
+  }
+
+  public setSoundTheme(theme: SoundThemeId): void {
+    if (theme !== 'cosmic' && theme !== 'classic') return;
+    this.themeId = theme;
+    try {
+      localStorage.setItem(SOUND_THEME_STORAGE_KEY, theme);
+    } catch {
+      // Storage may be unavailable in private browsing.
+    }
+    const requested = this.isAmbientRequested;
+    if (theme === 'classic') this.stopMenuAmbient(0);
+    this.isAmbientRequested = requested;
+    if (theme === 'cosmic' && requested) this.startMenuAmbient();
+  }
+
+  public playMove(): void { this.themes[this.themeId].playMove(); }
+  public playCapture(): void { this.themes[this.themeId].playCapture(); }
+  public playCheck(): void { this.themes[this.themeId].playCheck(); }
+  public playGameEnd(type: GameEndSound): void { this.themes[this.themeId].playGameEnd(type); }
+  public playCheckmate(): void { this.playGameEnd('loss'); }
 
   public initUnlockListeners(): void {
     if (typeof window === 'undefined' || this.unlockListenersAttached) return;
@@ -265,7 +302,7 @@ export class SolarAudio {
    * 4. Master ambient gain: ramps from 0.0001 to 0.12 over 2.0s.
    */
   private launchAmbientDrone(): void {
-    if (this.ambientNodes || this.isMutedState) return;
+    if (this.ambientNodes || this.isMutedState || this.themeId !== 'cosmic') return;
     const ctx = this.ensureContext();
     if (!ctx || ctx.state !== 'running') return;
 
@@ -446,6 +483,7 @@ export class SolarAudio {
    * passed through a bandpass filter (center 580Hz, Q=1.5), with delicate volume ~0.09.
    */
   public playPremove(): void {
+    if (this.themeId === 'classic') return this.playMove();
     if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -492,7 +530,7 @@ export class SolarAudio {
   /**
    * Soft move click: fast frequency drop 240Hz -> 90Hz in 0.05s via GainNode and OscillatorNode.
    */
-  public playMove(): void {
+  private playCosmicMove(): void {
     if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -520,12 +558,9 @@ export class SolarAudio {
   }
 
   /**
-   * Tactile wooden capture knock (chess.com style):
-   * Low-frequency thud with triangle wave (140Hz -> 45Hz in 0.08s),
-   * warm bone click shaped by a 550Hz lowpass filter,
-   * with a tight, dense gain decay to 0.001 over 0.09s.
+   * Cosmic capture: wooden transient, 120ms sine sub-impact and metallic resonance.
    */
-  public playCapture(): void {
+  private playCosmicCapture(): void {
     if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -554,6 +589,37 @@ export class SolarAudio {
 
       osc.start(now);
       osc.stop(now + duration);
+
+      const sub = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(140, now);
+      sub.frequency.exponentialRampToValueAtTime(45, now + 0.12);
+      subGain.gain.setValueAtTime(0.42, now);
+      subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      sub.connect(subGain);
+      subGain.connect(ctx.destination);
+      sub.start(now);
+      sub.stop(now + 0.12);
+
+      const metal = ctx.createOscillator();
+      const metalFilter = ctx.createBiquadFilter();
+      const metalGain = ctx.createGain();
+      metal.type = 'triangle';
+      metal.frequency.setValueAtTime(1760, now);
+      metalFilter.type = 'bandpass';
+      metalFilter.frequency.setValueAtTime(1760, now);
+      metalFilter.Q.setValueAtTime(6, now);
+      metalGain.gain.setValueAtTime(0.045, now);
+      metalGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      metal.connect(metalFilter);
+      metalFilter.connect(metalGain);
+      metalGain.connect(ctx.destination);
+      metal.start(now);
+      metal.stop(now + 0.09);
+      osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
+      sub.onended = () => { sub.disconnect(); subGain.disconnect(); };
+      metal.onended = () => { metal.disconnect(); metalFilter.disconnect(); metalGain.disconnect(); };
     } catch {
       // Safe fallback on Web Audio API errors
     }
@@ -566,7 +632,7 @@ export class SolarAudio {
    * reduced peak gain (0.09, soft and quiet, non-piercing),
    * smooth warm decay over 0.38s shaped by an 1100Hz lowpass filter.
    */
-  public playCheck(): void {
+  private playCosmicCheck(): void {
     if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -608,7 +674,7 @@ export class SolarAudio {
    * warm triangle oscillators shaped through an 800Hz lowpass filter,
    * soft 0.05s attack with prolonged resonating decay over 1.3s.
    */
-  public playCheckmate(): void {
+  private playCosmicGameEnd(type: GameEndSound): void {
     if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -630,7 +696,8 @@ export class SolarAudio {
       masterGain.connect(ctx.destination);
 
       // Low majestic chord: C3, G3, E4
-      const freqs = [130.81, 196.0, 329.63];
+      const freqs = type === 'win' ? [261.63, 329.63, 392.0]
+        : type === 'draw' ? [196.0, 261.63, 392.0] : [130.81, 196.0, 329.63];
       for (const freq of freqs) {
         const osc = ctx.createOscillator();
         osc.type = 'triangle';
@@ -654,6 +721,7 @@ export class SolarAudio {
    * Master gain: 0.55 connected to destination.
    */
   public playStellar(): void {
+    if (this.themeId === 'classic') return this.playMove();
     if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
