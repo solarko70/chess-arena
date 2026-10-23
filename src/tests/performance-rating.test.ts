@@ -43,7 +43,7 @@ describe('Performance Rating Module (Stage A3.1)', () => {
     expect(res99!).toBeGreaterThanOrEqual(2700);
   });
 
-  it('medium accuracy 70% produces rating in 1000 to 1100 range', () => {
+  it('medium accuracy 70% produces rating in 950 to 1050 range', () => {
     const res70 = estimatePerformanceRating({
       accuracy: 70,
       totalMoves: 15,
@@ -52,8 +52,8 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res70).not.toBeNull();
-    expect(res70!).toBeGreaterThanOrEqual(1000);
-    expect(res70!).toBeLessThanOrEqual(1100);
+    expect(res70!).toBeGreaterThanOrEqual(950);
+    expect(res70!).toBeLessThanOrEqual(1050);
   });
 
   it('low accuracy 35% with multiple blunders gives rating below 800', () => {
@@ -125,7 +125,7 @@ describe('Performance Rating Module (Stage A3.1)', () => {
     expect(m1).toBeGreaterThan(m2);
   });
 
-  it('rates 86.9% accuracy with 2 blunders and 2 mistakes in 1150-1300 range', () => {
+  it('rates 86.9% accuracy with 2 blunders and 2 mistakes in 1350-1550 range', () => {
     const res = estimatePerformanceRating({
       accuracy: 86.9,
       totalMoves: 20,
@@ -135,12 +135,12 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res).not.toBeNull();
-    expect(res!).toBe(1200);
-    expect(res!).toBeGreaterThanOrEqual(1150);
-    expect(res!).toBeLessThanOrEqual(1300);
+    expect(res!).toBe(1460);
+    expect(res!).toBeGreaterThanOrEqual(1350);
+    expect(res!).toBeLessThanOrEqual(1550);
   });
 
-  it('rates 92.6% accuracy with 0 blunders in 1800-1950 range', () => {
+  it('rates 92.6% accuracy with 0 blunders in 2150-2250 range', () => {
     const res = estimatePerformanceRating({
       accuracy: 92.6,
       totalMoves: 20,
@@ -150,9 +150,9 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res).not.toBeNull();
-    expect(res!).toBe(1880);
-    expect(res!).toBeGreaterThanOrEqual(1800);
-    expect(res!).toBeLessThanOrEqual(1950);
+    expect(res!).toBe(2200);
+    expect(res!).toBeGreaterThanOrEqual(2150);
+    expect(res!).toBeLessThanOrEqual(2250);
   });
 
   it('inaccuracy penalty strictly decreases rating by 15 Elo per inaccuracy', () => {

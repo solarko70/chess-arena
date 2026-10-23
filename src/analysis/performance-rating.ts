@@ -3,39 +3,47 @@
  * Calibrated against typical player Elo ratings in the range [180, 2900].
  */
 
+import { computeMoveWinChancePenalty } from './winchance';
+
+export interface MovePerformanceInfo {
+  winBefore?: number;
+  winAfter?: number;
+  class?: string;
+  color?: 'white' | 'black';
+}
+
 export interface PerformanceRatingParams {
   accuracy: number;
   totalMoves: number;
-  blunderCount: number;
+  blunderCount?: number;
   missedCount?: number;
   mistakeCount?: number;
   inaccuracyCount?: number;
+  moves?: readonly MovePerformanceInfo[];
   isWin: boolean;
   isDraw: boolean;
 }
 
 /**
- * Accuracy to base Elo calibration anchor points (Stage 8d strict calibration).
- * High accuracy (95%+) requires flawless play to reach 2200-2550+.
- * Intermediate accuracy (90-93%) maps to 1750-1900 Elo.
+ * Accuracy to base Elo calibration anchor points (Stage 8f Chess.com CAPS chart).
+ * Anchored to official CAPS Projected Rating Estimate with comfortable casual smoothing.
  */
 const CALIBRATION: readonly [number, number][] = [
   [0, 180],
   [25, 300],
-  [40, 500],
-  [50, 650],
-  [58, 760],
-  [60, 800],
-  [65, 950],
-  [70, 1050],
-  [75, 1200],
-  [80, 1350],
-  [85, 1500],
-  [90, 1750],
-  [93, 1900],
-  [95, 2200],
-  [98, 2550],
-  [100, 2850],
+  [40, 480],
+  [50, 600],
+  [65, 850],
+  [72.0, 1050],
+  [76.8, 1250],
+  [80.7, 1500],
+  [86.2, 1800],
+  [88.7, 2000],
+  [92.6, 2200],
+  [94.5, 2300],
+  [96.2, 2400],
+  [98.0, 2600],
+  [100.0, 2850],
 ];
 
 export const BLUNDER_PENALTY = 140;
@@ -51,10 +59,11 @@ export function estimatePerformanceRating(params: PerformanceRatingParams): numb
   const {
     accuracy,
     totalMoves,
-    blunderCount,
+    blunderCount = 0,
     missedCount = 0,
     mistakeCount = 0,
     inaccuracyCount = 0,
+    moves,
     isWin,
   } = params;
 
@@ -76,13 +85,46 @@ export function estimatePerformanceRating(params: PerformanceRatingParams): numb
   }
 
   // Adjustments:
-  // Blunders (-140), missed wins (-110), mistakes (-60), and inaccuracies (-15) penalized explicitly.
-  let rating =
-    baseRating -
-    blunderCount * BLUNDER_PENALTY -
-    missedCount * MISSED_PENALTY -
-    mistakeCount * MISTAKE_PENALTY -
-    inaccuracyCount * INACCURACY_PENALTY;
+  // If move-by-move win-chance data is available, compute dynamic context penalties.
+  // Otherwise fall back to count-based penalties with long-game normalization.
+  let totalPenalty = 0;
+  if (moves && moves.some((m) => m.winBefore !== undefined)) {
+    let sumPenalties = 0;
+    for (const m of moves) {
+      sumPenalties += computeMoveWinChancePenalty(m);
+    }
+    if (sumPenalties === 0 && (blunderCount > 0 || missedCount > 0 || mistakeCount > 0 || inaccuracyCount > 0)) {
+      const rawPenalty =
+        blunderCount * BLUNDER_PENALTY +
+        missedCount * MISSED_PENALTY +
+        mistakeCount * MISTAKE_PENALTY +
+        inaccuracyCount * INACCURACY_PENALTY;
+      const normalizer = Math.max(1, Math.sqrt(totalMoves / 20));
+      totalPenalty = rawPenalty / normalizer;
+      if (totalMoves > 20) {
+        totalPenalty = Math.min(280, totalPenalty);
+      }
+    } else {
+      const normalizer = Math.max(1, Math.sqrt(totalMoves / 20));
+      totalPenalty = sumPenalties / normalizer;
+      if (totalMoves > 20) {
+        totalPenalty = Math.min(280, totalPenalty);
+      }
+    }
+  } else {
+    const rawPenalty =
+      blunderCount * BLUNDER_PENALTY +
+      missedCount * MISSED_PENALTY +
+      mistakeCount * MISTAKE_PENALTY +
+      inaccuracyCount * INACCURACY_PENALTY;
+    const normalizer = Math.max(1, Math.sqrt(totalMoves / 20));
+    totalPenalty = rawPenalty / normalizer;
+    if (totalMoves > 20) {
+      totalPenalty = Math.min(280, totalPenalty);
+    }
+  }
+
+  let rating = baseRating - totalPenalty;
 
   // - Bonus of 50 points for victory
   if (isWin) {
@@ -106,12 +148,17 @@ export function getSidePerformanceRating(
       white: { blunder: number; missed?: number; mistake?: number; inaccuracy?: number };
       black: { blunder: number; missed?: number; mistake?: number; inaccuracy?: number };
     };
-    moves: readonly { color: 'white' | 'black' }[];
+    moves: readonly {
+      color: 'white' | 'black';
+      winBefore?: number;
+      winAfter?: number;
+      class?: string;
+    }[];
   },
   side: 'white' | 'black',
   winner: 'white' | 'black' | 'draw' = 'draw',
 ): number | null {
-  const sideMoves = review.moves.filter((m) => m.color === side).length;
+  const sideMoves = review.moves.filter((m) => m.color === side);
   const accuracy = review.accuracy[side];
   const blunderCount = review.counts[side]?.blunder ?? 0;
   const missedCount = review.counts[side]?.missed ?? 0;
@@ -122,11 +169,12 @@ export function getSidePerformanceRating(
 
   return estimatePerformanceRating({
     accuracy,
-    totalMoves: sideMoves,
+    totalMoves: sideMoves.length,
     blunderCount,
     missedCount,
     mistakeCount,
     inaccuracyCount,
+    moves: sideMoves,
     isWin,
     isDraw,
   });

@@ -2,6 +2,7 @@
  * Difficulty levels and the AI move picker. No DOM access.
  */
 import type { GameState, Move } from '@/core';
+import { classicalRuleSet, generateLegal } from '@/core';
 import { analyzePosition, type Score } from './api';
 import { MAX_DEPTH } from './search';
 
@@ -270,6 +271,76 @@ export function findBestMove(state: GameState, level: LevelId | LevelConfig, opt
     }
   }
   return pool[pool.length - 1].move;
+}
+
+/**
+ * Detects whether the current execution is running inside a test environment.
+ */
+export function isTestEnvironment(): boolean {
+  if (typeof process !== 'undefined') {
+    if (process.env?.NODE_ENV === 'test' || process.env?.VITEST === 'true') {
+      return true;
+    }
+  }
+  if (typeof globalThis !== 'undefined') {
+    const g = globalThis as Record<string, unknown>;
+    if (g.__vitest_worker__ || g.__vitest_environment__) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export interface BotThinkDelayOptions {
+  rng?: () => number;
+  forceDelay?: number;
+  ignoreTestEnv?: boolean;
+}
+
+/**
+ * Calculates a human-like thinking delay (in ms) before the bot makes a move.
+ * - Test environment: 0 ms (ensures fast and deterministic test suite execution).
+ * - Trivial move (forced reply to check, only 1 legal move, or simple capture with <= 5 legal moves): 1000–1400 ms.
+ * - Complex position (many legal moves >= 25, or >= 15 with check): 2000–2800 ms.
+ * - Standard position: 1500–2800 ms with random variation +/- 300 ms.
+ */
+export function calculateBotThinkDelay(
+  state: GameState,
+  move: Move | null,
+  options: BotThinkDelayOptions = {},
+): number {
+  if (options.forceDelay !== undefined) {
+    return options.forceDelay;
+  }
+  if (!options.ignoreTestEnv && isTestEnvironment()) {
+    return 0;
+  }
+
+  const rng = options.rng ?? Math.random;
+  const legalMoves = generateLegal(state);
+  const inCheck = classicalRuleSet.isInCheck(state, state.turn);
+
+  const isForced = legalMoves.length <= 1;
+  const isUnderCheckFewReplies = inCheck && legalMoves.length <= 2;
+  const isCapture = Boolean(move && state.board.pieces[move.to]);
+  const isTrivial = isForced || isUnderCheckFewReplies || (isCapture && legalMoves.length <= 5);
+
+  if (isTrivial) {
+    // 1000 - 1400 ms: base 1200 ms +/- 200 ms
+    const jitter = (rng() - 0.5) * 400;
+    return Math.max(1000, Math.min(1400, Math.round(1200 + jitter)));
+  }
+
+  const isComplex = legalMoves.length >= 25 || (legalMoves.length >= 15 && inCheck);
+  if (isComplex) {
+    // 2000 - 2800 ms: base 2400 ms +/- 400 ms
+    const jitter = (rng() - 0.5) * 800;
+    return Math.max(2000, Math.min(2800, Math.round(2400 + jitter)));
+  }
+
+  // Standard positions: 1500 - 2800 ms with random variation +/- 300 ms (base ~2150 ms)
+  const jitter = (rng() - 0.5) * 600;
+  return Math.max(1500, Math.min(2800, Math.round(2150 + jitter)));
 }
 
 

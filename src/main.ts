@@ -107,6 +107,9 @@ function getSideLabel(store: ChessStore, sideColor: Color): string {
       return 'Вы';
     }
     const levelName = LEVELS[store.getAILevel()]?.name ?? 'Бот';
+    if (store.isAIThinking()) {
+      return `Компьютер: ${levelName} (думает...)`;
+    }
     return `Компьютер: ${levelName}`;
   }
   return sideColor === 'white' ? 'Белые' : 'Чёрные';

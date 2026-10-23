@@ -612,6 +612,19 @@ export function classifyMove(input: ClassifyMoveInput): ClassifyMoveResult {
     moveClass = 'good';
   }
 
+  // Stage 8f: If player made a tactical slip but still maintains a crushing advantage (+7.00 pawns or winChanceAfter >= 92%),
+  // do not mark as 'blunder' (??) since the win was not thrown away; downgrade to 'mistake' or 'inaccuracy'.
+  const moverEvalAfterCp =
+    input.evalAfter && input.moverColor
+      ? moverScoreCp(input.evalAfter, input.moverColor)
+      : undefined;
+  const holdsCrushingAdvantage =
+    winAfterPct >= 92 || (moverEvalAfterCp !== undefined && moverEvalAfterCp >= 700);
+
+  if (moveClass === 'blunder' && holdsCrushingAdvantage) {
+    moveClass = lossPct < 15 ? 'inaccuracy' : 'mistake';
+  }
+
   // 6. Check for 'missed' (✖!) — Missed win (winBefore >= 75% dropped to <= 55% with loss >= 20%)
   if (
     !walkedIntoMate &&

@@ -3,6 +3,7 @@ export {
   povWinChance,
   scoreToCp,
   computeMateProlongationLoss,
+  computeMoveWinChancePenalty,
   LICHESS_WIN_MULTIPLIER,
   MATE_CP_BASE,
   MATE_CP_STEP,
@@ -112,7 +113,7 @@ export {
   MISTAKE_PENALTY,
   INACCURACY_PENALTY,
 } from './performance-rating';
-export type { PerformanceRatingParams } from './performance-rating';
+export type { PerformanceRatingParams, MovePerformanceInfo } from './performance-rating';
 
 export {
   OPENING_DATABASE,

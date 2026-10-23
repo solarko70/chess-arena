@@ -24,6 +24,7 @@ import {
   type WorkerRequest,
   type WorkerResponse,
   type Score,
+  calculateBotThinkDelay,
 } from '@/ai';
 import {
   runGameReview,
@@ -441,7 +442,11 @@ export class ChessStore {
       this.applyMoveInternal(res.move.from, res.move.to, res.move.promotion ?? 'queen');
     };
 
-    const waitMs = Math.max(0, this.aiMinDelayMs - (res.elapsedMs ?? 0));
+    const targetDelay =
+      this.aiMinDelayMs > 0
+        ? this.aiMinDelayMs
+        : calculateBotThinkDelay(this.state, res.move);
+    const waitMs = Math.max(0, targetDelay - (res.elapsedMs ?? 0));
     if (waitMs > 0) {
       this.aiDelayTimer = setTimeout(finalizeMove, waitMs);
     } else {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { LEVELS, LEVEL_ORDER, findBestMove } from '@/ai';
+import { LEVELS, LEVEL_ORDER, findBestMove, calculateBotThinkDelay, isTestEnvironment } from '@/ai';
 import * as api from '@/ai/api';
 import { MAX_DEPTH } from '@/ai/search';
 import { parseFEN, generateLegal } from '@/core';
@@ -157,5 +157,28 @@ describe('Eight bot difficulties', () => {
     const rng = vi.fn().mockReturnValueOnce(0.05).mockReturnValueOnce(0);
     const move = findBestMove(st, 'candidate', { rng });
     expect(move).toEqual(m2);
+  });
+
+  it('returns 0 ms thinking delay in test environment for instantaneous execution', () => {
+    const st = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    const legal = generateLegal(st);
+    expect(isTestEnvironment()).toBe(true);
+    expect(calculateBotThinkDelay(st, legal[0])).toBe(0);
+  });
+
+  it('calibrates human-like delay bounds for forced and complex positions outside test', () => {
+    const st = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    const legal = generateLegal(st);
+    const normalDelay = calculateBotThinkDelay(st, legal[0], { rng: () => 0.5, ignoreTestEnv: true });
+    expect(normalDelay).toBeGreaterThanOrEqual(1500);
+    expect(normalDelay).toBeLessThanOrEqual(2800);
+
+    // Trivial position with single legal response
+    const forcedSt = parseFEN('k6r/8/8/8/8/6q1/8/6BK w - - 0 1');
+    const forcedMoves = generateLegal(forcedSt);
+    expect(forcedMoves.length).toBe(1);
+    const trivialDelay = calculateBotThinkDelay(forcedSt, forcedMoves[0], { rng: () => 0.5, ignoreTestEnv: true });
+    expect(trivialDelay).toBeGreaterThanOrEqual(1000);
+    expect(trivialDelay).toBeLessThanOrEqual(1400);
   });
 });

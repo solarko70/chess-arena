@@ -14,8 +14,8 @@ import {
 
 describe('Stricter review performance rating', () => {
   it.each([
-    [40, 500], [50, 650], [58, 760], [60, 800], [65, 950],
-    [70, 1050], [75, 1200], [80, 1350], [85, 1500], [90, 1750], [93, 1900], [95, 2200],
+    [40, 480], [50, 600], [65, 850], [72, 1050], [76.8, 1250],
+    [80.7, 1500], [86.2, 1800], [88.7, 2000], [92.6, 2200], [94.5, 2300], [96.2, 2400],
   ])('maps accuracy %s to approximately %s Elo', (accuracy, expected) => {
     expect(estimatePerformanceRating({
       accuracy, totalMoves: 20, blunderCount: 0, isWin: false, isDraw: true,
@@ -24,30 +24,30 @@ describe('Stricter review performance rating', () => {
 
   it('penalizes blunders by 140 Elo and missed wins by 110 Elo for the correct side', () => {
     const review = {
-      accuracy: { white: 75, black: 75 },
+      accuracy: { white: 76.8, black: 76.8 },
       counts: { white: { blunder: 2, missed: 1 }, black: { blunder: 0 } },
       moves: Array.from({ length: 12 }, (_, index) => ({
         color: index % 2 === 0 ? 'white' as const : 'black' as const,
       })),
     }
-    expect(getSidePerformanceRating(review, 'white')).toBe(810)
-    expect(getSidePerformanceRating(review, 'black')).toBe(1200)
-    expect(getSidePerformanceRating(review, 'white', 'white')).toBe(860)
+    expect(getSidePerformanceRating(review, 'white')).toBe(860)
+    expect(getSidePerformanceRating(review, 'black')).toBe(1250)
+    expect(getSidePerformanceRating(review, 'white', 'white')).toBe(910)
   })
 
   it('penalizes mistakes by 60 Elo in performance rating', () => {
     const review = {
-      accuracy: { white: 75, black: 75 },
+      accuracy: { white: 76.8, black: 76.8 },
       counts: { white: { blunder: 0, mistake: 2 }, black: { blunder: 0 } },
       moves: Array.from({ length: 12 }, (_, index) => ({
         color: index % 2 === 0 ? 'white' as const : 'black' as const,
       })),
     }
-    expect(getSidePerformanceRating(review, 'white')).toBe(1080)
-    expect(getSidePerformanceRating(review, 'black')).toBe(1200)
+    expect(getSidePerformanceRating(review, 'white')).toBe(1130)
+    expect(getSidePerformanceRating(review, 'black')).toBe(1250)
   })
 
-  it('rates 86.9% accuracy with 2 blunders and 2 mistakes in 1150-1300 Elo range', () => {
+  it('rates 86.9% accuracy with 2 blunders and 2 mistakes in 1350-1550 Elo range', () => {
     const res = estimatePerformanceRating({
       accuracy: 86.9,
       totalMoves: 20,
@@ -57,12 +57,12 @@ describe('Stricter review performance rating', () => {
       isDraw: false,
     })
     expect(res).not.toBeNull()
-    expect(res!).toBe(1200)
-    expect(res!).toBeGreaterThanOrEqual(1150)
-    expect(res!).toBeLessThanOrEqual(1300)
+    expect(res!).toBe(1460)
+    expect(res!).toBeGreaterThanOrEqual(1350)
+    expect(res!).toBeLessThanOrEqual(1550)
   })
 
-  it('rates 92.6% accuracy with 0 blunders in 1800-1950 Elo range', () => {
+  it('rates 92.6% accuracy with 0 blunders in 2150-2250 Elo range', () => {
     const res = estimatePerformanceRating({
       accuracy: 92.6,
       totalMoves: 20,
@@ -72,9 +72,56 @@ describe('Stricter review performance rating', () => {
       isDraw: false,
     })
     expect(res).not.toBeNull()
-    expect(res!).toBe(1880)
-    expect(res!).toBeGreaterThanOrEqual(1800)
-    expect(res!).toBeLessThanOrEqual(1950)
+    expect(res!).toBe(2200)
+    expect(res!).toBeGreaterThanOrEqual(2150)
+    expect(res!).toBeLessThanOrEqual(2250)
+  })
+
+  it('blunder when ahead +15 to +10 does not drop rating by more than 15 Elo', () => {
+    const base = estimatePerformanceRating({
+      accuracy: 80.7,
+      totalMoves: 20,
+      blunderCount: 0,
+      isWin: false,
+      isDraw: true,
+    })!
+    const moves = [
+      ...Array(19).fill({ winBefore: 50, winAfter: 50, class: 'best' }),
+      { winBefore: 99.6, winAfter: 97.5, class: 'blunder' },
+    ]
+    const ratingWithBlunder = estimatePerformanceRating({
+      accuracy: 80.7,
+      totalMoves: 20,
+      moves,
+      isWin: false,
+      isDraw: true,
+    })!
+    expect(base - ratingWithBlunder).toBeLessThanOrEqual(15)
+  })
+
+  it('70-move game with ~74% accuracy yields rating in 1100-1200 Elo range', () => {
+    const ratingClean = estimatePerformanceRating({
+      accuracy: 74.7,
+      totalMoves: 70,
+      blunderCount: 0,
+      isWin: false,
+      isDraw: true,
+    })
+    expect(ratingClean).not.toBeNull()
+    expect(ratingClean!).toBeGreaterThanOrEqual(1100)
+    expect(ratingClean!).toBeLessThanOrEqual(1200)
+
+    // With 2-3 endgame blunders, long game normalization keeps rating in ~900-1200 range
+    const ratingWithBlunders = estimatePerformanceRating({
+      accuracy: 74.7,
+      totalMoves: 70,
+      blunderCount: 2,
+      isWin: false,
+      isDraw: true,
+    })
+    expect(ratingWithBlunders).not.toBeNull()
+    expect(ratingWithBlunders!).toBeGreaterThanOrEqual(900)
+    expect(ratingWithBlunders!).toBeLessThanOrEqual(1200)
   })
 
   it('implements CAPS accuracy curve and penalizes 4 mistakes + 1 blunder by -380 Elo', () => {
@@ -102,16 +149,16 @@ describe('Stricter review performance rating', () => {
     expect(gameAcc).toBeGreaterThanOrEqual(60)
     expect(gameAcc).toBeLessThanOrEqual(75)
 
-    // 80% accuracy base is 1350 Elo, minus (4*60 + 140) = 380 -> 970 Elo
+    // 80.7% accuracy base is 1500 Elo, minus (4*60 + 140) = 380 -> 1120 Elo
     const rating = estimatePerformanceRating({
-      accuracy: 80,
+      accuracy: 80.7,
       totalMoves: 20,
       blunderCount: 1,
       mistakeCount: 4,
       isWin: false,
       isDraw: false,
     })
-    expect(rating).toBe(970)
+    expect(rating).toBe(1120)
   })
 
   it('renders the new ratings and missed-win penalty in the review panel', () => {
@@ -138,8 +185,8 @@ describe('Stricter review performance rating', () => {
     }
     store.setReviewResult(review)
     store.setReviewMode(true)
-    expect(panel.querySelector('#review-rating-white .rating-value')?.textContent).toBe('~520')
-    expect(panel.querySelector('#review-rating-black .rating-value')?.textContent).toBe('~670')
+    expect(panel.querySelector('#review-rating-white .rating-value')?.textContent).toBe('~490')
+    expect(panel.querySelector('#review-rating-black .rating-value')?.textContent).toBe('~640')
     store.setReviewMode(false)
   })
 })

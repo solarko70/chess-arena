@@ -133,4 +133,15 @@ describe('Stage 8c: Strict mate evaluation & missed wins', () => {
     expect(computeMateProlongationLoss(8, 9)).toBe(0);
     expect(computeMateProlongationLoss(8, 11)).toBeGreaterThanOrEqual(9);
   });
+
+  it('slip maintaining crushing advantage >= +7.00 pawns (winAfter >= 92%) is mistake, not blunder', () => {
+    const res = classifyMove({
+      winBefore: 100,
+      winAfter: 92.5,
+      evalBefore: { type: 'cp', value: 1500 },
+      evalAfter: { type: 'cp', value: 750 },
+      moverColor: 'white',
+    });
+    expect(res.moveClass).not.toBe('blunder');
+  });
 });

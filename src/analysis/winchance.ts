@@ -63,6 +63,50 @@ export function povWinChance(scoreOrCp: number | Score, color: 'white' | 'black'
 }
 
 /**
+ * Computes dynamic Elo penalty for a single move based on win probability impact (Delta WinChance).
+ *
+ * Rules (Stage 8f):
+ * 1. Overwhelming advantage (+15 -> +10, winBefore > 0.95 and winAfter > 0.90, delta < 0.05):
+ *    Symbolic penalty in range [5, 15] Elo.
+ * 2. Game-deciding blunder (delta >= 0.30):
+ *    Full penalty in range [80, 140] Elo.
+ * 3. Normal errors (inaccuracy, mistake):
+ *    Proportional to deltaWinChance (delta * 180).
+ * 4. Best, excellent, stellar, superb, opening moves with delta < 0.05 receive 0 penalty.
+ */
+export function computeMoveWinChancePenalty(move: {
+  winBefore?: number;
+  winAfter?: number;
+  class?: string;
+}): number {
+  if (move.winBefore === undefined || move.winAfter === undefined) {
+    return 0;
+  }
+  const wb = move.winBefore > 1 ? move.winBefore / 100 : move.winBefore;
+  const wa = move.winAfter > 1 ? move.winAfter / 100 : move.winAfter;
+  const delta = Math.max(0, wb - wa);
+
+  const cls = move.class;
+  if (cls && ['best', 'excellent', 'stellar', 'superb', 'good', 'opening'].includes(cls) && delta < 0.05) {
+    return 0;
+  }
+
+  // 1. Blunders in overwhelming winning positions (+15 -> +10)
+  if (wb > 0.95 && wa > 0.90) {
+    return Math.min(15, Math.max(5, Math.round(delta * 200 + 5)));
+  }
+
+  // 2. Game-deciding blunder (delta >= 0.30)
+  if (delta >= 0.30) {
+    const p = 80 + ((delta - 0.30) / 0.70) * 60;
+    return Math.min(140, Math.max(80, Math.round(p)));
+  }
+
+  // 3. Normal errors
+  return Math.round(delta * 180);
+}
+
+/**
  * Compute the virtual win-probability loss (in percentage points [0, 100])
  * when a player prolongs a forced checkmate or drops from forced mate to non-mate.
  *
