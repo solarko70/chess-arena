@@ -166,19 +166,26 @@ describe('Eight bot difficulties', () => {
     expect(calculateBotThinkDelay(st, legal[0])).toBe(0);
   });
 
-  it('calibrates human-like delay bounds for forced and complex positions outside test', () => {
-    const st = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-    const legal = generateLegal(st);
-    const normalDelay = calculateBotThinkDelay(st, legal[0], { rng: () => 0.5, ignoreTestEnv: true });
-    expect(normalDelay).toBeGreaterThanOrEqual(1500);
-    expect(normalDelay).toBeLessThanOrEqual(2800);
-
-    // Trivial position with single legal response
+  it('calibrates snappy 600-1400 ms bot delay bounds for standard and trivial positions', () => {
+    // 1. Trivial forced reply to check: 400-650 ms
     const forcedSt = parseFEN('k6r/8/8/8/8/6q1/8/6BK w - - 0 1');
     const forcedMoves = generateLegal(forcedSt);
     expect(forcedMoves.length).toBe(1);
     const trivialDelay = calculateBotThinkDelay(forcedSt, forcedMoves[0], { rng: () => 0.5, ignoreTestEnv: true });
-    expect(trivialDelay).toBeGreaterThanOrEqual(1000);
-    expect(trivialDelay).toBeLessThanOrEqual(1400);
+    expect(trivialDelay).toBeGreaterThanOrEqual(400);
+    expect(trivialDelay).toBeLessThanOrEqual(650);
+
+    // 2. Standard middlegame move on club level: 700-1300 ms (average ~900-1050 ms)
+    const midSt = parseFEN('r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 6 5');
+    midSt.history = Array(9).fill({ from: 0, to: 0 });
+    const midMoves = generateLegal(midSt);
+    const normalDelay = calculateBotThinkDelay(midSt, midMoves[0], { rng: () => 0.5, ignoreTestEnv: true, level: 'club' });
+    expect(normalDelay).toBeGreaterThanOrEqual(700);
+    expect(normalDelay).toBeLessThanOrEqual(1300);
+
+    // 3. Complex position on Master level: 1300-1700 ms
+    const complexDelay = calculateBotThinkDelay(midSt, midMoves[0], { rng: () => 0.5, ignoreTestEnv: true, level: 'master' });
+    expect(complexDelay).toBeGreaterThanOrEqual(1300);
+    expect(complexDelay).toBeLessThanOrEqual(1700);
   });
 });

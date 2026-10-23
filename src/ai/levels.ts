@@ -295,14 +295,15 @@ export interface BotThinkDelayOptions {
   rng?: () => number;
   forceDelay?: number;
   ignoreTestEnv?: boolean;
+  level?: LevelId;
 }
 
 /**
- * Calculates a human-like thinking delay (in ms) before the bot makes a move.
+ * Calculates a dynamic human-like thinking delay (in ms) before the bot makes a move (Stage 8g).
  * - Test environment: 0 ms (ensures fast and deterministic test suite execution).
- * - Trivial move (forced reply to check, only 1 legal move, or simple capture with <= 5 legal moves): 1000–1400 ms.
- * - Complex position (many legal moves >= 25, or >= 15 with check): 2000–2800 ms.
- * - Standard position: 1500–2800 ms with random variation +/- 300 ms.
+ * - Fast / obvious moves (forced reply to check, single legal move, recapture, queen capture, or opening 1st move): 400–650 ms.
+ * - Complex tactical positions on senior levels (Master, Singularity): 1300–1700 ms.
+ * - Standard moves: 700–1300 ms (average ~900–1050 ms with subtle random variation +/- 150 ms).
  */
 export function calculateBotThinkDelay(
   state: GameState,
@@ -321,26 +322,39 @@ export function calculateBotThinkDelay(
   const inCheck = classicalRuleSet.isInCheck(state, state.turn);
 
   const isForced = legalMoves.length <= 1;
-  const isUnderCheckFewReplies = inCheck && legalMoves.length <= 2;
-  const isCapture = Boolean(move && state.board.pieces[move.to]);
-  const isTrivial = isForced || isUnderCheckFewReplies || (isCapture && legalMoves.length <= 5);
+  const isSingleEscapeFromCheck = inCheck && legalMoves.length <= 2;
+  const isOpeningFirstMove = state.history.length <= 1;
+  const lastMove = state.history.length > 0 ? state.history[state.history.length - 1] : null;
+  const targetPiece = move ? state.board.pieces[move.to] : null;
+  const isCapture = Boolean(targetPiece);
+  const isRecapture = Boolean(move && lastMove && move.to === lastMove.to);
+  const isMajorCapture = Boolean(targetPiece && (targetPiece.type === 'queen' || targetPiece.type === 'rook'));
+
+  const isTrivial =
+    isForced ||
+    isSingleEscapeFromCheck ||
+    isOpeningFirstMove ||
+    isRecapture ||
+    (isCapture && legalMoves.length <= 4) ||
+    (isMajorCapture && legalMoves.length <= 8);
 
   if (isTrivial) {
-    // 1000 - 1400 ms: base 1200 ms +/- 200 ms
-    const jitter = (rng() - 0.5) * 400;
-    return Math.max(1000, Math.min(1400, Math.round(1200 + jitter)));
+    // 400 - 650 ms: base ~525 ms +/- 125 ms
+    const jitter = (rng() - 0.5) * 250;
+    return Math.max(400, Math.min(650, Math.round(525 + jitter)));
   }
 
   const isComplex = legalMoves.length >= 25 || (legalMoves.length >= 15 && inCheck);
-  if (isComplex) {
-    // 2000 - 2800 ms: base 2400 ms +/- 400 ms
-    const jitter = (rng() - 0.5) * 800;
-    return Math.max(2000, Math.min(2800, Math.round(2400 + jitter)));
+  const isSenior = options.level === 'master' || options.level === 'singularity';
+  if (isComplex && (isSenior || options.level === undefined)) {
+    // 1300 - 1700 ms: base ~1500 ms +/- 200 ms
+    const jitter = (rng() - 0.5) * 400;
+    return Math.max(1300, Math.min(1700, Math.round(1500 + jitter)));
   }
 
-  // Standard positions: 1500 - 2800 ms with random variation +/- 300 ms (base ~2150 ms)
-  const jitter = (rng() - 0.5) * 600;
-  return Math.max(1500, Math.min(2800, Math.round(2150 + jitter)));
+  // Standard positions: 700 - 1300 ms (average ~900-1050 ms with +/- 150 ms jitter, base ~975 ms)
+  const jitter = (rng() - 0.5) * 300;
+  return Math.max(700, Math.min(1300, Math.round(975 + jitter)));
 }
 
 

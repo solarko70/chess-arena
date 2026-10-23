@@ -445,7 +445,7 @@ export class ChessStore {
     const targetDelay =
       this.aiMinDelayMs > 0
         ? this.aiMinDelayMs
-        : calculateBotThinkDelay(this.state, res.move);
+        : calculateBotThinkDelay(this.state, res.move, { level: this.aiLevel });
     const waitMs = Math.max(0, targetDelay - (res.elapsedMs ?? 0));
     if (waitMs > 0) {
       this.aiDelayTimer = setTimeout(finalizeMove, waitMs);
