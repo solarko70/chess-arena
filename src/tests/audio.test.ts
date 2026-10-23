@@ -35,6 +35,39 @@ describe('Sound themes', () => {
     expect(new SolarAudio().getSoundTheme()).toBe('cosmic')
   })
 
+  it('previews the requested theme without persisting it and respects mute', () => {
+    const audio = new SolarAudio()
+    audio.setSoundTheme('cosmic')
+    const capture = vi.spyOn(audio.themes.classic, 'playCapture')
+    audio.previewSoundTheme('classic')
+    expect(capture).toHaveBeenCalledOnce()
+    expect(audio.getSoundTheme()).toBe('cosmic')
+    expect(localStorage.getItem(SOUND_THEME_STORAGE_KEY)).toBe('cosmic')
+    audio.setMuted(true)
+    audio.previewSoundTheme('classic')
+    expect(capture).toHaveBeenCalledOnce()
+  })
+
+  it('does not launch the home drone when audio is unlocked on settings', () => {
+    const screens = document.createElement('div')
+    screens.innerHTML = '<div id="screen-home" style="display: none"></div><div id="screen-game"></div><div id="screen-settings" class="active"></div>'
+    document.body.appendChild(screens)
+    const audio = new SolarAudio()
+    const createGain = vi.fn()
+    audio.setContextForTesting({ state: 'running', createGain } as unknown as AudioContext)
+    const wasHomeActive = document.body.classList.contains('home-active')
+    document.body.classList.remove('home-active')
+    try {
+      window.dispatchEvent(new Event('pointerdown'))
+      expect(createGain).not.toHaveBeenCalled()
+      expect(audio.isAmbientPlaying()).toBe(false)
+    } finally {
+      screens.remove()
+      document.body.classList.toggle('home-active', wasHomeActive)
+      audio.setContextForTesting(null)
+    }
+  })
+
   it('uses cosmic for invalid storage and tolerates unavailable storage', () => {
     localStorage.setItem(SOUND_THEME_STORAGE_KEY, 'unknown')
     expect(new SolarAudio().getSoundTheme()).toBe('cosmic')

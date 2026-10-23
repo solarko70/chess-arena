@@ -8,8 +8,9 @@ export class ClockWidget {
   private blackTimerEl!: HTMLElement;
   private selectEl!: HTMLSelectElement;
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private unsubscribe: (() => void) | null = null;
 
-  constructor(container: HTMLElement, store: ChessStore, onTimeout?: (loser: Color) => void) {
+  constructor(container: HTMLElement, store: ChessStore, onTimeout?: (loser: Color) => void, options: { autoTick?: boolean } = {}) {
     this.container = container;
     this.store = store;
 
@@ -41,15 +42,20 @@ export class ClockWidget {
     this.selectEl = this.container.querySelector('#time-control-select') as HTMLSelectElement;
 
     this.initEvents(onTimeout);
-    this.store.subscribe(() => this.render());
+    this.unsubscribe = this.store.subscribe(() => this.render());
 
-    this.intervalId = setInterval(() => {
-      this.store.tickClock();
-      this.render();
-    }, 100);
+    if (options.autoTick !== false) {
+      this.intervalId = setInterval(() => {
+        this.store.tickClock();
+        this.render();
+      }, 100);
+    }
+    this.render();
   }
 
   public destroy(): void {
+    this.unsubscribe?.();
+    this.unsubscribe = null;
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -66,6 +72,7 @@ export class ClockWidget {
 
   public render(): void {
     const mode = this.store.getClockMode();
+    this.selectEl.value = mode;
     const hide = mode === 'none';
 
     for (const id of ['white-clock-box', 'black-clock-box']) {

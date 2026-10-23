@@ -90,6 +90,11 @@ export class SolarAudio {
   public playGameEnd(type: GameEndSound): void { this.themes[this.themeId].playGameEnd(type); }
   public playCheckmate(): void { this.playGameEnd('loss'); }
 
+  public previewSoundTheme(theme: SoundThemeId): void {
+    if (this.isMutedState || (theme !== 'cosmic' && theme !== 'classic')) return;
+    this.themes[theme].playCapture();
+  }
+
   public initUnlockListeners(): void {
     if (typeof window === 'undefined' || this.unlockListenersAttached) return;
     this.unlockListenersAttached = true;
@@ -99,10 +104,11 @@ export class SolarAudio {
     const unlock = () => {
       const ctx = this.ensureContext();
       if (ctx) {
+        const homeScreen = typeof document !== 'undefined' ? document.getElementById('screen-home') : null;
         const isMenuScreen = typeof document !== 'undefined'
           ? (document.body.classList.contains('home-active') ||
-             document.getElementById('screen-home')?.style.display !== 'none' ||
-             !document.getElementById('screen-game')?.classList.contains('active'))
+             (homeScreen ? homeScreen.style.display !== 'none'
+               : !document.getElementById('screen-game')?.classList.contains('active')))
           : true;
 
         const shouldLaunch = (this.isAmbientRequested || isMenuScreen) && !this.isMutedState && !this.ambientNodes;

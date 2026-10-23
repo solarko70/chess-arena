@@ -1,6 +1,15 @@
 import type { AppRoute } from '@/router';
 import { mountSaturnBackground } from './saturn-background';
 
+export function buildSettingsButton(): string {
+  return `<button type="button" class="settings-toggle-btn" id="settings-btn" aria-label="Настройки" title="Настройки">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true" focusable="false">
+      <path d="m9 3-.6 2.2-1.8 1L4.4 6 2.5 9.3l1.6 1.6v2.2l-1.6 1.6L4.4 18l2.2-.2 1.8 1L9 21h6l.6-2.2 1.8-1 2.2.2 1.9-3.3-1.6-1.6v-2.2l1.6-1.6L19.6 6l-2.2.2-1.8-1L15 3Z"/>
+      <circle cx="12" cy="12" r="3.2"/>
+    </svg>
+  </button>`;
+}
+
 export function buildSolarLogo(): string {
   return `<svg class="solar-logo solar-queen-logo logo-queen-piece logo-queen-svg" viewBox="0 0 100 100" fill="none" aria-hidden="true" focusable="false">
     <defs>

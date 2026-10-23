@@ -184,11 +184,13 @@ describe('Solar board juice', () => {
     capturePosition()
     const captured = square(27).querySelector('.piece-wrapper')!
     store.makeMove(36, 27)
-    expect(container.querySelector('.piece-dematerialize')).toBe(captured)
-    expect(captured.closest('.board-effects-layer')?.getAttribute('aria-hidden')).toBe('true')
+    const ghost = container.querySelector('.captured-piece-ghost')!
+    expect(ghost).not.toBe(captured)
+    expect(ghost.innerHTML).toBe(captured.innerHTML)
+    expect(ghost.closest('.board-effects-layer')?.getAttribute('aria-hidden')).toBe('true')
     expect(square(27).querySelectorAll('.piece-wrapper')).toHaveLength(1)
-    captured.dispatchEvent(new Event('animationend'))
-    expect(captured.isConnected).toBe(false)
+    ghost.dispatchEvent(new Event('animationend'))
+    expect(ghost.isConnected).toBe(false)
     expect(container.querySelector('.solar-capture-slot')).toBeNull()
   })
 
@@ -196,7 +198,7 @@ describe('Solar board juice', () => {
     enableLifecycle()
     capturePosition()
     store.makeMove(36, 27)
-    vi.advanceTimersByTime(220)
+    vi.advanceTimersByTime(270)
     expect(container.querySelector('.piece-dematerialize')).toBeNull()
   })
 
@@ -205,20 +207,22 @@ describe('Solar board juice', () => {
     store.loadFEN('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2')
     const captured = square(27).querySelector('.piece-wrapper')!
     store.makeMove(28, 19)
-    expect(container.querySelector('.piece-dematerialize')).toBe(captured)
+    const ghost = container.querySelector('.captured-piece-ghost')!
+    expect(ghost.innerHTML).toBe(captured.innerHTML)
     expect(square(27).querySelector('.piece-wrapper')).toBeNull()
-    vi.advanceTimersByTime(220)
-    expect(captured.isConnected).toBe(false)
+    vi.advanceTimersByTime(270)
+    expect(ghost.isConnected).toBe(false)
   })
 
   it('shocks the checked king and clears both classes and the halo', () => {
     enableLifecycle()
     store.loadFEN('4k3/8/8/8/8/8/R7/6K1 w - - 0 1')
     store.makeMove(48, 52)
-    expect(square(4).classList.contains('solar-king-shock')).toBe(true)
-    expect(square(4).querySelector('.piece-wrapper.solar-king-shock')).not.toBeNull()
-    expect(square(4).querySelector('.solar-king-halo')?.getAttribute('aria-hidden')).toBe('true')
-    vi.advanceTimersByTime(370)
+    expect(square(4).classList.contains('solar-king-shock')).toBe(false)
+    expect(square(4).classList.contains('solar-king-tremor')).toBe(false)
+    expect(square(4).querySelector('.piece[data-piece="k"].solar-king-tremor')).not.toBeNull()
+    expect(square(4).querySelector('.solar-check-halo')?.getAttribute('aria-hidden')).toBe('true')
+    vi.advanceTimersByTime(380)
     expect(container.querySelector('.solar-king-shock')).toBeNull()
     expect(container.querySelector('.solar-king-halo')).toBeNull()
   })
@@ -255,5 +259,56 @@ describe('Solar board juice', () => {
     } finally {
       window.matchMedia = original
     }
+  })
+
+  it('emits six launch and six friction sparks and removes them after the animation', () => {
+    enableLifecycle()
+    store.makeMove(52, 36)
+    const overlay = container.querySelector('#board-fx-overlay')!
+    const launch = overlay.querySelector('.solar-spark-launch')!
+    const impact = overlay.querySelector('.solar-spark-impact')!
+    expect(launch.querySelectorAll('.solar-spark-particle')).toHaveLength(6)
+    expect(impact.querySelectorAll('.solar-spark-particle')).toHaveLength(6)
+    launch.querySelectorAll<HTMLElement>('.solar-spark-particle').forEach((particle) => {
+      expect(particle.getAttribute('aria-hidden')).toBe('true')
+      expect(particle.style.getPropertyValue('--ty')).toMatch(/^-\d+px$/)
+    })
+    impact.lastElementChild!.dispatchEvent(new Event('animationend'))
+    expect(impact.isConnected).toBe(false)
+    vi.advanceTimersByTime(230)
+    expect(overlay.querySelector('.solar-spark-particle')).toBeNull()
+  })
+
+  it('positions the capture ghost using the captured piece bounds before rerender', () => {
+    enableLifecycle()
+    capturePosition()
+    const piece = square(27).querySelector('.piece-wrapper')!
+    vi.spyOn(piece, 'getBoundingClientRect').mockReturnValue(new DOMRect(245, 205, 72, 72))
+    vi.spyOn(container.querySelector('.board-effects-layer')!, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(10, 20, 640, 640))
+    store.makeMove(36, 27)
+    const ghost = container.querySelector<HTMLElement>('.captured-piece-ghost')!
+    const slot = ghost.parentElement!
+    expect([slot.style.left, slot.style.top, slot.style.width, slot.style.height])
+      .toEqual(['235px', '185px', '72px', '72px'])
+    expect(ghost.style.width).toBe('100%')
+  })
+
+  it('keeps a capture ghost alive through a rapid subsequent move', () => {
+    enableLifecycle()
+    capturePosition()
+    store.makeMove(36, 27)
+    const ghost = container.querySelector('.captured-piece-ghost')!
+    vi.advanceTimersByTime(100)
+    store.makeMove(4, 5)
+    expect(ghost.isConnected).toBe(true)
+    vi.advanceTimersByTime(170)
+    expect(ghost.isConnected).toBe(false)
+  })
+
+  it('does not create particles or capture ghosts when motion is disabled', () => {
+    capturePosition()
+    store.makeMove(36, 27)
+    expect(container.querySelector('.solar-spark-particle, .captured-piece-ghost')).toBeNull()
   })
 })

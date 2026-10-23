@@ -19,7 +19,9 @@ import { AnalysisBoardUI, mountAnalysisBoard } from './ui/analysis-board';
 import { LEVELS } from './ai';
 import { getPieceSvg } from './ui/pieces';
 import { buildGameScene, buildReviewScene } from './ui/space-scenes';
-import { buildSolarLogo, disposeSaturnBackground, updateSaturnBackground } from './ui/navigation';
+import { buildSolarLogo, buildSettingsButton, disposeSaturnBackground, updateSaturnBackground } from './ui/navigation';
+import { SettingsUI, applyColorTheme, getColorTheme, restoreColorTheme } from './ui/settings';
+import { ClockWidget } from './ui/clockwidget';
 import type { Color } from './core';
 
 function formatClockMs(ms: number): { text: string; isLow: boolean } {
@@ -95,6 +97,7 @@ let keydownCleanup: (() => void) | null = null;
 let visibilityCleanup: (() => void) | null = null;
 let clickCleanup: (() => void) | null = null;
 let analysisBoardInstance: AnalysisBoardUI | null = null;
+let clockWidgetInstance: ClockWidget | null = null;
 
 export function getRouter(): HashRouter | null {
   return currentRouter;
@@ -120,6 +123,8 @@ export function initApp(): void {
   if (!app) return;
 
   disposeSaturnBackground();
+  clockWidgetInstance?.destroy();
+  clockWidgetInstance = null;
 
   if (analysisBoardInstance) {
     analysisBoardInstance.destroy();
@@ -150,8 +155,10 @@ export function initApp(): void {
 
   document.title = APP_TITLE;
   globalStore.loadSettingsFromStorage();
+  restoreColorTheme();
 
   app.innerHTML = `
+    ${buildSettingsButton()}
     <!-- Fixed Sound Mute Toggle in top-right corner of viewport (left of Theme Toggle) -->
     <button class="sound-toggle-btn" id="sound-btn" aria-label="Звук: включен" title="Звук: включен">
       ${SOUND_ON_ICON}
@@ -305,6 +312,7 @@ export function initApp(): void {
             </button>
           </div>
 
+          <div id="clock-mount"></div>
           <div id="history-mount" class="game-history-mount"></div>
 
           <div class="side-panel-actions">
@@ -352,6 +360,7 @@ export function initApp(): void {
 
     <!-- Screen 3: Analysis Screen (Stage 6b) -->
     <div class="screen screen-analysis" id="screen-analysis" style="display: none;"></div>
+    <div class="screen screen-settings" id="screen-settings" style="display: none;"></div>
   `;
 
   // Fullscreen Solar Game background mounted directly into document.body
@@ -404,6 +413,7 @@ export function initApp(): void {
   };
 
   let isReviewOverlayOpen = false;
+  let settingsUI: SettingsUI | null = null;
 
   // Setup router
   if (currentRouter) {
@@ -413,6 +423,7 @@ export function initApp(): void {
 
   currentRouter = new HashRouter((route: AppRoute) => {
     syncBgAnimState();
+    if (route === 'settings' && isReviewOverlayOpen) closeReviewOverlay(false);
     // Redirect to home if opening game screen without an active game
     if (route === 'game' && !globalStore.isGameActive()) {
       currentRouter?.navigate('home');
@@ -422,12 +433,14 @@ export function initApp(): void {
     const homeScreen = document.getElementById('screen-home');
     const gameScreen = document.getElementById('screen-game');
     const analysisScreen = document.getElementById('screen-analysis');
+    const settingsScreen = document.getElementById('screen-settings');
     const solarBg = document.getElementById('solar-bg');
 
     const isHome = route === 'home';
     const isGame = route === 'game';
     document.body.classList.toggle('home-active', isHome);
     document.body.classList.toggle('game-active', isGame);
+    document.body.classList.toggle('settings-active', route === 'settings');
     updateSaturnBackground(route, app);
 
     if (isHome) {
@@ -459,6 +472,12 @@ export function initApp(): void {
       gameScreen.style.display = isGame && !isReviewOverlayOpen ? 'flex' : 'none';
       gameScreen.classList.toggle('active', isGame);
     }
+    if (settingsScreen) {
+      const isSettings = route === 'settings';
+      settingsScreen.style.display = isSettings ? 'flex' : 'none';
+      settingsScreen.classList.toggle('active', isSettings);
+      if (isSettings) settingsUI?.sync();
+    }
     if (analysisScreen) {
       const isAnalysis = route === 'analysis';
       analysisScreen.style.display = isAnalysis ? 'flex' : 'none';
@@ -479,6 +498,8 @@ export function initApp(): void {
 
   const originalRouterDestroy = currentRouter.destroy.bind(currentRouter);
   currentRouter.destroy = () => {
+    clockWidgetInstance?.destroy();
+    clockWidgetInstance = null;
     if (analysisBoardInstance) {
       analysisBoardInstance.destroy();
       analysisBoardInstance = null;
@@ -537,6 +558,7 @@ export function initApp(): void {
   });
 
   // Mount Board, History, and Review Panel
+  clockWidgetInstance = new ClockWidget(document.getElementById('clock-mount')!, globalStore, undefined, { autoTick: false });
   const boardMount = document.getElementById('board-mount') as HTMLElement;
   new ChessBoardUI(boardMount, globalStore);
 
@@ -760,6 +782,7 @@ export function initApp(): void {
     if (globalStore.isClockActive()) {
       globalStore.tickClock();
       updatePlayerBars();
+      clockWidgetInstance?.render();
     }
   }, 100);
 
@@ -976,9 +999,9 @@ export function initApp(): void {
     }
   });
 
-  let isDark = document.documentElement.getAttribute('data-theme') !== 'light';
   const updateThemeUI = (): void => {
     const themeBtn = document.getElementById('theme-btn');
+    const isDark = getColorTheme() === 'dark';
     if (isDark) {
       document.documentElement.removeAttribute('data-theme');
       if (themeBtn) {
@@ -998,8 +1021,9 @@ export function initApp(): void {
   updateThemeUI();
 
   const toggleTheme = (): void => {
-    isDark = !isDark;
+    applyColorTheme(getColorTheme() === 'dark' ? 'light' : 'dark');
     updateThemeUI();
+    settingsUI?.sync();
   };
 
   document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);
@@ -1026,6 +1050,7 @@ export function initApp(): void {
     const wasMuted = solarAudio.isMuted();
     solarAudio.toggleMute();
     updateSoundUI();
+    settingsUI?.sync();
     if (wasMuted) {
       playButtonClick();
       if (currentRouter?.getRoute() === 'home') {
@@ -1038,6 +1063,7 @@ export function initApp(): void {
   const handleButtonClickSound = (e: MouseEvent): void => {
     const target = e.target;
     if (!(target instanceof Element)) return;
+    if (target.closest('[data-preview-theme]')) return;
 
     // Do NOT play UI button click on move navigation and review elements (chess move sounds play instead)
     const isMoveNav = target.closest(
@@ -1058,6 +1084,7 @@ export function initApp(): void {
   const handleButtonHoverSound = (e: MouseEvent): void => {
     const target = e.target;
     if (!(target instanceof Element)) return;
+    if (target.closest('[data-preview-theme]')) return;
 
     // Do NOT play hover sound on chess board squares, pieces, or board coordinates
     if (target.closest('#board-mount, .board-square, .chess-piece, .square-overlay, .piece-wrapper')) return;
@@ -1092,6 +1119,14 @@ export function initApp(): void {
     document.removeEventListener('mouseover', handleButtonHoverSound);
     document.removeEventListener('mouseenter', handleButtonHoverSound, true);
   };
+  settingsUI = new SettingsUI(document.getElementById('screen-settings')!, {
+    onBack: () => currentRouter?.navigate('home'),
+    onThemeChange: updateThemeUI,
+    onSoundChange: updateSoundUI,
+  });
+  document.getElementById('settings-btn')?.addEventListener('click', () => {
+    currentRouter?.navigate('settings');
+  });
 }
 
 window.addEventListener('DOMContentLoaded', initApp);

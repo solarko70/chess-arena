@@ -92,6 +92,7 @@ export class ChessBoardUI {
   private planningLayerEl: SVGElement
   private effectsLayerEl: HTMLElement
   private effectCleanups = new Set<() => void>()
+  private captureCleanups = new Set<() => void>()
   private clearingEffects = false
   private readonly instantMotion = typeof process !== 'undefined' && process.env?.VITEST === 'true' ||
     /jsdom/i.test(window.navigator.userAgent)
@@ -155,7 +156,7 @@ export class ChessBoardUI {
         </div>
         <div class="board-container">
           <div class="chess-board"></div>
-          <div class="board-effects-layer" aria-hidden="true"></div>
+          <div class="board-effects-layer board-fx-overlay" aria-hidden="true"></div>
           <div class="board-badge-layer" aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; z-index: 5;"></div>
           <svg class="board-arrow-layer" viewBox="0 0 800 800" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; z-index: 4;"></svg>
           <svg class="board-planning-overlay" viewBox="0 0 800 800" aria-hidden="true"></svg>
@@ -166,6 +167,8 @@ export class ChessBoardUI {
 
     this.boardEl = this.container.querySelector('.chess-board') as HTMLElement
     this.effectsLayerEl = this.container.querySelector('.board-effects-layer') as HTMLElement
+    this.effectsLayerEl.id = document.getElementById('board-fx-overlay')
+      ? `board-fx-overlay-${this.planningMarkerId}` : 'board-fx-overlay'
     const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)')
     this.container.querySelector('.board-container')?.setAttribute('data-instant-motion', String(this.instantMotion))
     motionQuery?.addEventListener('change', () => {
@@ -585,7 +588,7 @@ export class ChessBoardUI {
       historyLen > this.lastRenderedHistoryLen && this.lastRenderedViewIndex === null &&
       this.lastRenderedFlipped === flipped ? lastMove : null
     const shock = kingSq !== null && this.lastRenderedFen !== serializeFEN(state)
-    this.clearBoardEffects()
+    this.clearBoardEffects(!!newLiveMove || this.lastRenderedFen === serializeFEN(state) && this.lastRenderedFlipped === flipped)
     if (newLiveMove?.captured) this.dematerializeCapturedPiece(newLiveMove, flipped, width, height)
 
     if (this.lastRenderedFen !== serializeFEN(state) ||
@@ -664,7 +667,8 @@ export class ChessBoardUI {
         // Piece
         if (piece) {
           const pieceEl = document.createElement('div')
-          pieceEl.className = 'piece-wrapper'
+          pieceEl.className = 'piece-wrapper piece'
+          pieceEl.dataset.piece = { king: 'k', queen: 'q', rook: 'r', bishop: 'b', knight: 'n', pawn: 'p' }[piece.type]
           pieceEl.innerHTML = getPieceSvg(piece.type, piece.color)
           sqEl.appendChild(pieceEl)
         }
@@ -688,6 +692,7 @@ export class ChessBoardUI {
     this.renderSolarWings()
     this.renderPlanning()
     if (newLiveMove) {
+      this.animateSparks(newLiveMove.from, 'launch', newLiveMove.to)
       const land = () => this.animateLanding(newLiveMove.to)
       if (newLiveMove.piece.color !== this.store.getPlayerColor() && !this.isDragging) {
         this.animatePieceSlide(newLiveMove.from, newLiveMove.to, flipped, width, height, land, true)
@@ -713,18 +718,24 @@ export class ChessBoardUI {
     return !this.instantMotion && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   }
 
-  private clearBoardEffects(): void {
+  private clearBoardEffects(preserveCaptures = false): void {
     this.clearingEffects = true
     for (const cleanup of [...this.effectCleanups]) cleanup()
-    this.effectsLayerEl.replaceChildren()
+    if (!preserveCaptures) {
+      for (const cleanup of [...this.captureCleanups]) cleanup()
+    }
+    for (const child of [...this.effectsLayerEl.children]) {
+      if (!preserveCaptures || !child.classList.contains('solar-capture-slot')) child.remove()
+    }
     this.clearingEffects = false
   }
 
-  private finishEffect(el: HTMLElement, duration: number, done: () => void, transition = false): void {
+  private finishEffect(el: HTMLElement, duration: number, done: () => void, transition = false, capture = false): void {
     let timer: ReturnType<typeof setTimeout> | undefined
+    const cleanups = capture ? this.captureCleanups : this.effectCleanups
     const eventName = transition ? 'transitionend' : 'animationend'
     const cleanup = () => {
-      if (!this.effectCleanups.delete(cleanup)) return
+      if (!cleanups.delete(cleanup)) return
       if (timer !== undefined) clearTimeout(timer)
       el.removeEventListener(eventName, onEnd)
       done()
@@ -732,7 +743,7 @@ export class ChessBoardUI {
     const onEnd = (event: Event) => {
       if (event.target === el && (!transition || (event as TransitionEvent).propertyName === 'transform')) cleanup()
     }
-    this.effectCleanups.add(cleanup)
+    cleanups.add(cleanup)
     el.addEventListener(eventName, onEnd)
     if (this.animationsEnabled()) timer = setTimeout(cleanup, duration + 30)
     else cleanup()
@@ -763,6 +774,7 @@ export class ChessBoardUI {
       target.classList.remove('solar-piece-land')
       return
     }
+    this.animateSparks(sq, 'impact')
     if (piece) this.finishEffect(piece, 140, () => target.classList.remove('solar-piece-land'))
     const ripple = this.effectElement('solar-landing-ripple')
     target.prepend(ripple)
@@ -774,15 +786,27 @@ export class ChessBoardUI {
     const sq = move.capturedAt ?? move.to
     const piece = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"] .piece-wrapper`)
     if (!piece) return
+    const rect = piece.getBoundingClientRect()
+    const overlayRect = this.effectsLayerEl.getBoundingClientRect()
     const slot = this.effectElement('solar-capture-slot')
     this.positionEffect(slot, sq, flipped, width, height)
-    piece.className = 'piece-wrapper piece-dematerialize'
-    piece.style.transform = ''
-    piece.style.transition = ''
-    piece.setAttribute('aria-hidden', 'true')
-    slot.appendChild(piece)
+    const ghost = piece.cloneNode(true) as HTMLElement
+    ghost.className = 'piece-wrapper piece-dematerialize captured-piece-ghost'
+    ghost.removeAttribute('style')
+    ghost.removeAttribute('id')
+    ghost.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'))
+    ghost.setAttribute('aria-hidden', 'true')
+    if (rect.width > 0 && rect.height > 0) {
+      slot.style.left = `${rect.left - overlayRect.left}px`
+      slot.style.top = `${rect.top - overlayRect.top}px`
+      slot.style.width = `${rect.width}px`
+      slot.style.height = `${rect.height}px`
+      ghost.style.width = '100%'
+      ghost.style.height = '100%'
+    }
+    slot.appendChild(ghost)
     this.effectsLayerEl.appendChild(slot)
-    this.finishEffect(piece, 190, () => slot.remove())
+    this.finishEffect(ghost, 240, () => slot.remove(), false, true)
   }
 
   private animateKingShock(sq: Square): void {
@@ -790,15 +814,36 @@ export class ChessBoardUI {
     const target = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"]`)
     const piece = target?.querySelector<HTMLElement>('.piece-wrapper')
     if (!target || !piece) return
-    target.classList.add('solar-king-shock')
-    piece.classList.add('solar-king-shock')
-    const halo = this.effectElement('solar-king-halo')
+    piece.classList.add('solar-king-shock', 'solar-king-tremor')
+    const halo = this.effectElement('solar-king-halo solar-check-halo')
     target.prepend(halo)
-    this.finishEffect(target, 340, () => {
-      target.classList.remove('solar-king-shock')
-      piece.classList.remove('solar-king-shock')
+    this.finishEffect(piece, 350, () => {
+      piece.classList.remove('solar-king-shock', 'solar-king-tremor')
       halo.remove()
     })
+  }
+
+  private animateSparks(sq: Square, kind: 'launch' | 'impact', toSq = sq): void {
+    if (!this.animationsEnabled()) return
+    const { width, height } = this.store.getState().board
+    const flipped = this.store.isFlipped()
+    const group = this.effectElement(`solar-spark-group solar-spark-${kind}`)
+    this.positionEffect(group, sq, flipped, width, height)
+    const direction = flipped ? -1 : 1
+    const dx = Math.sign(toSq % width - sq % width) * direction
+    const dy = Math.sign(Math.floor(toSq / width) - Math.floor(sq / width)) * direction
+    for (let i = 0; i < 6; i++) {
+      const particle = this.effectElement('solar-spark-particle')
+      const spread = i - 2.5
+      const tx = kind === 'impact' ? spread * 13 : dx * (15 + i * 3) + spread * 5
+      const ty = kind === 'impact' ? -4 - (i % 3) * 5 : -22 - (i % 3) * 8 + dy * 10
+      particle.style.setProperty('--tx', `${tx}px`)
+      particle.style.setProperty('--ty', `${ty}px`)
+      particle.style.setProperty('--spark-color', ['var(--solar-gold, #f59e0b)', '#fff7d6', '#fb923c'][i % 3])
+      group.appendChild(particle)
+    }
+    this.effectsLayerEl.appendChild(group)
+    this.finishEffect(group.lastElementChild as HTMLElement, 200, () => group.remove())
   }
 
   private animateWarpTrail(from: Square, to: Square, flipped: boolean, width: number, height: number): void {

@@ -41,7 +41,8 @@ describe('Stage A2b: New Game Screen & Review Overlay', () => {
     expect(gameScreen.querySelector('#ai-level-select')).toBeNull();
     expect(gameScreen.querySelector('#player-color-select')).toBeNull();
     expect(gameScreen.querySelector('#clock-mode-select')).toBeNull();
-    expect(gameScreen.querySelectorAll('select').length).toBe(0);
+    expect(gameScreen.querySelectorAll('select:not(#time-control-select)').length).toBe(0);
+    expect(gameScreen.querySelector('#clock-mount #time-control-select')).not.toBeNull();
 
     // No start review button or deep toggle on game screen
     expect(gameScreen.querySelector('#btn-start-review')).toBeNull();
