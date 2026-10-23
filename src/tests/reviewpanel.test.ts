@@ -194,6 +194,7 @@ describe('Stricter review performance rating', () => {
 describe('Variation badges and stellar cleanup', () => {
   let store: ChessStore
   let board: HTMLElement
+  let boardUI: ChessBoardUI
   let nav: HTMLElement
   let history: HTMLElement
 
@@ -205,7 +206,7 @@ describe('Variation badges and stellar cleanup', () => {
     history = document.createElement('div')
     const panel = document.createElement('div')
     document.body.append(board, nav, history, panel)
-    new ChessBoardUI(board, store)
+    boardUI = new ChessBoardUI(board, store)
     new ReviewPanelUI(panel, store, { navContainer: nav })
     new HistoryUI(history, store)
     store.makeMove(52, 36)
@@ -281,6 +282,24 @@ describe('Variation badges and stellar cleanup', () => {
     expect(board.querySelector('.stellar-crown')).not.toBeNull()
     nav.querySelector<HTMLButtonElement>('#review-nav-prev')!.click()
     expect(board.querySelector('.stellar-wings, .stellar-crown')).toBeNull()
+  })
+
+  it('plays forward board effects through review buttons, arrow keys and history rows', () => {
+    vi.spyOn(boardUI as unknown as { animationsEnabled(): boolean }, 'animationsEnabled').mockReturnValue(true)
+    expect(() => nav.querySelector<HTMLButtonElement>('#review-nav-next')!.click()).not.toThrow()
+    expect(board.querySelector('.solar-warp-trail[data-to="28"]')).not.toBeNull()
+    vi.advanceTimersByTime(200)
+    expect(board.querySelector('[data-square="28"].solar-piece-land')).not.toBeNull()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(board.querySelector('.solar-warp-trail, .solar-spark-particle, .piece-sliding')).toBeNull()
+    vi.advanceTimersByTime(200)
+    expect(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))).not.toThrow()
+    expect(board.querySelector('.solar-warp-trail[data-to="28"]')).not.toBeNull()
+    nav.querySelector<HTMLButtonElement>('#review-nav-prev')!.click()
+    vi.advanceTimersByTime(200)
+    const rows = history.querySelectorAll<HTMLElement>('.history-move')
+    expect(() => rows[1].click()).not.toThrow()
+    expect(board.querySelector('.solar-warp-trail[data-to="28"]')).not.toBeNull()
   })
 
   it('cleans stellar effects on forward, backward and sideways variation navigation', () => {

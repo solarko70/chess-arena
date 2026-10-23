@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChessStore } from '@/state/store'
 import { ChessBoardUI } from '@/ui/board'
 import { generateLegal } from '@/core'
+import type { GameReviewResult } from '@/analysis'
 
 describe('Right-click board planning', () => {
   let store: ChessStore
@@ -153,6 +154,7 @@ describe('Solar board juice', () => {
   it('adds landing squash and an inaccessible ripple after a player move', () => {
     enableLifecycle()
     store.makeMove(52, 36)
+    vi.advanceTimersByTime(200)
     expect(square(36).classList.contains('solar-piece-land')).toBe(true)
     const ripple = square(36).querySelector('.solar-landing-ripple')!
     expect(ripple.getAttribute('aria-hidden')).toBe('true')
@@ -168,7 +170,7 @@ describe('Solar board juice', () => {
       .mockReturnValue(new DOMRect(0, 0, 640, 640))
     store.makeMove(52, 36)
     store.makeMove(12, 28)
-    const trail = container.querySelector<HTMLElement>('.solar-warp-trail')!
+    const trail = container.querySelector<HTMLElement>('.solar-warp-trail[data-to="28"]')!
     expect(trail.style.width).toBe('160px')
     expect(trail.style.transform).toContain(`rotate(${Math.PI / 2}rad)`)
     expect(square(28).querySelector('.piece-sliding')).not.toBeNull()
@@ -185,6 +187,9 @@ describe('Solar board juice', () => {
     const captured = square(27).querySelector('.piece-wrapper')!
     store.makeMove(36, 27)
     const ghost = container.querySelector('.captured-piece-ghost')!
+    expect(ghost.classList.contains('piece-collapse-singularity')).toBe(true)
+    expect(ghost.parentElement?.querySelector('.solar-singularity-spiral')).not.toBeNull()
+    expect(ghost.parentElement?.querySelector('.solar-singularity-flash')?.getAttribute('aria-hidden')).toBe('true')
     expect(ghost).not.toBe(captured)
     expect(ghost.innerHTML).toBe(captured.innerHTML)
     expect(ghost.closest('.board-effects-layer')?.getAttribute('aria-hidden')).toBe('true')
@@ -266,6 +271,7 @@ describe('Solar board juice', () => {
     store.makeMove(52, 36)
     const overlay = container.querySelector('#board-fx-overlay')!
     const launch = overlay.querySelector('.solar-spark-launch')!
+    vi.advanceTimersByTime(200)
     const impact = overlay.querySelector('.solar-spark-impact')!
     expect(launch.querySelectorAll('.solar-spark-particle')).toHaveLength(6)
     expect(impact.querySelectorAll('.solar-spark-particle')).toHaveLength(6)
@@ -310,5 +316,109 @@ describe('Solar board juice', () => {
     capturePosition()
     store.makeMove(36, 27)
     expect(container.querySelector('.solar-spark-particle, .captured-piece-ghost')).toBeNull()
+  })
+
+  it('gives both colors the same trail, launch sparks and landing impact', () => {
+    enableLifecycle()
+    const sparks = vi.spyOn(board as unknown as { animateSparks(sq: number, kind: string, to?: number): void }, 'animateSparks')
+    store.makeMove(52, 36)
+    expect(container.querySelector('.solar-warp-trail[data-from="52"][data-to="36"]')).not.toBeNull()
+    vi.advanceTimersByTime(200)
+    expect(square(36).classList.contains('solar-piece-land')).toBe(true)
+    store.makeMove(12, 28)
+    expect(container.querySelector('.solar-warp-trail[data-from="12"][data-to="28"]')).not.toBeNull()
+    vi.advanceTimersByTime(200)
+    expect(square(28).classList.contains('solar-piece-land')).toBe(true)
+    expect(sparks).toHaveBeenCalledWith(52, 'launch', 36)
+    expect(sparks).toHaveBeenCalledWith(12, 'launch', 28)
+    expect(sparks).toHaveBeenCalledWith(36, 'impact')
+    expect(sparks).toHaveBeenCalledWith(28, 'impact')
+  })
+
+  it('emits drag-drop feedback without replaying the flight from the source', () => {
+    enableLifecycle()
+    square(52).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    ;(board as unknown as { finishDragAt(target: Element): void }).finishDragAt(square(36))
+    expect(store.getLastMove()?.to).toBe(36)
+    expect(container.querySelector('.solar-warp-trail[data-to="36"]')).not.toBeNull()
+    expect(square(36).querySelector('.piece-sliding')).toBeNull()
+    expect(square(36).classList.contains('solar-piece-land')).toBe(true)
+    expect(container.querySelectorAll('.solar-spark-particle')).toHaveLength(12)
+  })
+
+  it('preserves feedback for the opponent and a synchronously executed premove', () => {
+    enableLifecycle()
+    store.makeMove(52, 36)
+    vi.advanceTimersByTime(400)
+    board.setPremove({ from: 62, to: 45 })
+    store.makeMove(12, 28)
+    expect(store.getLiveState().history).toHaveLength(3)
+    expect(container.querySelector('.solar-warp-trail[data-to="28"]')).not.toBeNull()
+    expect(container.querySelector('.solar-warp-trail[data-to="45"]')).not.toBeNull()
+    vi.advanceTimersByTime(200)
+    expect(square(45).classList.contains('solar-piece-land')).toBe(true)
+  })
+
+  const prepareReview = () => {
+    for (const [from, to] of [[52, 36], [11, 27], [36, 27], [6, 21]]) store.makeMove(from, to)
+    const counts = { stellar: 0, best: 0, excellent: 0, good: 2, inaccuracy: 0, mistake: 0, blunder: 0 }
+    const review: GameReviewResult = {
+      engineName: 'Mock', reanalyzed: 0, accuracy: { white: 100, black: 100 },
+      counts: { white: { ...counts }, black: { ...counts } }, keyMoments: [], evalHistory: [],
+      moves: store.getLiveState().history.map((move, index) => ({
+        move, ply: index + 1, san: ['e4', 'd5', 'exd5', 'Nf6'][index], color: move.piece.color,
+        evalBefore: { type: 'cp', value: 0 }, evalAfter: { type: 'cp', value: 0 },
+        bestMove: move, bestSan: '', winBefore: 50, winAfter: 50, loss: 0, accuracy: 100,
+        class: 'good', onlyMove: false,
+      })),
+    }
+    store.setReviewResult(review)
+    store.setReviewMode(true)
+    store.setViewIndex(1)
+    vi.advanceTimersByTime(400)
+  }
+
+  it('collapses the victim and lands the attacker when stepping forward in review', () => {
+    enableLifecycle()
+    prepareReview()
+    store.setViewIndex(2)
+    expect(container.querySelector('.piece-collapse-singularity')).not.toBeNull()
+    expect(container.querySelector('.solar-warp-trail[data-from="36"][data-to="27"]')).not.toBeNull()
+    vi.advanceTimersByTime(200)
+    expect(square(27).classList.contains('solar-piece-land')).toBe(true)
+    vi.advanceTimersByTime(70)
+    expect(container.querySelector('.solar-capture-slot')).toBeNull()
+  })
+
+  it('snaps backward in review and clears every transient board effect', () => {
+    enableLifecycle()
+    prepareReview()
+    store.setViewIndex(2)
+    store.setViewIndex(1)
+    expect(container.querySelector('.piece-sliding, .solar-piece-land, .piece-collapse-singularity')).toBeNull()
+    expect(container.querySelector('.board-effects-layer')?.childElementCount).toBe(0)
+    vi.advanceTimersByTime(1000)
+    expect(container.querySelector('.board-effects-layer')?.childElementCount).toBe(0)
+  })
+
+  it('reconstructs the captured piece when a review jump skips its previous square', () => {
+    enableLifecycle()
+    prepareReview()
+    store.setViewIndex(0)
+    store.setViewIndex(2)
+    expect(container.querySelector('.piece-collapse-singularity')).not.toBeNull()
+    expect(container.querySelector('.solar-singularity-flash')).not.toBeNull()
+  })
+
+  it('finishes landing after review annotations rerender the same position', () => {
+    enableLifecycle()
+    prepareReview()
+    store.setViewIndex(2)
+    const originalPiece = square(27).querySelector('.piece-wrapper')
+    store.setReviewResult({ ...store.getReviewResult()! })
+    expect(square(27).querySelector('.piece-wrapper')).not.toBe(originalPiece)
+    vi.advanceTimersByTime(200)
+    expect(square(27).classList.contains('solar-piece-land')).toBe(true)
+    expect(container.querySelector('.solar-spark-impact')).not.toBeNull()
   })
 })

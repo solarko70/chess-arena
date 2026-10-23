@@ -92,7 +92,7 @@ export class ChessBoardUI {
   private planningLayerEl: SVGElement
   private effectsLayerEl: HTMLElement
   private effectCleanups = new Set<() => void>()
-  private captureCleanups = new Set<() => void>()
+  private overlayCleanups = new Set<() => void>()
   private clearingEffects = false
   private readonly instantMotion = typeof process !== 'undefined' && process.env?.VITEST === 'true' ||
     /jsdom/i.test(window.navigator.userAgent)
@@ -106,7 +106,7 @@ export class ChessBoardUI {
   private hideBadges = false
 
   // Review move sliding and wings
-  private lastAnimatedViewIndex: number | null = null
+  private lastAnimatedPly: number | null = null
   private lastAnimatedVariationId: string | null = null
   private lastSlideTime = 0
   private isReviewModeWasActive = false
@@ -116,6 +116,7 @@ export class ChessBoardUI {
   // Drag state
   private isDragging = false
   private dragFromSquare: Square | null = null
+  private droppedMove: Pick<Move, 'from' | 'to'> | null = null
   private floatingPieceEl: HTMLElement | null = null
   private isTouching = false
   private lastTouchEndTime = 0
@@ -556,21 +557,6 @@ export class ChessBoardUI {
     }
     this.lastHistoryLength = historyLen
 
-    // Check and execute pending premove when its turn arrives
-    const nextPm = this.store.getPremove()
-    if (nextPm && !isReview && !isViewingHistory && !this.store.isGameOver()) {
-      const pmPiece = liveState.board.pieces[nextPm.from]
-      const isMyTurn = pmPiece && pmPiece.color === liveState.turn
-      const isAiBlocked =
-        this.store.getGameMode() === 'ai' &&
-        (this.store.isAIThinking() || liveState.turn !== this.store.getPlayerColor())
-
-      if (isMyTurn && !isAiBlocked) {
-        const executed = this.store.executeNextPremove()
-        if (executed) return
-      }
-    }
-
     this.clearStellarDecorations()
 
     const state = this.store.getState()
@@ -587,9 +573,12 @@ export class ChessBoardUI {
     const newLiveMove = !isReview && !isViewingHistory && this.lastRenderedHistoryLen >= 0 &&
       historyLen > this.lastRenderedHistoryLen && this.lastRenderedViewIndex === null &&
       this.lastRenderedFlipped === flipped ? lastMove : null
-    const shock = kingSq !== null && this.lastRenderedFen !== serializeFEN(state)
+    const reviewMove = this.getReviewForwardMove()
+    const animatedMove = newLiveMove ?? reviewMove
+    const shock = kingSq !== null && this.lastRenderedFen !== serializeFEN(state) &&
+      (!!animatedMove || this.lastRenderedFen === null)
     this.clearBoardEffects(!!newLiveMove || this.lastRenderedFen === serializeFEN(state) && this.lastRenderedFlipped === flipped)
-    if (newLiveMove?.captured) this.dematerializeCapturedPiece(newLiveMove, flipped, width, height)
+    if (animatedMove?.captured) this.dematerializeCapturedPiece(animatedMove, flipped, width, height)
 
     if (this.lastRenderedFen !== serializeFEN(state) ||
       this.lastRenderedHistoryLen !== historyLen ||
@@ -669,6 +658,7 @@ export class ChessBoardUI {
           const pieceEl = document.createElement('div')
           pieceEl.className = 'piece-wrapper piece'
           pieceEl.dataset.piece = { king: 'k', queen: 'q', rook: 'r', bishop: 'b', knight: 'n', pawn: 'p' }[piece.type]
+          pieceEl.dataset.color = piece.color
           pieceEl.innerHTML = getPieceSvg(piece.type, piece.color)
           sqEl.appendChild(pieceEl)
         }
@@ -688,17 +678,11 @@ export class ChessBoardUI {
     this.renderEvalBar(flipped)
     this.renderBestMoveArrow(flipped)
     this.renderMoveBadge(flipped)
-    this.handleReviewMoveKinematics(flipped, width, height)
     this.renderSolarWings()
     this.renderPlanning()
-    if (newLiveMove) {
-      this.animateSparks(newLiveMove.from, 'launch', newLiveMove.to)
-      const land = () => this.animateLanding(newLiveMove.to)
-      if (newLiveMove.piece.color !== this.store.getPlayerColor() && !this.isDragging) {
-        this.animatePieceSlide(newLiveMove.from, newLiveMove.to, flipped, width, height, land, true)
-      } else {
-        land()
-      }
+    if (animatedMove) {
+      const isDrop = this.droppedMove?.from === animatedMove.from && this.droppedMove.to === animatedMove.to
+      this.animateMoveEffects(animatedMove, flipped, width, height, isDrop, !!reviewMove)
     }
     if (shock && kingSq !== null) this.animateKingShock(kingSq)
 
@@ -712,27 +696,53 @@ export class ChessBoardUI {
     this.lastRenderedPremovesLen = premoves.length
     this.lastRenderedAnalysisKey = this.getAnalysisRenderKey()
     this.lastRenderedReview = this.store.getReviewResult()
+
+    // Render the opponent's move before executing a ready premove so both receive feedback.
+    if (!isReview && !isViewingHistory) this.executeReadyPremove()
+  }
+
+  private executeReadyPremove(): boolean {
+    const nextPm = this.store.getPremove()
+    if (!nextPm || this.store.isGameOver()) return false
+    const state = this.store.getLiveState()
+    const piece = state.board.pieces[nextPm.from]
+    if (!piece || piece.color !== state.turn) return false
+    if (this.store.getGameMode() === 'ai' &&
+      (this.store.isAIThinking() || state.turn !== this.store.getPlayerColor())) return false
+    return this.store.executeNextPremove()
+  }
+
+  private animateMoveEffects(move: Move, flipped: boolean, width: number, height: number, isDrop = false, review = false): void {
+    this.animateSparks(move.from, 'launch', move.to)
+    this.animateWarpTrail(move.from, move.to, flipped, width, height)
+    const landingFen = serializeFEN(this.store.getState())
+    const land = () => {
+      if (serializeFEN(this.store.getState()) === landingFen) this.animateLanding(move.to)
+      else this.animateSparks(move.to, 'impact')
+    }
+    if (isDrop) land()
+    else this.animatePieceSlide(move.from, move.to, flipped, width, height, land, review)
   }
 
   private animationsEnabled(): boolean {
     return !this.instantMotion && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   }
 
-  private clearBoardEffects(preserveCaptures = false): void {
+  private clearBoardEffects(preserveOverlays = false): void {
     this.clearingEffects = true
     for (const cleanup of [...this.effectCleanups]) cleanup()
-    if (!preserveCaptures) {
-      for (const cleanup of [...this.captureCleanups]) cleanup()
+    if (!preserveOverlays) {
+      for (const cleanup of [...this.overlayCleanups]) cleanup()
     }
     for (const child of [...this.effectsLayerEl.children]) {
-      if (!preserveCaptures || !child.classList.contains('solar-capture-slot')) child.remove()
+      if (!preserveOverlays) child.remove()
     }
     this.clearingEffects = false
   }
 
-  private finishEffect(el: HTMLElement, duration: number, done: () => void, transition = false, capture = false): void {
+  private finishEffect(el: HTMLElement, duration: number, done: () => void, transition = false, overlay = false): void {
     let timer: ReturnType<typeof setTimeout> | undefined
-    const cleanups = capture ? this.captureCleanups : this.effectCleanups
+    const cleanups = overlay ? this.overlayCleanups : this.effectCleanups
     const eventName = transition ? 'transitionend' : 'animationend'
     const cleanup = () => {
       if (!cleanups.delete(cleanup)) return
@@ -784,14 +794,21 @@ export class ChessBoardUI {
   private dematerializeCapturedPiece(move: Move, flipped: boolean, width: number, height: number): void {
     if (!this.animationsEnabled()) return
     const sq = move.capturedAt ?? move.to
-    const piece = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"] .piece-wrapper`)
-    if (!piece) return
+    let piece = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"] .piece-wrapper`)
+    const victim = move.captured
+    if (!victim) return
+    const symbol = { king: 'k', queen: 'q', rook: 'r', bishop: 'b', knight: 'n', pawn: 'p' }[victim.type]
+    if (!piece || piece.dataset.piece !== symbol || piece.dataset.color !== victim.color) {
+      // A forward jump can skip the victim's position; rebuild its visual from move metadata.
+      piece = document.createElement('div')
+      piece.innerHTML = getPieceSvg(victim.type, victim.color)
+    }
     const rect = piece.getBoundingClientRect()
     const overlayRect = this.effectsLayerEl.getBoundingClientRect()
     const slot = this.effectElement('solar-capture-slot')
     this.positionEffect(slot, sq, flipped, width, height)
     const ghost = piece.cloneNode(true) as HTMLElement
-    ghost.className = 'piece-wrapper piece-dematerialize captured-piece-ghost'
+    ghost.className = 'piece-wrapper piece-dematerialize captured-piece-ghost piece-collapse-singularity'
     ghost.removeAttribute('style')
     ghost.removeAttribute('id')
     ghost.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'))
@@ -805,6 +822,10 @@ export class ChessBoardUI {
       ghost.style.height = '100%'
     }
     slot.appendChild(ghost)
+    const spiral = this.effectElement('solar-singularity-spiral')
+    spiral.innerHTML = '<svg viewBox="0 0 100 100" fill="none" stroke="#fde68a" stroke-width="2" aria-hidden="true"><path d="M50 50c-12-16 18-28 26-10s-18 42-40 25S22 18 54 13s53 28 33 58"/></svg>'
+    slot.appendChild(spiral)
+    slot.appendChild(this.effectElement('solar-singularity-flash'))
     this.effectsLayerEl.appendChild(slot)
     this.finishEffect(ghost, 240, () => slot.remove(), false, true)
   }
@@ -843,7 +864,7 @@ export class ChessBoardUI {
       group.appendChild(particle)
     }
     this.effectsLayerEl.appendChild(group)
-    this.finishEffect(group.lastElementChild as HTMLElement, 200, () => group.remove())
+    this.finishEffect(group.lastElementChild as HTMLElement, 200, () => group.remove(), false, true)
   }
 
   private animateWarpTrail(from: Square, to: Square, flipped: boolean, width: number, height: number): void {
@@ -855,103 +876,43 @@ export class ChessBoardUI {
     const slot = this.effectElement('solar-trail-slot')
     this.positionEffect(slot, from, flipped, width, height)
     const trail = this.effectElement('solar-warp-trail')
+    trail.dataset.from = String(from)
+    trail.dataset.to = String(to)
     trail.style.width = `${Math.hypot(dx, dy)}px`
     trail.style.transform = `translate3d(0, -50%, 0) rotate(${Math.atan2(dy, dx)}rad)`
     slot.appendChild(trail)
     this.effectsLayerEl.appendChild(slot)
-    this.finishEffect(trail, 240, () => slot.remove())
+    this.finishEffect(trail, 240, () => slot.remove(), false, true)
   }
 
-  private handleReviewMoveKinematics(flipped: boolean, width: number, height: number): void {
-    const isReview = this.store.isReviewMode()
+  private getReviewForwardMove(): Move | null {
     const viewIndex = this.store.getViewIndex()
-    const review = this.store.getReviewResult()
     const activeVar = this.store.getActiveVariationNode()
+    const browsing = this.store.isReviewMode() || this.store.isAllowVariations() || viewIndex !== null
+    const currentPly = activeVar?.ply ?? viewIndex ?? this.store.getLiveState().history.length - 1
+    const previousPly = this.lastAnimatedPly
+    const previousVariation = this.lastAnimatedVariationId
+    const wasBrowsing = this.isReviewModeWasActive
+    this.isReviewModeWasActive = browsing
+    this.lastAnimatedPly = currentPly
+    this.lastAnimatedVariationId = activeVar?.id ?? null
 
-    if (!isReview) {
-      this.lastAnimatedViewIndex = null
-      this.lastAnimatedVariationId = null
-      this.isReviewModeWasActive = false
-      return
-    }
+    // Entering review, stepping backward and selecting the same position are instantaneous.
+    const newBranch = activeVar !== null && activeVar.id !== previousVariation
+    if (!wasBrowsing || previousPly === null || currentPly < previousPly ||
+      (currentPly === previousPly && !newBranch) ||
+      this.lastRenderedFlipped !== this.store.isFlipped()) return null
 
-    // When review mode is first entered, memorize position without sliding
-    if (!this.isReviewModeWasActive) {
-      this.isReviewModeWasActive = true
-      this.lastAnimatedViewIndex = viewIndex
-      this.lastAnimatedVariationId = activeVar ? activeVar.id : null
-      return
-    }
-
-    // Check if active variation changed or was played
-    if (activeVar) {
-      if (activeVar.id !== this.lastAnimatedVariationId) {
-        const prevVarId = this.lastAnimatedVariationId
-        this.lastAnimatedVariationId = activeVar.id
-
-        if (prevVarId) {
-          const prevVar = this.store.findVariationNode(prevVarId)
-          if (prevVar && prevVar.parentId === activeVar.id) {
-            // Step backward 1 move in variation
-            this.animatePieceSlide(prevVar.move.to, prevVar.move.from, flipped, width, height)
-            return
-          }
-        }
-        // Step forward or new variation
-        this.animatePieceSlide(activeVar.move.from, activeVar.move.to, flipped, width, height)
-      }
-      return
-    } else {
-      this.lastAnimatedVariationId = null
-    }
-
-    if (!review || !review.moves || review.moves.length === 0) {
-      this.lastAnimatedViewIndex = null
-      return
-    }
-
-    const prevIndex = this.lastAnimatedViewIndex
-    this.lastAnimatedViewIndex = viewIndex
-
-    // If viewIndex hasn't changed, no animation
-    if (prevIndex === viewIndex) {
-      return
-    }
-
-    // Spam / rapid click protection (< 150ms): snap immediately without animation
+    // Keep rapid main-line scrubbing responsive while allowing newly played variations.
     const now = Date.now()
-    if (this.lastSlideTime > 0 && now - this.lastSlideTime < 150 && now >= this.lastSlideTime) {
+    if (!activeVar && previousVariation === null && this.lastSlideTime > 0 &&
+      now - this.lastSlideTime < 150 && now >= this.lastSlideTime) {
       this.lastSlideTime = now
-      return
+      return null
     }
     this.lastSlideTime = now
-
-    const effectiveCurrent = viewIndex === null ? review.moves.length - 1 : viewIndex
-    const effectivePrev = prevIndex === null ? review.moves.length - 1 : prevIndex
-
-    if (effectiveCurrent === effectivePrev) {
-      return
-    }
-
-    if (effectiveCurrent > effectivePrev) {
-      // Step forward: the move at effectiveCurrent was made
-      const revMove = review.moves[effectiveCurrent]
-      if (revMove && revMove.move) {
-        this.animatePieceSlide(revMove.move.from, revMove.move.to, flipped, width, height)
-      }
-    } else if (effectiveCurrent === effectivePrev - 1) {
-      // Step backward 1 move: the move at effectivePrev was undone
-      const revMove = review.moves[effectivePrev]
-      if (revMove && revMove.move) {
-        this.animatePieceSlide(revMove.move.to, revMove.move.from, flipped, width, height)
-      }
-    } else if (effectiveCurrent >= 0) {
-      // Jumped to a move: animate the move landing
-      const revMove = review.moves[effectiveCurrent]
-      if (revMove && revMove.move) {
-        this.animatePieceSlide(revMove.move.from, revMove.move.to, flipped, width, height)
-      }
-    }
+    return activeVar?.move ?? this.store.getLiveState().history[currentPly] ??
+      this.store.getReviewResult()?.moves[currentPly]?.move ?? null
   }
 
   private animatePieceSlide(
@@ -961,7 +922,7 @@ export class ChessBoardUI {
     width: number,
     height: number,
     onLanding?: () => void,
-    warp = false,
+    review = false,
   ): void {
     const targetSqEl = this.boardEl.querySelector(`[data-square="${toSq}"]`) as HTMLElement | null
     if (!targetSqEl) return
@@ -970,13 +931,12 @@ export class ChessBoardUI {
     if (!pieceEl) return
     if (!this.animationsEnabled()) {
       // Preserve the existing review marker without running motion in tests.
-      if (!onLanding) {
+      if (review) {
         pieceEl.classList.add('piece-sliding')
       }
       onLanding?.()
       return
     }
-    if (warp) this.animateWarpTrail(fromSq, toSq, flipped, width, height)
 
     const fromX = fromSq % width
     const fromY = Math.floor(fromSq / width)
@@ -1013,9 +973,9 @@ export class ChessBoardUI {
     const cleanup = () => {
       pieceEl.classList.remove('piece-sliding')
       pieceEl.style.transform = ''
-      if (pieceEl.isConnected && !this.clearingEffects) onLanding?.()
+      if (!this.clearingEffects) onLanding?.()
     }
-    this.finishEffect(pieceEl, 170, cleanup, true)
+    this.finishEffect(pieceEl, 170, cleanup, true, true)
   }
 
   private clearStellarDecorations(): void {
@@ -1695,7 +1655,12 @@ export class ChessBoardUI {
       if (toSq !== fromSq) {
         const validDests = this.store.getValidDestinationsFor(fromSq)
         if (validDests.includes(toSq)) {
-          this.store.makeMove(fromSq, toSq)
+          this.droppedMove = { from: fromSq, to: toSq }
+          try {
+            this.store.makeMove(fromSq, toSq)
+          } finally {
+            this.droppedMove = null
+          }
           return
         }
       }

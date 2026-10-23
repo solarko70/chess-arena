@@ -757,7 +757,7 @@ body.review-active #app {
 .board-effects-layer {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: var(--z-overlay);
 }
 
 .solar-capture-slot,
@@ -768,7 +768,7 @@ body.review-active #app {
   justify-content: center;
 }
 
-.solar-capture-slot { z-index: 1; }
+.solar-capture-slot { z-index: var(--z-overlay); }
 
 .solar-piece-land > .piece-wrapper {
   transform-origin: 50% 85%;
@@ -811,14 +811,49 @@ body.review-active #app {
   to { opacity: 0; }
 }
 
-.piece-dematerialize {
-  filter: brightness(2.2) drop-shadow(0 0 10px var(--solar-gold));
-  animation: solar-piece-ascend 240ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+.captured-piece-ghost {
+  filter: brightness(2.6) drop-shadow(0 0 12px var(--solar-gold));
 }
 
-@keyframes solar-piece-ascend {
-  from { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-  to { transform: translate3d(0, -24px, 0) scale(0.65); opacity: 0; }
+.piece-collapse-singularity {
+  animation: solar-singularity-collapse 240ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes solar-singularity-collapse {
+  0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 1; }
+  25% { transform: translate3d(0, 0, 0) scale(1.15) rotate(-20deg); opacity: 0.95; }
+  100% { transform: translate3d(0, 0, 0) scale(0.02) rotate(-220deg); opacity: 0; }
+}
+
+.solar-singularity-spiral {
+  position: absolute;
+  inset: 0;
+  animation: solar-singularity-spiral 240ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.solar-singularity-spiral svg { width: 100%; height: 100%; }
+
+@keyframes solar-singularity-spiral {
+  0% { transform: translate3d(0, 0, 0) scale(1.3) rotate(0deg); opacity: 0; }
+  25% { transform: translate3d(0, 0, 0) scale(1.15) rotate(-40deg); opacity: 0.85; }
+  100% { transform: translate3d(0, 0, 0) scale(0.02) rotate(-260deg); opacity: 0; }
+}
+
+.solar-singularity-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18%;
+  height: 18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 15%, #fff7d6 35%, #f59e0b88 65%, transparent 75%);
+  animation: solar-singularity-flash 240ms ease-out forwards;
+}
+
+@keyframes solar-singularity-flash {
+  0% { transform: translate3d(-50%, -50%, 0) scale(0); opacity: 0; }
+  65% { transform: translate3d(-50%, -50%, 0) scale(1.8); opacity: 1; }
+  100% { transform: translate3d(-50%, -50%, 0) scale(0.05); opacity: 0; }
 }
 
 .piece-wrapper.solar-king-tremor {
