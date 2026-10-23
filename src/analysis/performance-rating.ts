@@ -1,6 +1,6 @@
 /**
- * Performance rating estimation based on move accuracy, game outcome, and blunder count.
- * Calibrated against typical player Elo ratings in the range [350, 2900].
+ * Performance rating estimation based on move accuracy, game outcome, and error counts.
+ * Calibrated against typical player Elo ratings in the range [180, 2900].
  */
 
 export interface PerformanceRatingParams {
@@ -8,6 +8,7 @@ export interface PerformanceRatingParams {
   totalMoves: number;
   blunderCount: number;
   missedCount?: number;
+  mistakeCount?: number;
   isWin: boolean;
   isDraw: boolean;
 }
@@ -16,26 +17,43 @@ export interface PerformanceRatingParams {
  * Accuracy to base Elo calibration anchor points.
  */
 const CALIBRATION: readonly [number, number][] = [
-  [0, 350],
-  [25, 430],
+  [0, 180],
+  [25, 360],
   [40, 620],
   [42, 660],
+  [50, 800],
   [58, 920],
-  [60, 960],
+  [60, 950],
+  [70, 1220],
   [75, 1380],
-  [85, 1850],
-  [90, 2200],
-  [92, 2375],
-  [98, 2800],
+  [80, 1520],
+  [85, 1660],
+  [87, 1730],
+  [90, 1950],
+  [92, 2080],
+  [93, 2150],
+  [95, 2380],
+  [98, 2700],
   [100, 2900],
 ];
+
+export const BLUNDER_PENALTY = 125;
+export const MISSED_PENALTY = 100;
+export const MISTAKE_PENALTY = 45;
 
 /**
  * Estimates player performance rating for a game.
  * Returns null if the sample size is too small (< 6 moves for the side).
  */
 export function estimatePerformanceRating(params: PerformanceRatingParams): number | null {
-  const { accuracy, totalMoves, blunderCount, missedCount = 0, isWin } = params;
+  const {
+    accuracy,
+    totalMoves,
+    blunderCount,
+    missedCount = 0,
+    mistakeCount = 0,
+    isWin,
+  } = params;
 
   if (totalMoves < 6) {
     return null;
@@ -55,17 +73,20 @@ export function estimatePerformanceRating(params: PerformanceRatingParams): numb
   }
 
   // Adjustments:
-  // Blunders and missed wins are mutually exclusive review classes.
-  // Penalize both explicitly, including missed wins that are absent from blunderCount.
-  let rating = baseRating - blunderCount * 80 - missedCount * 100;
+  // Blunders, missed wins, and mistakes are penalized explicitly.
+  let rating =
+    baseRating -
+    blunderCount * BLUNDER_PENALTY -
+    missedCount * MISSED_PENALTY -
+    mistakeCount * MISTAKE_PENALTY;
 
   // - Bonus of 50 points for victory
   if (isWin) {
     rating += 50;
   }
 
-  // Clamping to [350, 2900]
-  const clampedRating = Math.max(350, Math.min(2900, rating));
+  // Clamping to [180, 2900] (floor 150-200)
+  const clampedRating = Math.max(180, Math.min(2900, rating));
 
   // Round to nearest multiple of 10
   return Math.round(clampedRating / 10) * 10;
@@ -78,8 +99,8 @@ export function getSidePerformanceRating(
   review: {
     accuracy: { white: number; black: number };
     counts: {
-      white: { blunder: number; missed?: number };
-      black: { blunder: number; missed?: number };
+      white: { blunder: number; missed?: number; mistake?: number };
+      black: { blunder: number; missed?: number; mistake?: number };
     };
     moves: readonly { color: 'white' | 'black' }[];
   },
@@ -89,6 +110,8 @@ export function getSidePerformanceRating(
   const sideMoves = review.moves.filter((m) => m.color === side).length;
   const accuracy = review.accuracy[side];
   const blunderCount = review.counts[side]?.blunder ?? 0;
+  const missedCount = review.counts[side]?.missed ?? 0;
+  const mistakeCount = review.counts[side]?.mistake ?? 0;
   const isWin = winner === side;
   const isDraw = winner === 'draw';
 
@@ -96,7 +119,8 @@ export function getSidePerformanceRating(
     accuracy,
     totalMoves: sideMoves,
     blunderCount,
-    missedCount: review.counts[side]?.missed ?? 0,
+    missedCount,
+    mistakeCount,
     isWin,
     isDraw,
   });

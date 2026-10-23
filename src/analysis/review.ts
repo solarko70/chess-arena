@@ -535,3 +535,13 @@ export async function reviewGame(
     }
   }
 }
+
+export {
+  estimatePerformanceRating,
+  getSidePerformanceRating,
+  formatPerformanceRating,
+  BLUNDER_PENALTY,
+  MISSED_PENALTY,
+  MISTAKE_PENALTY,
+  type PerformanceRatingParams,
+} from './performance-rating';

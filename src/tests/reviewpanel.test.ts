@@ -9,15 +9,15 @@ import { estimatePerformanceRating, getSidePerformanceRating } from '@/analysis'
 
 describe('Stricter review performance rating', () => {
   it.each([
-    [40, 620], [41, 640], [42, 660], [58, 920], [59, 940], [60, 960],
-    [75, 1380], [90, 2200], [92, 2380], [95, 2590],
+    [40, 620], [41, 640], [42, 660], [58, 920], [59, 940], [60, 950],
+    [75, 1380], [90, 1950], [92, 2080], [95, 2380],
   ])('maps accuracy %s to approximately %s Elo', (accuracy, expected) => {
     expect(estimatePerformanceRating({
       accuracy, totalMoves: 20, blunderCount: 0, isWin: false, isDraw: true,
     })).toBe(expected)
   })
 
-  it('penalizes blunders by 80 Elo and missed wins by 100 Elo for the correct side', () => {
+  it('penalizes blunders by 125 Elo and missed wins by 100 Elo for the correct side', () => {
     const review = {
       accuracy: { white: 75, black: 75 },
       counts: { white: { blunder: 2, missed: 1 }, black: { blunder: 0 } },
@@ -25,9 +25,51 @@ describe('Stricter review performance rating', () => {
         color: index % 2 === 0 ? 'white' as const : 'black' as const,
       })),
     }
-    expect(getSidePerformanceRating(review, 'white')).toBe(1120)
+    expect(getSidePerformanceRating(review, 'white')).toBe(1030)
     expect(getSidePerformanceRating(review, 'black')).toBe(1380)
-    expect(getSidePerformanceRating(review, 'white', 'white')).toBe(1170)
+    expect(getSidePerformanceRating(review, 'white', 'white')).toBe(1080)
+  })
+
+  it('penalizes mistakes by 45 Elo in performance rating', () => {
+    const review = {
+      accuracy: { white: 75, black: 75 },
+      counts: { white: { blunder: 0, mistake: 2 }, black: { blunder: 0 } },
+      moves: Array.from({ length: 12 }, (_, index) => ({
+        color: index % 2 === 0 ? 'white' as const : 'black' as const,
+      })),
+    }
+    expect(getSidePerformanceRating(review, 'white')).toBe(1290)
+    expect(getSidePerformanceRating(review, 'black')).toBe(1380)
+  })
+
+  it('rates 86.9% accuracy with 2 blunders and 2 mistakes in 1300-1450 Elo range', () => {
+    const res = estimatePerformanceRating({
+      accuracy: 86.9,
+      totalMoves: 20,
+      blunderCount: 2,
+      mistakeCount: 2,
+      isWin: false,
+      isDraw: false,
+    })
+    expect(res).not.toBeNull()
+    expect(res!).toBe(1390)
+    expect(res!).toBeGreaterThanOrEqual(1300)
+    expect(res!).toBeLessThanOrEqual(1450)
+  })
+
+  it('rates 92.6% accuracy with 0 blunders in 2050-2150 Elo range', () => {
+    const res = estimatePerformanceRating({
+      accuracy: 92.6,
+      totalMoves: 20,
+      blunderCount: 0,
+      mistakeCount: 0,
+      isWin: false,
+      isDraw: false,
+    })
+    expect(res).not.toBeNull()
+    expect(res!).toBe(2120)
+    expect(res!).toBeGreaterThanOrEqual(2050)
+    expect(res!).toBeLessThanOrEqual(2150)
   })
 
   it('renders the new ratings and missed-win penalty in the review panel', () => {

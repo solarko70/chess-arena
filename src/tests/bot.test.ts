@@ -86,4 +86,42 @@ describe('Eight bot difficulties', () => {
     expect(LEVELS.singularity.temperature).toBe(0);
     expect(LEVELS.singularity.blunderChance).toBe(0);
   });
+
+  it('calibrates 400-1500 Elo bots with realistic skillLevel, depth, and blunder profile', () => {
+    expect(LEVELS.novice.skillLevel).toBe(0);
+    expect(LEVELS.novice.depth).toBe(1);
+    expect(LEVELS.novice.blunderChance).toBeGreaterThanOrEqual(0.35);
+    expect(LEVELS.novice.blunderChance).toBeLessThanOrEqual(0.45);
+    expect(LEVELS.novice.topMoves).toBe(4);
+
+    expect(LEVELS.student.skillLevel).toBe(1);
+    expect(LEVELS.student.depth).toBe(2);
+    expect(LEVELS.student.blunderChance).toBeGreaterThanOrEqual(0.20);
+    expect(LEVELS.student.blunderChance).toBeLessThanOrEqual(0.25);
+
+    expect(LEVELS.amateur.skillLevel).toBe(3);
+    expect(LEVELS.amateur.depth).toBe(3);
+    expect(LEVELS.amateur.timeMs).toBeLessThanOrEqual(150);
+    expect(LEVELS.amateur.quiescence).toBe(false);
+
+    expect(LEVELS.club.skillLevel).toBe(5);
+    expect(LEVELS.club.depth).toBeGreaterThanOrEqual(4);
+    expect(LEVELS.club.depth).toBeLessThanOrEqual(5);
+
+    expect(LEVELS.candidate.skillLevel).toBe(8);
+    expect(LEVELS.candidate.depth).toBeGreaterThanOrEqual(7);
+    expect(LEVELS.candidate.depth).toBeLessThanOrEqual(8);
+
+    expect(LEVELS.expert.skillLevel).toBeGreaterThanOrEqual(12);
+    expect(LEVELS.expert.skillLevel).toBeLessThanOrEqual(14);
+    expect(LEVELS.expert.depth).toBeGreaterThanOrEqual(11);
+    expect(LEVELS.expert.depth).toBeLessThanOrEqual(12);
+
+    expect(LEVELS.master.skillLevel).toBeGreaterThanOrEqual(18);
+    expect(LEVELS.master.skillLevel).toBeLessThanOrEqual(19);
+    expect(LEVELS.master.depth).toBeGreaterThanOrEqual(15);
+    expect(LEVELS.master.depth).toBeLessThanOrEqual(16);
+
+    expect(LEVELS.singularity.skillLevel).toBe(20);
+  });
 });

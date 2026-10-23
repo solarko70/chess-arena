@@ -104,6 +104,9 @@ export {
   estimatePerformanceRating,
   getSidePerformanceRating,
   formatPerformanceRating,
+  BLUNDER_PENALTY,
+  MISSED_PENALTY,
+  MISTAKE_PENALTY,
 } from './performance-rating';
 export type { PerformanceRatingParams } from './performance-rating';
 
