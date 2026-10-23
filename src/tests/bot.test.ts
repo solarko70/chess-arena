@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { LEVELS, LEVEL_ORDER, findBestMove } from '@/ai';
 import * as api from '@/ai/api';
 import { MAX_DEPTH } from '@/ai/search';
-import { parseFEN } from '@/core';
+import { parseFEN, generateLegal } from '@/core';
 import { GameSetupModalUI } from '@/ui/setupmodals';
 
 afterEach(() => {
@@ -123,5 +123,39 @@ describe('Eight bot difficulties', () => {
     expect(LEVELS.master.depth).toBeLessThanOrEqual(16);
 
     expect(LEVELS.singularity.skillLevel).toBe(20);
+  });
+
+  it('calibrates suboptimalChance across 400-2700 Elo levels to introduce human-like errors', () => {
+    expect(LEVELS.novice.suboptimalChance).toBe(0.35);
+    expect(LEVELS.student.suboptimalChance).toBe(0.22);
+    expect(LEVELS.amateur.suboptimalChance).toBe(0.18);
+    expect(LEVELS.club.suboptimalChance).toBe(0.12);
+    expect(LEVELS.candidate.suboptimalChance).toBe(0.09);
+    expect(LEVELS.expert.suboptimalChance).toBe(0.05);
+    expect(LEVELS.master.suboptimalChance).toBe(0);
+    expect(LEVELS.singularity.suboptimalChance).toBe(0);
+  });
+
+  it('chooses sub-optimal candidate line when suboptimalChance roll triggers', () => {
+    const st = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    const legal = generateLegal(st);
+    const m1 = legal[0];
+    const m2 = legal[1];
+    const m3 = legal[2];
+    vi.spyOn(api, 'analyzePosition').mockReturnValue({
+      bestMove: m1, score: { type: 'cp', value: 50 }, pv: [m1],
+      lines: [
+        { move: m1, score: { type: 'cp', value: 50 }, pv: [m1], san: '', pvSan: [] },
+        { move: m2, score: { type: 'cp', value: 30 }, pv: [m2], san: '', pvSan: [] },
+        { move: m3, score: { type: 'cp', value: 10 }, pv: [m3], san: '', pvSan: [] },
+      ],
+      depth: 7, nodes: 100, timeMs: 50,
+    });
+    // Candidate bot: blunderChance = 0, suboptimalChance = 0.09, topMoves = 3
+    // 1st rng call (suboptimalChance check): 0.05 < 0.09 -> triggers
+    // 2nd rng call (subIdx pick from lines 1..2): 0 -> 1 + Math.floor(0 * 2) = 1 -> m2
+    const rng = vi.fn().mockReturnValueOnce(0.05).mockReturnValueOnce(0);
+    const move = findBestMove(st, 'candidate', { rng });
+    expect(move).toEqual(m2);
   });
 });

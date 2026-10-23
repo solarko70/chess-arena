@@ -8,7 +8,7 @@ export {
   MATE_CP_STEP,
 } from './winchance';
 
-export { moveAccuracy, gameAccuracy } from './accuracy';
+export { moveAccuracy, gameAccuracy, ACC_BASE_RATE, ACC_QUAD_RATE } from './accuracy';
 
 export {
   THRESHOLDS,
@@ -110,6 +110,7 @@ export {
   BLUNDER_PENALTY,
   MISSED_PENALTY,
   MISTAKE_PENALTY,
+  INACCURACY_PENALTY,
 } from './performance-rating';
 export type { PerformanceRatingParams } from './performance-rating';
 

@@ -1,17 +1,20 @@
 /**
- * Move and game accuracy calculations using the Lichess accuracy formula:
+ * Move and game accuracy calculations calibrated to CAPS / Chess.com standard.
  *
- *   acc = 103.1668 * exp(-0.04354 * winLoss) - 3.1669
+ * Move accuracy from win-probability loss (percentage points [0, 100]):
+ * - 0% loss: 100%
+ * - 3–5% loss (micro-inaccuracy): ~85–90%
+ * - 10% loss (inaccuracy): ~65–75%
+ * - 20% loss (mistake): ~35–45%
+ * - 30%+ loss (blunder): 0–10%
  *
- * Clamped to [0, 100], where `winLoss` is the non-negative loss in win
- * probability percentage points from the perspective of the side that moved.
- * Game accuracy for each side is the average of the arithmetic mean and the
- * harmonic mean of that side's move accuracies.
+ * Modeled via smooth polynomial decay in exponent:
+ *   rate = ACC_BASE_RATE + ACC_QUAD_RATE * winLoss^2
+ *   acc = 100 * exp(-rate * winLoss)
  */
 
-const ACC_SCALE = 103.1668;
-const ACC_DECAY = -0.04354;
-const ACC_OFFSET = -3.1669;
+export const ACC_BASE_RATE = 0.028;
+export const ACC_QUAD_RATE = 0.000055;
 const HARMONIC_FLOOR = 1e-6;
 
 /**
@@ -19,7 +22,8 @@ const HARMONIC_FLOOR = 1e-6;
  */
 export function moveAccuracy(winLoss: number): number {
   if (winLoss <= 0) return 100;
-  const raw = ACC_SCALE * Math.exp(ACC_DECAY * winLoss) + ACC_OFFSET;
+  const rate = ACC_BASE_RATE + ACC_QUAD_RATE * winLoss * winLoss;
+  const raw = 100 * Math.exp(-rate * winLoss);
   return Math.min(100, Math.max(0, raw));
 }
 

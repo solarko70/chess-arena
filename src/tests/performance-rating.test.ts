@@ -20,7 +20,7 @@ describe('Performance Rating Module (Stage A3.1)', () => {
     }
   });
 
-  it('high accuracy 95%+ with 0 blunders gives rating in 2300-2500 range', () => {
+  it('high accuracy 95%+ with 0 blunders gives rating in 2150-2350 range', () => {
     const res95 = estimatePerformanceRating({
       accuracy: 95,
       totalMoves: 12,
@@ -29,8 +29,8 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res95).not.toBeNull();
-    expect(res95!).toBeGreaterThanOrEqual(2300);
-    expect(res95!).toBeLessThanOrEqual(2500);
+    expect(res95!).toBeGreaterThanOrEqual(2150);
+    expect(res95!).toBeLessThanOrEqual(2350);
 
     const res99 = estimatePerformanceRating({
       accuracy: 99,
@@ -43,7 +43,7 @@ describe('Performance Rating Module (Stage A3.1)', () => {
     expect(res99!).toBeGreaterThanOrEqual(2700);
   });
 
-  it('medium accuracy 70% produces rating in 1200 to 1250 range', () => {
+  it('medium accuracy 70% produces rating in 1000 to 1100 range', () => {
     const res70 = estimatePerformanceRating({
       accuracy: 70,
       totalMoves: 15,
@@ -52,8 +52,8 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res70).not.toBeNull();
-    expect(res70!).toBeGreaterThanOrEqual(1200);
-    expect(res70!).toBeLessThanOrEqual(1250);
+    expect(res70!).toBeGreaterThanOrEqual(1000);
+    expect(res70!).toBeLessThanOrEqual(1100);
   });
 
   it('low accuracy 35% with multiple blunders gives rating below 800', () => {
@@ -125,7 +125,7 @@ describe('Performance Rating Module (Stage A3.1)', () => {
     expect(m1).toBeGreaterThan(m2);
   });
 
-  it('rates 86.9% accuracy with 2 blunders and 2 mistakes in 1300-1450 range', () => {
+  it('rates 86.9% accuracy with 2 blunders and 2 mistakes in 1150-1300 range', () => {
     const res = estimatePerformanceRating({
       accuracy: 86.9,
       totalMoves: 20,
@@ -135,12 +135,12 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res).not.toBeNull();
-    expect(res!).toBe(1390);
-    expect(res!).toBeGreaterThanOrEqual(1300);
-    expect(res!).toBeLessThanOrEqual(1450);
+    expect(res!).toBe(1200);
+    expect(res!).toBeGreaterThanOrEqual(1150);
+    expect(res!).toBeLessThanOrEqual(1300);
   });
 
-  it('rates 92.6% accuracy with 0 blunders in 2050-2150 range', () => {
+  it('rates 92.6% accuracy with 0 blunders in 1800-1950 range', () => {
     const res = estimatePerformanceRating({
       accuracy: 92.6,
       totalMoves: 20,
@@ -150,9 +150,31 @@ describe('Performance Rating Module (Stage A3.1)', () => {
       isDraw: false,
     });
     expect(res).not.toBeNull();
-    expect(res!).toBe(2120);
-    expect(res!).toBeGreaterThanOrEqual(2050);
-    expect(res!).toBeLessThanOrEqual(2150);
+    expect(res!).toBe(1880);
+    expect(res!).toBeGreaterThanOrEqual(1800);
+    expect(res!).toBeLessThanOrEqual(1950);
+  });
+
+  it('inaccuracy penalty strictly decreases rating by 15 Elo per inaccuracy', () => {
+    const base = estimatePerformanceRating({
+      accuracy: 80,
+      totalMoves: 15,
+      blunderCount: 0,
+      mistakeCount: 0,
+      inaccuracyCount: 0,
+      isWin: false,
+      isDraw: false,
+    })!;
+    const withInacc = estimatePerformanceRating({
+      accuracy: 80,
+      totalMoves: 15,
+      blunderCount: 0,
+      mistakeCount: 0,
+      inaccuracyCount: 2,
+      isWin: false,
+      isDraw: false,
+    })!;
+    expect(base - withInacc).toBe(30);
   });
 
   it('rating is rounded to tens and clamped to 180-2900 bounds', () => {

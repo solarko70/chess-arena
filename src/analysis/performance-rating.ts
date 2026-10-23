@@ -9,37 +9,39 @@ export interface PerformanceRatingParams {
   blunderCount: number;
   missedCount?: number;
   mistakeCount?: number;
+  inaccuracyCount?: number;
   isWin: boolean;
   isDraw: boolean;
 }
 
 /**
- * Accuracy to base Elo calibration anchor points.
+ * Accuracy to base Elo calibration anchor points (Stage 8d strict calibration).
+ * High accuracy (95%+) requires flawless play to reach 2200-2550+.
+ * Intermediate accuracy (90-93%) maps to 1750-1900 Elo.
  */
 const CALIBRATION: readonly [number, number][] = [
   [0, 180],
-  [25, 360],
-  [40, 620],
-  [42, 660],
-  [50, 800],
-  [58, 920],
-  [60, 950],
-  [70, 1220],
-  [75, 1380],
-  [80, 1520],
-  [85, 1660],
-  [87, 1730],
-  [90, 1950],
-  [92, 2080],
-  [93, 2150],
-  [95, 2380],
-  [98, 2700],
-  [100, 2900],
+  [25, 300],
+  [40, 500],
+  [50, 650],
+  [58, 760],
+  [60, 800],
+  [65, 950],
+  [70, 1050],
+  [75, 1200],
+  [80, 1350],
+  [85, 1500],
+  [90, 1750],
+  [93, 1900],
+  [95, 2200],
+  [98, 2550],
+  [100, 2850],
 ];
 
-export const BLUNDER_PENALTY = 125;
-export const MISSED_PENALTY = 100;
-export const MISTAKE_PENALTY = 45;
+export const BLUNDER_PENALTY = 140;
+export const MISSED_PENALTY = 110;
+export const MISTAKE_PENALTY = 60;
+export const INACCURACY_PENALTY = 15;
 
 /**
  * Estimates player performance rating for a game.
@@ -52,6 +54,7 @@ export function estimatePerformanceRating(params: PerformanceRatingParams): numb
     blunderCount,
     missedCount = 0,
     mistakeCount = 0,
+    inaccuracyCount = 0,
     isWin,
   } = params;
 
@@ -73,12 +76,13 @@ export function estimatePerformanceRating(params: PerformanceRatingParams): numb
   }
 
   // Adjustments:
-  // Blunders, missed wins, and mistakes are penalized explicitly.
+  // Blunders (-140), missed wins (-110), mistakes (-60), and inaccuracies (-15) penalized explicitly.
   let rating =
     baseRating -
     blunderCount * BLUNDER_PENALTY -
     missedCount * MISSED_PENALTY -
-    mistakeCount * MISTAKE_PENALTY;
+    mistakeCount * MISTAKE_PENALTY -
+    inaccuracyCount * INACCURACY_PENALTY;
 
   // - Bonus of 50 points for victory
   if (isWin) {
@@ -99,8 +103,8 @@ export function getSidePerformanceRating(
   review: {
     accuracy: { white: number; black: number };
     counts: {
-      white: { blunder: number; missed?: number; mistake?: number };
-      black: { blunder: number; missed?: number; mistake?: number };
+      white: { blunder: number; missed?: number; mistake?: number; inaccuracy?: number };
+      black: { blunder: number; missed?: number; mistake?: number; inaccuracy?: number };
     };
     moves: readonly { color: 'white' | 'black' }[];
   },
@@ -112,6 +116,7 @@ export function getSidePerformanceRating(
   const blunderCount = review.counts[side]?.blunder ?? 0;
   const missedCount = review.counts[side]?.missed ?? 0;
   const mistakeCount = review.counts[side]?.mistake ?? 0;
+  const inaccuracyCount = review.counts[side]?.inaccuracy ?? 0;
   const isWin = winner === side;
   const isDraw = winner === 'draw';
 
@@ -121,6 +126,7 @@ export function getSidePerformanceRating(
     blunderCount,
     missedCount,
     mistakeCount,
+    inaccuracyCount,
     isWin,
     isDraw,
   });

@@ -27,6 +27,8 @@ export interface LevelConfig {
   temperature: number;
   /** Probability of making a deliberate blunder (picking a weaker move from top-10) */
   blunderChance: number;
+  /** Probability of selecting a sub-optimal move (picking 2nd/3rd line) to simulate human play */
+  suboptimalChance?: number;
   /** Time budget in ms for levels without a node cap; otherwise a UI/clock reference. */
   timeMs: number;
 }
@@ -49,6 +51,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 4,
     temperature: 280,
     blunderChance: 0.40,
+    suboptimalChance: 0.35,
     timeMs: 100,
   },
   student: {
@@ -62,6 +65,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 3,
     temperature: 150,
     blunderChance: 0.22,
+    suboptimalChance: 0.22,
     timeMs: 120,
   },
   amateur: {
@@ -75,6 +79,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 4,
     temperature: 110,
     blunderChance: 0.16,
+    suboptimalChance: 0.18,
     timeMs: 150,
   },
   club: {
@@ -88,6 +93,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 3,
     temperature: 32,
     blunderChance: 0,
+    suboptimalChance: 0.12,
     timeMs: 1000,
   },
   candidate: {
@@ -101,6 +107,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 3,
     temperature: 20,
     blunderChance: 0,
+    suboptimalChance: 0.09,
     timeMs: 1500,
   },
   expert: {
@@ -114,6 +121,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 2,
     temperature: 10,
     blunderChance: 0,
+    suboptimalChance: 0.05,
     timeMs: 2000,
   },
   master: {
@@ -127,6 +135,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 1,
     temperature: 0,
     blunderChance: 0,
+    suboptimalChance: 0,
     timeMs: 3000,
   },
   singularity: {
@@ -140,6 +149,7 @@ export const LEVELS: Record<LevelId, LevelConfig> = {
     topMoves: 1,
     temperature: 0,
     blunderChance: 0,
+    suboptimalChance: 0,
     timeMs: 5000,
   },
 };
@@ -198,7 +208,7 @@ export function findBestMove(state: GameState, level: LevelId | LevelConfig, opt
   });
 
   if (!res.bestMove) return null;
-  if (cfg.temperature <= 0 && cfg.blunderChance <= 0) return res.bestMove;
+  if (cfg.temperature <= 0 && cfg.blunderChance <= 0 && (!cfg.suboptimalChance || cfg.suboptimalChance <= 0)) return res.bestMove;
 
   const whiteToMove = state.turn === 'white';
   const lines = res.lines;
@@ -215,7 +225,7 @@ export function findBestMove(state: GameState, level: LevelId | LevelConfig, opt
   }
 
   // Roll for a deliberate blunder on weaker levels.
-  const isBlunder = lines.length > 1 && rng() < cfg.blunderChance;
+  const isBlunder = lines.length > 1 && cfg.blunderChance > 0 && rng() < cfg.blunderChance;
 
   // Even Novice plays mate in 1 when it exists and a blunder did not trigger
   if (!isBlunder && hasWinningMate && matePlies === 1) {
@@ -228,6 +238,16 @@ export function findBestMove(state: GameState, level: LevelId | LevelConfig, opt
     const count = lines.length - startIdx;
     const idx = startIdx + Math.floor(rng() * count);
     return lines[idx].move;
+  }
+
+  // Roll for sub-optimal move selection (human-like inaccuracy in 2nd/3rd line)
+  const suboptimalChance = cfg.suboptimalChance ?? 0;
+  if (suboptimalChance > 0 && lines.length > 1 && rng() < suboptimalChance) {
+    const poolSize = Math.min(cfg.topMoves, lines.length);
+    if (poolSize > 1) {
+      const subIdx = 1 + Math.floor(rng() * (poolSize - 1));
+      return lines[subIdx].move;
+    }
   }
 
   // Softmax sampling over the top `cfg.topMoves` candidates
