@@ -5,6 +5,8 @@ import { LEVELS, LEVEL_ORDER, findBestMove, calculateBotThinkDelay, isTestEnviro
 import * as api from '@/ai/api';
 import { MAX_DEPTH } from '@/ai/search';
 import { parseFEN, generateLegal } from '@/core';
+import { ChessStore, type TimeControlMode } from '@/state/store';
+import type { WorkerRequest, WorkerResponse } from '@/ai';
 import { GameSetupModalUI } from '@/ui/setupmodals';
 
 afterEach(() => {
@@ -166,26 +168,85 @@ describe('Eight bot difficulties', () => {
     expect(calculateBotThinkDelay(st, legal[0])).toBe(0);
   });
 
-  it('calibrates snappy 600-1400 ms bot delay bounds for standard and trivial positions', () => {
-    // 1. Trivial forced reply to check: 400-650 ms
+  it('keeps untimed bot delays within 700-1200 ms regardless of position or level', () => {
+    // Untimed games use the rapid range even for forced replies.
     const forcedSt = parseFEN('k6r/8/8/8/8/6q1/8/6BK w - - 0 1');
     const forcedMoves = generateLegal(forcedSt);
     expect(forcedMoves.length).toBe(1);
     const trivialDelay = calculateBotThinkDelay(forcedSt, forcedMoves[0], { rng: () => 0.5, ignoreTestEnv: true });
-    expect(trivialDelay).toBeGreaterThanOrEqual(400);
-    expect(trivialDelay).toBeLessThanOrEqual(650);
+    expect(trivialDelay).toBeGreaterThanOrEqual(700);
+    expect(trivialDelay).toBeLessThanOrEqual(1200);
 
-    // 2. Standard middlegame move on club level: 700-1300 ms (average ~900-1050 ms)
+    // Standard and complex positions share the same clock-based range.
     const midSt = parseFEN('r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 6 5');
     midSt.history = Array(9).fill({ from: 0, to: 0 });
     const midMoves = generateLegal(midSt);
     const normalDelay = calculateBotThinkDelay(midSt, midMoves[0], { rng: () => 0.5, ignoreTestEnv: true, level: 'club' });
     expect(normalDelay).toBeGreaterThanOrEqual(700);
-    expect(normalDelay).toBeLessThanOrEqual(1300);
+    expect(normalDelay).toBeLessThanOrEqual(1200);
 
-    // 3. Complex position on Master level: 1300-1700 ms
     const complexDelay = calculateBotThinkDelay(midSt, midMoves[0], { rng: () => 0.5, ignoreTestEnv: true, level: 'master' });
-    expect(complexDelay).toBeGreaterThanOrEqual(1300);
-    expect(complexDelay).toBeLessThanOrEqual(1700);
+    expect(complexDelay).toBeGreaterThanOrEqual(700);
+    expect(complexDelay).toBeLessThanOrEqual(1200);
+  });
+
+  it.each<[TimeControlMode, number, number, number]>([
+    ['bullet-1-0', 60, 350, 550], ['bullet-1-0', 30, 350, 550],
+    ['bullet-1-0', 29, 200, 350], ['bullet-1-0', 10, 200, 350], ['bullet-1-0', 9, 150, 250],
+    ['blitz-3-2', 180, 500, 800], ['blitz-3-2', 90, 500, 800],
+    ['blitz-3-2', 89, 350, 550], ['blitz-3-2', 15, 350, 550], ['blitz-3-2', 14, 220, 350],
+    ['blitz-5-0', 150, 500, 800], ['blitz-5-0', 149, 350, 550], ['blitz-5-0', 14, 220, 350],
+    ['rapid-10-0', 600, 700, 1200], ['rapid-10-0', 60, 700, 1200],
+    ['rapid-10-0', 59, 400, 600], ['rapid-15-10', 900, 700, 1200],
+    ['rapid-15-10', 59, 400, 600], ['none', 0, 700, 1200],
+  ])('uses clock delay bounds for %s with %s seconds', (timeControl, remainingSeconds, min, max) => {
+    const state = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    for (const random of [0, 0.5, 1]) {
+      expect(calculateBotThinkDelay(state, null, {
+        timeControl, remainingSeconds, rng: () => random, ignoreTestEnv: true,
+      })).toBe(Math.round(min + random * (max - min)));
+      expect(calculateBotThinkDelay(state, null, {
+        timeControl, remainingSeconds, forceDelay: 1000,
+      })).toBe(0);
+    }
+  });
+
+  it('thinks much faster in bullet under 30 seconds than in rapid', () => {
+    const state = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    const bullet = calculateBotThinkDelay(state, null, {
+      timeControl: 'bullet-1-0', remainingSeconds: 29, rng: () => 1, ignoreTestEnv: true,
+    });
+    const rapid = calculateBotThinkDelay(state, null, {
+      timeControl: 'rapid-10-0', remainingSeconds: 600, rng: () => 0, ignoreTestEnv: true,
+    });
+    expect(bullet).toBeLessThanOrEqual(rapid / 2);
+    expect(calculateBotThinkDelay(state, null, { forceDelay: 0, ignoreTestEnv: true })).toBe(150);
+  });
+
+  it('passes the bot clock to the worker and applies test replies without delay', () => {
+    const store = new ChessStore();
+    const postMessage = vi.fn<(message: WorkerRequest) => void>();
+    const worker = {
+      postMessage,
+      onmessage: null as ((ev: MessageEvent<WorkerResponse>) => unknown) | null,
+      onerror: null,
+    };
+    store.setWorkerFactory(() => worker);
+    store.setAIMinDelay(1000);
+    store.setClockMode('bullet-1-0');
+    store.newGame(undefined, { mode: 'ai', playerColor: 'white', level: 'novice' });
+    expect(store.makeMove(52, 36)).toBe(true);
+    const request = postMessage.mock.calls[0][0];
+    expect(request).toMatchObject({ type: 'search', timeControl: 'bullet-1-0' });
+    if (request.type !== 'search') throw new Error('Expected search request');
+    expect(request.remainingSeconds).toBeGreaterThan(59);
+    expect(request.remainingSeconds).toBeLessThanOrEqual(60);
+    const move = generateLegal(request.state)[0];
+    worker.onmessage?.({ data: {
+      type: 'result', id: request.id, move, elapsedMs: 0,
+    } } as MessageEvent<WorkerResponse>);
+    expect(store.getLiveState().history).toHaveLength(2);
+    expect(store.isAIThinking()).toBe(false);
+    store.cancelAISearch();
   });
 });

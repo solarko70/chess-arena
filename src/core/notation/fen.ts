@@ -92,9 +92,11 @@ export function parseFEN(fen: string, width = 8, height = 8): GameState {
     fullMoveNumber,
     history: [],
     positionHistory: [],
+    positionCounts: new Map(),
   };
 
   state.positionHistory = [positionKey(state)];
+  state.positionCounts = new Map([[state.positionHistory[0], 1]]);
   return state;
 }
 

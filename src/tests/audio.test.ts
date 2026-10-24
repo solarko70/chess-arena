@@ -220,6 +220,13 @@ describe('Sound themes', () => {
     expect(oscillators[4].frequency.setValueAtTime).toHaveBeenCalledWith(130, 10.015)
     expect(oscillators[4].start).toHaveBeenCalledWith(10.015)
     expect(oscillators[4].stop).toHaveBeenCalledWith(10.015 + 0.065)
+    expect(oscillators[6].type).toBe('triangle')
+    expect(oscillators[6].frequency.setValueAtTime).toHaveBeenCalledWith(380, 10)
+    expect(oscillators[6].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(160, 10.04)
+    expect(oscillators[6].stop).toHaveBeenCalledWith(10.06)
+    expect(oscillators[7].type).toBe('sine')
+    expect(oscillators[7].frequency.setValueAtTime).toHaveBeenCalledWith(710, 10)
+    expect(oscillators[7].stop).toHaveBeenCalledWith(10.14)
     const bodies = gains.filter((node) => node.gain.linearRampToValueAtTime.mock.calls.length)
     expect(bodies).toHaveLength(8)
     expect(bodies[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.45 * 0.6, 10.001)
@@ -228,7 +235,7 @@ describe('Sound themes', () => {
       const start = node.start.mock.calls[0][0]
       const end = node.stop.mock.calls[0][0]
       expect(end - start).toBeGreaterThanOrEqual(0.05)
-      expect(end - start).toBeLessThanOrEqual(0.0651)
+      expect(end - start).toBeLessThanOrEqual(index === 7 ? 0.1401 : 0.0651)
       expect(bodies[index].gain.setValueAtTime).toHaveBeenCalledWith(0, start)
       expect(bodies[index].gain.linearRampToValueAtTime.mock.calls[0][1]).toBe(start + 0.001)
       expect(bodies[index].gain.exponentialRampToValueAtTime).toHaveBeenCalledWith(0.0001, end)

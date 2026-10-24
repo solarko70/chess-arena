@@ -9,6 +9,7 @@ import {
   moveToSAN,
   parseFEN,
   parsePGN,
+  positionKey,
   serializeFEN,
   type CastlingRights,
   type Color,
@@ -1313,6 +1314,7 @@ export class AnalysisBoardUI {
       fullMoveNumber: 1,
       history: [],
       positionHistory: [],
+      positionCounts: new Map(),
     };
 
     if (isInCheck(tempState.board, nonMovingTurn)) {
@@ -1325,6 +1327,9 @@ export class AnalysisBoardUI {
       ...tempState,
       turn: this.editorTurn,
     };
+    const key = positionKey(finalState);
+    finalState.positionHistory = [key];
+    finalState.positionCounts = new Map([[key, 1]]);
 
     this.store.newGame(finalState);
     this.closeBoardEditor();

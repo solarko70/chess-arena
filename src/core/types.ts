@@ -39,6 +39,7 @@ export interface Move {
   prevEpSquare: Square | null;
   prevHalfmove: number;
   prevPositionHistory: string[];
+  prevPositionCounts?: ReadonlyMap<string, number>;
   // flags
   promotion?: PieceType;
   castling?: 'kingside' | 'queenside';
@@ -55,6 +56,7 @@ export interface GameState {
   fullMoveNumber: number;
   history: Move[];
   positionHistory: string[]; // position key (no counters) for threefold repetition
+  positionCounts: ReadonlyMap<string, number>;
 }
 
 // ── PieceDef (data-driven, no if-chains) ─────────────────────────────────────
@@ -75,6 +77,8 @@ export type GameResultType =
 
 export interface GameResult {
   type: GameResultType;
+  status?: 'draw';
+  reason?: 'threefold-repetition';
   winner?: Color; // only set for checkmate
 }
 

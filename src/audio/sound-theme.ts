@@ -14,7 +14,7 @@ export function createSoundThemes(
   cosmic: SoundTheme,
   getContext: () => AudioContext | null,
 ): Readonly<Record<SoundThemeId, SoundTheme>> {
-  const woodThud = (frequency: number, bodyFrequency: number, duration: number, volume: number, double = false): void => {
+  const woodThud = (frequency: number, bodyFrequency: number, duration: number, volume: number, double = false, check = false): void => {
     const ctx = getContext()
     if (!ctx) return
     try {
@@ -59,19 +59,20 @@ export function createSoundThemes(
         contact.start(start)
         contact.stop(start + contactLength)
         const voices: { type: OscillatorType; start: number; end: number; gain: number }[] = [
-          { type: 'triangle', start: offset === 0 ? frequency : 130, end: double ? 90 : 100, gain: tapVolume * 0.6 },
-          { type: 'sine', start: bodyFrequency, end: bodyFrequency * 0.8, gain: tapVolume * 0.45 },
+          { type: 'triangle', start: offset === 0 ? frequency : 130, end: check ? 160 : double ? 90 : 100, gain: tapVolume * 0.6 },
+          { type: 'sine', start: bodyFrequency, end: check ? bodyFrequency : bodyFrequency * 0.8, gain: tapVolume * 0.45 },
         ]
         for (const voice of voices) {
           const osc = ctx.createOscillator()
           const gain = ctx.createGain()
           osc.type = voice.type
           osc.frequency.setValueAtTime(voice.start, start)
-          osc.frequency.exponentialRampToValueAtTime(voice.end, start + 0.048)
+          osc.frequency.exponentialRampToValueAtTime(voice.end, start + (check ? 0.04 : 0.048))
+          const voiceDuration = check && voice.type === 'triangle' ? 0.06 : duration
           gain.gain.setValueAtTime(0, start)
           gain.gain.linearRampToValueAtTime(voice.gain, start + 0.001)
-          gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
-          gain.gain.setValueAtTime(0, start + duration)
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + voiceDuration)
+          gain.gain.setValueAtTime(0, start + voiceDuration)
           osc.connect(gain)
           gain.connect(filter)
           osc.onended = () => {
@@ -80,7 +81,7 @@ export function createSoundThemes(
             release()
           }
           osc.start(start)
-          osc.stop(start + duration)
+          osc.stop(start + voiceDuration)
         }
       }
     } catch {
@@ -92,7 +93,7 @@ export function createSoundThemes(
     classic: {
       playMove: () => woodThud(240, 120, 0.06, 0.45),
       playCapture: () => woodThud(180, 80, 0.065, 0.6, true),
-      playCheck: () => woodThud(250, 120, 0.065, 0.48),
+      playCheck: () => woodThud(380, 710, 0.14, 0.48, false, true),
       playGameEnd: (type: GameEndSound) => cosmic.playGameEnd(type),
     },
   })

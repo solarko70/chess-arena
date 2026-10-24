@@ -95,7 +95,7 @@ export function applyMove(state: GameState, move: Move): GameState {
   const newTurn: Color = state.turn === 'white' ? 'black' : 'white';
   const newFullmove = state.fullMoveNumber + (state.turn === 'black' ? 1 : 0);
 
-  const newHistory = [...state.history, move];
+  const newHistory = [...state.history, { ...move, prevPositionCounts: state.positionCounts }];
 
   // Temp state to compute position key
   const tempState: GameState = {
@@ -107,10 +107,13 @@ export function applyMove(state: GameState, move: Move): GameState {
     fullMoveNumber: newFullmove,
     history: newHistory,
     positionHistory: [],
+    positionCounts: state.positionCounts,
   };
 
   const currentKey = positionKey(tempState);
   const newPosHistory = isCapture || isPawnMove ? [currentKey] : [...state.positionHistory, currentKey];
+  const positionCounts = new Map(state.positionCounts);
+  positionCounts.set(currentKey, (positionCounts.get(currentKey) ?? 0) + 1);
 
   const next: GameState = {
     board: newBoard,
@@ -121,6 +124,7 @@ export function applyMove(state: GameState, move: Move): GameState {
     fullMoveNumber: newFullmove,
     history: newHistory,
     positionHistory: newPosHistory,
+    positionCounts,
   };
   return next;
 }
@@ -171,5 +175,6 @@ export function undoMove(state: GameState): GameState {
     fullMoveNumber: Math.max(1, prevFullmove),
     history,
     positionHistory: move.prevPositionHistory,
+    positionCounts: move.prevPositionCounts ?? new Map(),
   };
 }

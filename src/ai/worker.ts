@@ -3,6 +3,7 @@
  */
 import type { GameState, Move } from '@/core';
 import { findBestMove, LEVELS, type LevelConfig, type LevelId } from './levels';
+import type { TimeControlMode } from '@/state/clock';
 
 export type WorkerRequest =
   | {
@@ -11,6 +12,8 @@ export type WorkerRequest =
       state: GameState;
       level: LevelId | LevelConfig;
       timeMs?: number;
+      timeControl?: TimeControlMode;
+      remainingSeconds?: number;
     }
   | {
       type: 'cancel';
@@ -58,7 +61,9 @@ export function handleWorkerMessage(
       const baseCfg = typeof msg.level === 'string' ? LEVELS[msg.level] : msg.level;
       const cfg: LevelConfig =
         msg.timeMs !== undefined ? { ...baseCfg, timeMs: msg.timeMs } : baseCfg;
-      const move = findBestMove(msg.state, cfg);
+      const move = findBestMove(msg.state, cfg, {
+        timeMs: msg.timeMs,
+      });
       const elapsedMs = Date.now() - start;
 
       if (msg.id <= cancelledUpToId) return;
@@ -75,21 +80,6 @@ if (typeof self !== 'undefined' && typeof (self as unknown as Worker).postMessag
   self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     const msg = event.data;
     handleWorkerMessage(msg, (res) => {
-      if (msg.type === 'search' && res.type === 'result') {
-        const levelId = typeof msg.level === 'string' ? msg.level : msg.level.id;
-        const isWeakLevel = levelId === 'novice' || levelId === 'student' || levelId === 'amateur' || levelId === 'club';
-        if (isWeakLevel) {
-          const targetDelay = 300 + Math.floor(Math.random() * 301); // 300..600 ms
-          const remaining = targetDelay - res.elapsedMs;
-          if (remaining > 0) {
-            setTimeout(() => {
-              if (msg.id <= cancelledUpToId) return;
-              self.postMessage(res);
-            }, remaining);
-            return;
-          }
-        }
-      }
       self.postMessage(res);
     });
   };

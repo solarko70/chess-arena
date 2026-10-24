@@ -1,0 +1,18 @@
+
+> solar-chess@0.0.0 test
+> node scripts/safe-test.mjs src/tests/audio.test.ts src/tests/bot.test.ts src/tests/game.test.ts
+
+
+ RUN  v2.1.9 C:/Users/MSI/Documents/VS/chess
+
+ ✓ src/tests/audio.test.ts (11 tests) 34ms
+ ✓ src/tests/bot.test.ts (44 tests) 160ms
+ ✓ src/tests/game.test.ts (4 tests) 209ms
+
+ Test Files  3 passed (3)
+      Tests  59 passed (59)
+   Start at  14:48:43
+   Duration  2.78s (transform 322ms, setup 252ms, collect 305ms, tests 403ms, environment 1.26s, prepare 196ms)
+
+
+[WATCHDOG] Прогон завершён (src/tests/game.test.ts) | Время: 3.19 с | Пик памяти: макс. процесс = 137 МБ, суммарно = 260 МБ

@@ -25,6 +25,7 @@ import {
   type WorkerResponse,
   type Score,
   calculateBotThinkDelay,
+  isTestEnvironment,
 } from '@/ai';
 import {
   runGameReview,
@@ -442,10 +443,12 @@ export class ChessStore {
       this.applyMoveInternal(res.move.from, res.move.to, res.move.promotion ?? 'queen');
     };
 
-    const targetDelay =
-      this.aiMinDelayMs > 0
-        ? this.aiMinDelayMs
-        : calculateBotThinkDelay(this.state, res.move, { level: this.aiLevel });
+    const targetDelay = calculateBotThinkDelay(this.state, res.move, {
+      level: this.aiLevel,
+      timeControl: this.clockMode,
+      remainingSeconds: this.clockMode === 'none' ? undefined : this.getTime(this.state.turn) / 1000,
+      forceDelay: this.aiMinDelayMs > 0 ? this.aiMinDelayMs : undefined,
+    });
     const waitMs = Math.max(0, targetDelay - (res.elapsedMs ?? 0));
     if (waitMs > 0) {
       this.aiDelayTimer = setTimeout(finalizeMove, waitMs);
@@ -468,7 +471,11 @@ export class ChessStore {
     this.notify();
 
     const cfg = LEVELS[this.aiLevel];
-    let timeMs = cfg.timeMs;
+    const remainingSeconds = this.clockMode === 'none' ? undefined : this.getTime(this.state.turn) / 1000;
+    const thinkBudget = calculateBotThinkDelay(this.state, null, {
+      timeControl: this.clockMode, remainingSeconds,
+    });
+    let timeMs = isTestEnvironment() ? cfg.timeMs : Math.min(cfg.timeMs, thinkBudget);
     if (this.clockMode !== 'none') {
       const remaining = this.getTime(this.state.turn);
       if (remaining <= 0) {
@@ -476,7 +483,7 @@ export class ChessStore {
         this.notify();
         return;
       }
-      timeMs = Math.min(cfg.timeMs, Math.max(50, Math.floor(remaining * 0.8)));
+      timeMs = Math.min(timeMs, Math.max(50, Math.floor(remaining * 0.8)));
     }
 
     try {
@@ -487,6 +494,8 @@ export class ChessStore {
         state: this.state,
         level: this.aiLevel,
         timeMs,
+        timeControl: this.clockMode,
+        remainingSeconds,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'не удалось запустить поиск';

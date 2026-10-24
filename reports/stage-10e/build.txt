@@ -1,0 +1,19 @@
+
+> solar-chess@0.0.0 prebuild
+> node scripts/copy-stockfish.mjs
+
+
+> solar-chess@0.0.0 build
+> tsc && vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 56 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.25 kB │ gzip:  0.62 kB
+dist/assets/worker-4yXnUgwI.js   30.79 kB
+dist/assets/worker-Bu2Fyh9x.js   78.60 kB
+dist/assets/index-GJqKtt4q.css  130.51 kB │ gzip: 23.66 kB
+dist/assets/index-CvTg1IHk.js   358.58 kB │ gzip: 94.35 kB
+✓ built in 754ms

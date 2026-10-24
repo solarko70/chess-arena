@@ -9,19 +9,11 @@ const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 /**
  * Checks for threefold repetition.
- * Returns true if the current position key has appeared at least 3 times in history.
+ * Returns true if the current position key has been counted at least three times.
  */
 export function isThreefoldRepetition(state: GameState): boolean {
-  if (state.positionHistory.length < 3) return false;
-  const currentKey = state.positionHistory[state.positionHistory.length - 1];
-  let count = 0;
-  for (const key of state.positionHistory) {
-    if (key === currentKey) {
-      count++;
-      if (count >= 3) return true;
-    }
-  }
-  return false;
+  const key = state.positionHistory[state.positionHistory.length - 1];
+  return (state.positionCounts.get(key) ?? 0) >= 3;
 }
 
 /**
@@ -140,7 +132,7 @@ export class ClassicalRuleSet implements RuleSet {
 
     // 3. Threefold repetition
     if (isThreefoldRepetition(state)) {
-      return { type: 'threefoldRepetition' };
+      return { type: 'threefoldRepetition', status: 'draw', reason: 'threefold-repetition' };
     }
 
     // 4. Fifty-move rule

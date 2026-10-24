@@ -2,7 +2,7 @@
  * Difficulty levels and the AI move picker. No DOM access.
  */
 import type { GameState, Move } from '@/core';
-import { classicalRuleSet, generateLegal } from '@/core';
+import type { TimeControlMode } from '@/state/clock';
 import { analyzePosition, type Score } from './api';
 import { MAX_DEPTH } from './search';
 
@@ -162,6 +162,7 @@ export const LEVEL_ORDER: LevelId[] = [
 export interface FindMoveOptions {
   /** Random source in [0, 1); defaults to Math.random */
   rng?: () => number;
+  timeMs?: number;
 }
 
 /** Deterministic PRNG (mulberry32), handy for reproducible AI games. */
@@ -198,7 +199,7 @@ export function findBestMove(state: GameState, level: LevelId | LevelConfig, opt
   // Request up to 10 lines when blunderChance > 0 so blunders can pick from weaker moves in top-10
   const multiPV = cfg.blunderChance > 0 ? Math.max(cfg.topMoves, 10) : Math.max(1, cfg.topMoves);
   // Levels with maxNodes rely on node & depth limits, not wall-clock CPU speed
-  const timeMs = cfg.maxNodes !== undefined ? undefined : cfg.timeMs;
+  const timeMs = options.timeMs ?? (cfg.maxNodes !== undefined ? undefined : cfg.timeMs);
 
   const res = analyzePosition(state, {
     depth: cfg.depth,
@@ -296,65 +297,40 @@ export interface BotThinkDelayOptions {
   forceDelay?: number;
   ignoreTestEnv?: boolean;
   level?: LevelId;
+  timeControl?: TimeControlMode;
+  remainingSeconds?: number;
 }
 
 /**
- * Calculates a dynamic human-like thinking delay (in ms) before the bot makes a move (Stage 8g).
- * - Test environment: 0 ms (ensures fast and deterministic test suite execution).
- * - Fast / obvious moves (forced reply to check, single legal move, recapture, queen capture, or opening 1st move): 400–650 ms.
- * - Complex tactical positions on senior levels (Master, Singularity): 1300–1700 ms.
- * - Standard moves: 700–1300 ms (average ~900–1050 ms with subtle random variation +/- 150 ms).
+ * Selects a human-like delay from the clock's time control and remaining seconds.
+ * Tests bypass the delay; ignoreTestEnv is reserved for testing the production formula.
  */
 export function calculateBotThinkDelay(
-  state: GameState,
-  move: Move | null,
+  _state: GameState,
+  _move: Move | null,
   options: BotThinkDelayOptions = {},
 ): number {
-  if (options.forceDelay !== undefined) {
-    return options.forceDelay;
-  }
   if (!options.ignoreTestEnv && isTestEnvironment()) {
     return 0;
   }
-
-  const rng = options.rng ?? Math.random;
-  const legalMoves = generateLegal(state);
-  const inCheck = classicalRuleSet.isInCheck(state, state.turn);
-
-  const isForced = legalMoves.length <= 1;
-  const isSingleEscapeFromCheck = inCheck && legalMoves.length <= 2;
-  const isOpeningFirstMove = state.history.length <= 1;
-  const lastMove = state.history.length > 0 ? state.history[state.history.length - 1] : null;
-  const targetPiece = move ? state.board.pieces[move.to] : null;
-  const isCapture = Boolean(targetPiece);
-  const isRecapture = Boolean(move && lastMove && move.to === lastMove.to);
-  const isMajorCapture = Boolean(targetPiece && (targetPiece.type === 'queen' || targetPiece.type === 'rook'));
-
-  const isTrivial =
-    isForced ||
-    isSingleEscapeFromCheck ||
-    isOpeningFirstMove ||
-    isRecapture ||
-    (isCapture && legalMoves.length <= 4) ||
-    (isMajorCapture && legalMoves.length <= 8);
-
-  if (isTrivial) {
-    // 400 - 650 ms: base ~525 ms +/- 125 ms
-    const jitter = (rng() - 0.5) * 250;
-    return Math.max(400, Math.min(650, Math.round(525 + jitter)));
+  if (options.forceDelay !== undefined) {
+    return Math.max(150, options.forceDelay);
   }
 
-  const isComplex = legalMoves.length >= 25 || (legalMoves.length >= 15 && inCheck);
-  const isSenior = options.level === 'master' || options.level === 'singularity';
-  if (isComplex && (isSenior || options.level === undefined)) {
-    // 1300 - 1700 ms: base ~1500 ms +/- 200 ms
-    const jitter = (rng() - 0.5) * 400;
-    return Math.max(1300, Math.min(1700, Math.round(1500 + jitter)));
+  const control = options.timeControl ?? 'none';
+  const remaining = options.remainingSeconds ?? Infinity;
+  let min = 700;
+  let max = 1200;
+  if (control === 'bullet-1-0') {
+    [min, max] = remaining < 10 ? [150, 250] : remaining < 30 ? [200, 350] : [350, 550];
+  } else if (control === 'blitz-3-2' || control === 'blitz-5-0') {
+    const halfTime = control === 'blitz-3-2' ? 90 : 150;
+    [min, max] = remaining < 15 ? [220, 350] : remaining < halfTime ? [350, 550] : [500, 800];
+  } else if (control !== 'none' && remaining < 60) {
+    [min, max] = [400, 600];
   }
-
-  // Standard positions: 700 - 1300 ms (average ~900-1050 ms with +/- 150 ms jitter, base ~975 ms)
-  const jitter = (rng() - 0.5) * 300;
-  return Math.max(700, Math.min(1300, Math.round(975 + jitter)));
+  const random = Math.max(0, Math.min(1, (options.rng ?? Math.random)()));
+  return Math.round(min + random * (max - min));
 }
 
 

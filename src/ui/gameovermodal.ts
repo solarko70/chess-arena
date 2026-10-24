@@ -661,7 +661,7 @@ export class GameOverModalUI {
       title = 'Ничья: пат';
       reason = 'У стороны нет возможных ходов, и король не находится под шахом';
     } else if (result.type === 'threefoldRepetition') {
-      title = 'Ничья: троекратное повторение';
+      title = 'Ничья: Троекратное повторение позиции';
       reason = 'Одна и та же позиция повторилась на доске трижды';
     } else if (result.type === 'fiftyMoveRule') {
       title = 'Ничья: правило 50 ходов';
