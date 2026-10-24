@@ -191,14 +191,17 @@ describe('Eight bot difficulties', () => {
   });
 
   it.each<[TimeControlMode, number, number, number]>([
-    ['bullet-1-0', 60, 350, 550], ['bullet-1-0', 30, 350, 550],
-    ['bullet-1-0', 29, 200, 350], ['bullet-1-0', 10, 200, 350], ['bullet-1-0', 9, 150, 250],
-    ['blitz-3-2', 180, 500, 800], ['blitz-3-2', 90, 500, 800],
-    ['blitz-3-2', 89, 350, 550], ['blitz-3-2', 15, 350, 550], ['blitz-3-2', 14, 220, 350],
-    ['blitz-5-0', 150, 500, 800], ['blitz-5-0', 149, 350, 550], ['blitz-5-0', 14, 220, 350],
-    ['rapid-10-0', 600, 700, 1200], ['rapid-10-0', 60, 700, 1200],
-    ['rapid-10-0', 59, 400, 600], ['rapid-15-10', 900, 700, 1200],
-    ['rapid-15-10', 59, 400, 600], ['none', 0, 700, 1200],
+    ['bullet-1-0', 60, 600, 900], ['bullet-1-0', 30, 600, 900],
+    ['bullet-1-0', 29, 450, 750], ['bullet-1-0', 16, 450, 750],
+    ['bullet-1-0', 15, 300, 400], ['bullet-1-0', 10, 300, 400], ['bullet-1-0', 9, 300, 400],
+    ['blitz-3-2', 180, 600, 900], ['blitz-3-2', 90, 600, 900],
+    ['blitz-3-2', 89, 450, 750], ['blitz-3-2', 16, 450, 750],
+    ['blitz-3-2', 15, 300, 400], ['blitz-3-2', 14, 300, 400],
+    ['blitz-5-0', 300, 600, 900], ['blitz-5-0', 150, 600, 900],
+    ['blitz-5-0', 149, 450, 750], ['blitz-5-0', 15, 300, 400], ['blitz-5-0', 14, 300, 400],
+    ['rapid-10-0', 600, 700, 1200], ['rapid-10-0', 45, 700, 1200],
+    ['rapid-10-0', 44, 450, 650], ['rapid-15-10', 900, 700, 1200],
+    ['rapid-15-10', 44, 450, 650], ['none', 0, 700, 1200],
   ])('uses clock delay bounds for %s with %s seconds', (timeControl, remainingSeconds, min, max) => {
     const state = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
     for (const random of [0, 0.5, 1]) {
@@ -211,15 +214,17 @@ describe('Eight bot difficulties', () => {
     }
   });
 
-  it('thinks much faster in bullet under 30 seconds than in rapid', () => {
+  it('thinks much faster in bullet in scramble than in rapid start', () => {
     const state = parseFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
     const bullet = calculateBotThinkDelay(state, null, {
-      timeControl: 'bullet-1-0', remainingSeconds: 29, rng: () => 1, ignoreTestEnv: true,
+      timeControl: 'bullet-1-0', remainingSeconds: 10, rng: () => 1, ignoreTestEnv: true,
     });
     const rapid = calculateBotThinkDelay(state, null, {
       timeControl: 'rapid-10-0', remainingSeconds: 600, rng: () => 0, ignoreTestEnv: true,
     });
-    expect(bullet).toBeLessThanOrEqual(rapid / 2);
+    expect(bullet).toBeLessThanOrEqual(400);
+    expect(rapid).toBeGreaterThanOrEqual(700);
+    expect(bullet).toBeLessThan(rapid);
     expect(calculateBotThinkDelay(state, null, { forceDelay: 0, ignoreTestEnv: true })).toBe(150);
   });
 

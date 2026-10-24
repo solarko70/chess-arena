@@ -982,6 +982,16 @@ body.review-active #app {
   will-change: transform, opacity;
 }
 
+.stellar-wings-active .stellar-wing-left,
+.stellar-wing-left.stellar-wings-active {
+  animation: stellarWingLeftFlutter 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.stellar-wings-active .stellar-wing-right,
+.stellar-wing-right.stellar-wings-active {
+  animation: stellarWingRightFlutter 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
 .stellar-wings-flutter {
   will-change: transform, opacity;
 }
@@ -1051,6 +1061,13 @@ body.review-active #app {
 }
 
 .stellar-crown-float {
+  animation: stellarCrownFloat 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.stellar-crown-active,
+.stellar-crown.stellar-crown-active,
+.stellar-crown-float.stellar-crown-active {
   animation: stellarCrownFloat 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   will-change: transform, opacity;
 }
@@ -7467,6 +7484,8 @@ body:has(#screen-analysis.active) #app {
   .stellar-wings-flutter,
   .stellar-crown,
   .stellar-crown-float,
+  .stellar-wings-active,
+  .stellar-crown-active,
   .review-best-move-btn.loading svg.best-move-icon {
     animation: none !important;
     transition: none !important;

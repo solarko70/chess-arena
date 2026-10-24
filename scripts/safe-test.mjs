@@ -13,7 +13,7 @@ import path from 'node:path';
 
 const SINGLE_PROCESS_LIMIT_MB = 2048; // 2 GB
 const TOTAL_MEMORY_LIMIT_MB = 3072; // 3 GB
-const TIMEOUT_SECONDS = 120;
+const TIMEOUT_SECONDS = 180;
 const POLL_INTERVAL_MS = 500;
 
 /**

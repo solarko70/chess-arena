@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChessStore } from '@/state/store'
 import { ChessBoardUI } from '@/ui/board'
-import { ReviewPanelUI } from '@/ui/reviewpanel'
+import { ReviewPanelUI, retriggerStellarAnimation } from '@/ui/reviewpanel'
 import { HistoryUI } from '@/ui/history'
 import { generateLegal } from '@/core'
 import type { AnalysisEngineResult, GameReviewResult, MoveClass } from '@/analysis'
@@ -325,5 +325,39 @@ describe('Variation badges and stellar cleanup', () => {
     expect(store.getActiveVariationNode()).toBeNull()
     store.setViewIndex(1)
     expect(board.querySelector('.stellar-wings, .stellar-crown, .is-stellar, .has-wings')).toBeNull()
+  })
+
+  it('restarts wings and crown animation on repeated click on stellar move', () => {
+    const rows = history.querySelectorAll<HTMLElement>('.history-move')
+    const stellarRow = rows[0]
+    expect(stellarRow).not.toBeNull()
+    expect(board.querySelector('.stellar-wings-active')).not.toBeNull()
+    expect(board.querySelector('.stellar-crown-active')).not.toBeNull()
+
+    // Repeated click on already active stellar move triggers retrigger
+    stellarRow.click()
+
+    expect(board.querySelector('.stellar-wings-active')).not.toBeNull()
+    expect(board.querySelector('.stellar-crown-active')).not.toBeNull()
+    expect(board.querySelector('.stellar-wings')).not.toBeNull()
+    expect(board.querySelector('.stellar-crown')).not.toBeNull()
+  })
+
+  it('retriggerStellarAnimation removes classes, triggers reflow, and reapplies classes', () => {
+    const square = board.querySelector<HTMLElement>('[data-square="36"]')!
+    expect(square).not.toBeNull()
+    let offsetWidthReads = 0
+    Object.defineProperty(square, 'offsetWidth', {
+      get() {
+        offsetWidthReads++
+        return 100
+      },
+      configurable: true,
+    })
+
+    const res = retriggerStellarAnimation(square)
+    expect(res).toBe(true)
+    expect(offsetWidthReads).toBeGreaterThanOrEqual(1)
+    expect(square.classList.contains('stellar-wings-active')).toBe(true)
   })
 })

@@ -321,13 +321,24 @@ export function calculateBotThinkDelay(
   const remaining = options.remainingSeconds ?? Infinity;
   let min = 700;
   let max = 1200;
-  if (control === 'bullet-1-0') {
-    [min, max] = remaining < 10 ? [150, 250] : remaining < 30 ? [200, 350] : [350, 550];
-  } else if (control === 'blitz-3-2' || control === 'blitz-5-0') {
-    const halfTime = control === 'blitz-3-2' ? 90 : 150;
-    [min, max] = remaining < 15 ? [220, 350] : remaining < halfTime ? [350, 550] : [500, 800];
-  } else if (control !== 'none' && remaining < 60) {
-    [min, max] = [400, 600];
+  if (control === 'bullet-1-0' || control === 'blitz-3-2' || control === 'blitz-5-0') {
+    const halfTime = control === 'bullet-1-0' ? 30 : control === 'blitz-3-2' ? 90 : 150;
+    if (remaining <= 15) {
+      // Time scramble (<= 15 seconds remaining): 300-400 ms
+      [min, max] = [300, 400];
+    } else if (remaining < halfTime) {
+      // Second half of game (< 50% initial clock): 450-750 ms
+      [min, max] = [450, 750];
+    } else {
+      // Start of game: 600-900 ms
+      [min, max] = [600, 900];
+    }
+  } else if (control !== 'none' && remaining < 45) {
+    // Rapid with < 45 seconds remaining: 450-650 ms
+    [min, max] = [450, 650];
+  } else {
+    // Rapid baseline and untimed games: 700-1200 ms
+    [min, max] = [700, 1200];
   }
   const random = Math.max(0, Math.min(1, (options.rng ?? Math.random)()));
   return Math.round(min + random * (max - min));

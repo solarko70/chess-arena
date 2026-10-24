@@ -6,6 +6,7 @@ export interface SoundTheme {
   playCapture(): void
   playCheck(): void
   playGameEnd(type: GameEndSound): void
+  playStellar?(): void
 }
 
 export const SOUND_THEME_STORAGE_KEY = 'solar_chess_sound_theme'
@@ -95,6 +96,7 @@ export function createSoundThemes(
       playCapture: () => woodThud(180, 80, 0.065, 0.6, true),
       playCheck: () => woodThud(380, 710, 0.14, 0.48, false, true),
       playGameEnd: (type: GameEndSound) => cosmic.playGameEnd(type),
+      playStellar: () => cosmic.playStellar?.(),
     },
   })
 }

@@ -313,4 +313,71 @@ describe('Sound themes', () => {
     expect(ctx.createOscillator).toHaveBeenCalledTimes(count)
     audio.setContextForTesting(null)
   })
+
+  it.each(['cosmic', 'classic'] as const)(
+    'synthesizes stellar sound for %s theme with smooth cutoff on rapid calls',
+    (theme) => {
+      const param = () => ({
+        setValueAtTime: vi.fn(),
+        linearRampToValueAtTime: vi.fn(),
+        exponentialRampToValueAtTime: vi.fn(),
+        cancelScheduledValues: vi.fn(),
+        value: 0.55,
+      })
+      const oscillators: { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> }[] = []
+      const gains: { gain: ReturnType<typeof param>; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }[] = []
+      const ctx = {
+        state: 'running',
+        currentTime: 10,
+        destination: {},
+        createOscillator: vi.fn(() => {
+          const osc = {
+            type: '',
+            frequency: param(),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+            start: vi.fn(),
+            stop: vi.fn(),
+          }
+          oscillators.push(osc)
+          return osc
+        }),
+        createGain: vi.fn(() => {
+          const g = { gain: param(), connect: vi.fn(), disconnect: vi.fn() }
+          gains.push(g)
+          return g
+        }),
+        createBiquadFilter: vi.fn(() => ({
+          type: '',
+          frequency: param(),
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        })),
+        createDelay: vi.fn(() => ({
+          delayTime: param(),
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        })),
+      }
+
+      const audio = new SolarAudio()
+      audio.setContextForTesting(ctx as unknown as AudioContext)
+      audio.setSoundTheme(theme)
+
+      // First stellar playback
+      audio.playStellar()
+      expect(oscillators).toHaveLength(7) // 1 sub + 1 laser + 5 shimmer
+      const firstMasterGain = gains[0]
+      expect(firstMasterGain.gain.setValueAtTime).toHaveBeenCalledWith(0.55, 10)
+
+      // Second rapid call at t = 10.1 (simulating click spamming)
+      ctx.currentTime = 10.1
+      audio.playStellar()
+      // Previous master gain is smoothly ramped to 0 in 50ms (now + 0.05)
+      expect(firstMasterGain.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 10.15)
+      expect(oscillators).toHaveLength(14)
+
+      audio.setContextForTesting(null)
+    },
+  )
 })

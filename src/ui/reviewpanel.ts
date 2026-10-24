@@ -752,10 +752,71 @@ export class ReviewPanelUI {
       `;
 
       item.addEventListener('click', () => {
+        const isCurrentMove = this.store.getViewIndex() === idx;
+        const review = this.store.getReviewResult();
+        const isStellar = review?.moves[idx]?.class === 'stellar';
         this.store.setViewIndex(idx);
+        if (isCurrentMove && isStellar) {
+          retriggerStellarAnimation();
+        }
       });
 
       this.keyMomentsListEl.appendChild(item);
     }
   }
+
+  public retriggerStellarAnimation(squareEl?: HTMLElement | null): boolean {
+    return retriggerStellarAnimation(squareEl);
+  }
+}
+
+/**
+ * Retriggers the stellar move animation (wings flutter and floating crown).
+ * If the user clicks the active stellar move in history/review, animation classes
+ * are removed, browser reflow is forced via void element.offsetWidth, and
+ * .stellar-wings-active / .stellar-crown-active are re-applied from frame 0.
+ */
+export function retriggerStellarAnimation(rootOrSquare?: HTMLElement | null): boolean {
+  let squareEl: HTMLElement | null = null;
+
+  if (rootOrSquare && rootOrSquare.hasAttribute('data-square')) {
+    squareEl = rootOrSquare;
+  } else {
+    // Locate the active square hosting stellar wings or crown
+    const mount = (rootOrSquare || document).querySelector('.stellar-wings-mount, .stellar-crown');
+    if (mount) {
+      squareEl = mount.closest('[data-square]') as HTMLElement | null;
+    }
+    if (!squareEl) {
+      squareEl = (rootOrSquare || document).querySelector(
+        '[data-square].stellar-wings-active, [data-square].has-wings',
+      ) as HTMLElement | null;
+    }
+  }
+
+  if (!squareEl) return false;
+
+  const pieceEl = squareEl.querySelector('.piece-wrapper, .piece') as HTMLElement | null;
+  const wingsMount = squareEl.querySelector('.stellar-wings-mount, .stellar-wings') as HTMLElement | null;
+  const crown = squareEl.querySelector('.stellar-crown') as HTMLElement | null;
+
+  // 1. Remove animation classes from square, piece, and decorative elements
+  squareEl.classList.remove('stellar-wings-active', 'stellar-crown-active');
+  pieceEl?.classList.remove('stellar-wings-active', 'stellar-crown-active');
+  wingsMount?.classList.remove('stellar-wings-active');
+  crown?.classList.remove('stellar-crown-active');
+
+  // 2. Force browser reflow so CSS animation state resets completely
+  void squareEl.offsetWidth;
+  if (pieceEl) void pieceEl.offsetWidth;
+  if (wingsMount) void wingsMount.offsetWidth;
+  if (crown) void crown.offsetWidth;
+
+  // 3. Re-attach animation classes to start animations cleanly from 0s
+  squareEl.classList.add('stellar-wings-active');
+  pieceEl?.classList.add('stellar-wings-active', 'stellar-crown-active');
+  wingsMount?.classList.add('stellar-wings-active');
+  crown?.classList.add('stellar-crown-active');
+
+  return true;
 }

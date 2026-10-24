@@ -41,6 +41,9 @@ export class SolarAudio {
   private isMutedState = false;
   private unlockListenersAttached = false;
   private isAmbientRequested = false;
+  private activeStellarGain: GainNode | null = null;
+  private activeStellarOscillators: OscillatorNode[] = [];
+  private stellarCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   private ambientNodes: {
     masterGain: GainNode;
     sources: (OscillatorNode | AudioBufferSourceNode)[];
@@ -54,6 +57,7 @@ export class SolarAudio {
       playCapture: () => this.playCosmicCapture(),
       playCheck: () => this.playCosmicCheck(),
       playGameEnd: (type) => this.playCosmicGameEnd(type),
+      playStellar: () => this.playStellar(),
     }, () => this.isMutedState ? null : this.ensureContext());
     try {
       if (typeof localStorage !== 'undefined') {
@@ -742,7 +746,6 @@ export class SolarAudio {
    * Master gain: 0.55 connected to destination.
    */
   public playStellar(): void {
-    if (this.themeId === 'classic') return this.playMove();
     if (this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -750,10 +753,41 @@ export class SolarAudio {
     try {
       const now = ctx.currentTime;
 
+      // Audio Debounce & Cutoff: smoothly fade out previous stellar sound to prevent generator summing
+      if (this.activeStellarGain) {
+        try {
+          this.activeStellarGain.gain.cancelScheduledValues?.(now);
+          this.activeStellarGain.gain.setValueAtTime?.(this.activeStellarGain.gain.value ?? 0.55, now);
+          this.activeStellarGain.gain.linearRampToValueAtTime(0, now + 0.05);
+          const prevGain = this.activeStellarGain;
+          const prevOscs = this.activeStellarOscillators;
+          setTimeout(() => {
+            try {
+              prevGain.disconnect?.();
+              prevOscs.forEach((osc) => {
+                try { osc.stop?.(); osc.disconnect?.(); } catch {}
+              });
+            } catch {}
+          }, 60);
+        } catch {
+          // Unsupported in partial test mocks
+        }
+        this.activeStellarGain = null;
+        this.activeStellarOscillators = [];
+      }
+      if (this.stellarCleanupTimer) {
+        clearTimeout(this.stellarCleanupTimer);
+        this.stellarCleanupTimer = null;
+      }
+
       // Master output gain
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(0.55, now);
       masterGain.connect(ctx.destination);
+      this.activeStellarGain = masterGain;
+
+      const oscList: OscillatorNode[] = [];
+      this.activeStellarOscillators = oscList;
 
       // ── Layer 1: Sub-bass (Supernova burst) ──────────────────────────────────
       const subOsc = ctx.createOscillator();
@@ -770,6 +804,7 @@ export class SolarAudio {
 
       subOsc.start(now);
       subOsc.stop(now + 1.6);
+      oscList.push(subOsc);
 
       // ── Layer 2: Laser sweep (Energy sweep) ──────────────────────────────────
       const laserOsc = ctx.createOscillator();
@@ -794,6 +829,7 @@ export class SolarAudio {
 
       laserOsc.start(now);
       laserOsc.stop(now + 0.7);
+      oscList.push(laserOsc);
 
       // ── Layer 3: Celestial Shimmer ───────────────────────────────────────────
       const shimmerFreqs = [523.25, 659.25, 783.99, 987.77, 1174.66]; // C5, E5, G5, B5, D6
@@ -833,10 +869,22 @@ export class SolarAudio {
 
         shimOsc.start(now);
         shimOsc.stop(now + 2.3);
+        oscList.push(shimOsc);
       });
+
+      this.stellarCleanupTimer = setTimeout(() => {
+        if (this.activeStellarGain === masterGain) {
+          this.activeStellarGain = null;
+          this.activeStellarOscillators = [];
+        }
+      }, 2400);
     } catch {
       // Safe fallback on Web Audio API errors
     }
+  }
+
+  public playStellarMove(): void {
+    this.playStellar();
   }
 }
 
@@ -859,6 +907,10 @@ export function playCheckmate(): void {
 }
 
 export function playStellar(): void {
+  solarAudio.playStellar();
+}
+
+export function playStellarMove(): void {
   solarAudio.playStellar();
 }
 
