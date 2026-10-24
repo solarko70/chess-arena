@@ -1076,8 +1076,8 @@ export class ChessBoardUI {
     this.wingsTimer = null
     this.boardEl.querySelectorAll('.stellar-wings-mount, .stellar-wings, .stellar-crown, .stellar-aura')
       .forEach((el) => el.remove())
-    this.boardEl.querySelectorAll('.is-stellar, .has-wings, .stellar-wings-active, .stellar-crown-active')
-      .forEach((el) => el.classList.remove('is-stellar', 'has-wings', 'stellar-wings-active', 'stellar-crown-active'))
+    this.boardEl.querySelectorAll('.is-stellar, .has-wings, .stellar-wings-active, .stellar-crown-active, .stellar-piece-active')
+      .forEach((el) => el.classList.remove('is-stellar', 'has-wings', 'stellar-wings-active', 'stellar-crown-active', 'stellar-piece-active'))
   }
 
   private renderSolarWings(): void {
@@ -1169,7 +1169,7 @@ export class ChessBoardUI {
 
     const pieceWrapper = targetSqEl.querySelector('.piece-wrapper') as HTMLElement | null
     if (pieceWrapper) {
-      pieceWrapper.classList.add('stellar-wings-active', 'stellar-crown-active')
+      pieceWrapper.classList.add('stellar-wings-active', 'stellar-crown-active', 'stellar-piece-active')
       targetSqEl.insertBefore(wingsMount, pieceWrapper)
     } else {
       targetSqEl.appendChild(wingsMount)
@@ -1182,7 +1182,7 @@ export class ChessBoardUI {
       this.container.querySelector('.board-container')?.classList.remove('has-stellar-wings')
       targetSqEl.classList.remove('stellar-wings-active', 'stellar-crown-active')
       const p = targetSqEl.querySelector('.piece-wrapper')
-      p?.classList.remove('stellar-wings-active', 'stellar-crown-active')
+      p?.classList.remove('stellar-wings-active', 'stellar-crown-active', 'stellar-piece-active')
       if (wingsMount.parentElement) {
         wingsMount.remove()
       }
@@ -1252,7 +1252,7 @@ export class ChessBoardUI {
       const crown = wingsMount.querySelector<HTMLElement>('.stellar-crown')
 
       targetSqEl.classList.remove('stellar-wings-active', 'stellar-crown-active')
-      pieceWrapper?.classList.remove('stellar-wings-active', 'stellar-crown-active')
+      pieceWrapper?.classList.remove('stellar-wings-active', 'stellar-crown-active', 'stellar-piece-active')
       wingsMount.classList.remove('stellar-wings-active')
       crown?.classList.remove('stellar-crown-active')
 
@@ -1262,7 +1262,7 @@ export class ChessBoardUI {
       if (crown) void (crown as HTMLElement).offsetWidth
 
       targetSqEl.classList.add('stellar-wings-active')
-      pieceWrapper?.classList.add('stellar-wings-active', 'stellar-crown-active')
+      pieceWrapper?.classList.add('stellar-wings-active', 'stellar-crown-active', 'stellar-piece-active')
       wingsMount.classList.add('stellar-wings-active')
       crown?.classList.add('stellar-crown-active')
     }

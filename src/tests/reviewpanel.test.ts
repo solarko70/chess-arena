@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { ChessStore } from '@/state/store'
 import { ChessBoardUI } from '@/ui/board'
 import { ReviewPanelUI, retriggerStellarAnimation } from '@/ui/reviewpanel'
@@ -383,6 +385,7 @@ describe('Variation badges and stellar cleanup', () => {
     const targetPiece = board.querySelector<HTMLElement>('[data-square="36"] .piece-wrapper')
     expect(targetPiece?.classList.contains('stellar-wings-active')).toBe(true)
     expect(targetPiece?.classList.contains('stellar-crown-active')).toBe(true)
+    expect(targetPiece?.classList.contains('stellar-piece-active')).toBe(true)
   })
 
   it('clicking a regular move in history triggers warp trail and landing effect', () => {
@@ -392,5 +395,34 @@ describe('Variation badges and stellar cleanup', () => {
 
     expect(board.querySelector('.solar-warp-trail[data-from="12"][data-to="28"]')).not.toBeNull()
     expect(board.querySelector('[data-square="28"].solar-piece-land')).not.toBeNull()
+  })
+
+  it('adds levitation class stellar-piece-active to target piece when stellar move is selected', () => {
+    store.setViewIndex(1)
+    const rows = history.querySelectorAll<HTMLElement>('.history-move')
+    rows[0].click()
+
+    const targetPiece = board.querySelector<HTMLElement>('[data-square="36"] .piece-wrapper')
+    expect(targetPiece).not.toBeNull()
+    expect(targetPiece?.classList.contains('stellar-piece-active')).toBe(true)
+  })
+
+  it('guarantees that angel wings z-index is strictly lower than piece z-index', () => {
+    const rows = history.querySelectorAll<HTMLElement>('.history-move')
+    rows[0].click()
+
+    const wings = board.querySelector<HTMLElement>('.stellar-wings-mount')!
+    const piece = board.querySelector<HTMLElement>('[data-square="36"] .piece-wrapper')!
+    expect(wings).not.toBeNull()
+    expect(piece).not.toBeNull()
+
+    // Verify DOM structure: wings mounted before piece
+    expect(wings.nextElementSibling).toBe(piece)
+
+    // Verify CSS z-index rules: wings z-index (2) < piece z-index (4)
+    const cssPath = path.resolve(__dirname, '../ui/styles.css')
+    const css = fs.readFileSync(cssPath, 'utf-8')
+    expect(css).toMatch(/\.stellar-wings-mount\s*\{[^}]*z-index:\s*2/)
+    expect(css).toMatch(/stellar-piece-active[^}]*z-index:\s*4/)
   })
 })

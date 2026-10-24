@@ -893,7 +893,7 @@ export function retriggerStellarAnimation(rootOrSquare?: HTMLElement | null): bo
 
   // 1. Remove animation classes from square, piece, and decorative elements
   squareEl.classList.remove('stellar-wings-active', 'stellar-crown-active');
-  pieceEl?.classList.remove('stellar-wings-active', 'stellar-crown-active');
+  pieceEl?.classList.remove('stellar-wings-active', 'stellar-crown-active', 'stellar-piece-active');
   wingsMount?.classList.remove('stellar-wings-active');
   crown?.classList.remove('stellar-crown-active');
 
@@ -905,7 +905,7 @@ export function retriggerStellarAnimation(rootOrSquare?: HTMLElement | null): bo
 
   // 3. Re-attach animation classes to start animations cleanly from 0s
   squareEl.classList.add('stellar-wings-active');
-  pieceEl?.classList.add('stellar-wings-active', 'stellar-crown-active');
+  pieceEl?.classList.add('stellar-wings-active', 'stellar-crown-active', 'stellar-piece-active');
   wingsMount?.classList.add('stellar-wings-active');
   crown?.classList.add('stellar-crown-active');
 
