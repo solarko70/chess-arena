@@ -2,7 +2,7 @@ import { ChessStore, type VariationNode } from '@/state/store';
 import { moveToSAN, classicalRuleSet } from '@/core';
 import { scoreToCp, getMoveClassMeta, identifyOpening } from '@/analysis';
 import { solarAudio } from '@/audio/solar-audio';
-import { retriggerStellarAnimation } from './reviewpanel';
+import { triggerReviewMoveEffects } from './reviewpanel';
 
 export class HistoryUI {
   private container: HTMLElement;
@@ -184,6 +184,21 @@ export class HistoryUI {
     return '';
   }
 
+  public selectPly(index: number): void {
+    if (this.store.getActiveVariationNode()) {
+      this.store.exitVariationToMainLine();
+    }
+    const current = this.store.getViewIndex();
+    const isRepeat = current === index;
+    this.playReviewMoveSound(index);
+    this.store.setViewIndex(index);
+    triggerReviewMoveEffects(this.store, index, isRepeat);
+  }
+
+  public goToMove(index: number): void {
+    this.selectPly(index);
+  }
+
   private goToPrevMistake(): void {
     if (this.store.getActiveVariationNode()) {
       this.store.exitVariationToMainLine();
@@ -197,8 +212,7 @@ export class HistoryUI {
     for (let i = startIdx; i >= 0; i--) {
       const m = review.moves[i];
       if (m && this.isMistake(m.class)) {
-        this.playReviewMoveSound(i);
-        this.store.setViewIndex(i);
+        this.selectPly(i);
         return;
       }
     }
@@ -217,8 +231,7 @@ export class HistoryUI {
     for (let i = startIdx; i < historyLen; i++) {
       const m = review.moves[i];
       if (m && this.isMistake(m.class)) {
-        this.playReviewMoveSound(i);
-        this.store.setViewIndex(i);
+        this.selectPly(i);
         return;
       }
     }
@@ -423,17 +436,7 @@ export class HistoryUI {
 
       if (!activeVar && viewIndex === i) whiteSpan.classList.add('active');
       whiteSpan.addEventListener('click', () => {
-        if (this.store.getActiveVariationNode()) {
-          this.store.exitVariationToMainLine();
-        }
-        const isCurrentMove = this.store.getViewIndex() === i;
-        const review = this.store.getReviewResult();
-        const isStellar = review?.moves[i]?.class === 'stellar';
-        this.playReviewMoveSound(i);
-        this.store.setViewIndex(i);
-        if (isCurrentMove && isStellar) {
-          retriggerStellarAnimation();
-        }
+        this.selectPly(i);
       });
       row.appendChild(whiteSpan);
 
@@ -460,17 +463,7 @@ export class HistoryUI {
 
         if (!activeVar && viewIndex === i + 1) blackSpan.classList.add('active');
         blackSpan.addEventListener('click', () => {
-          if (this.store.getActiveVariationNode()) {
-            this.store.exitVariationToMainLine();
-          }
-          const isCurrentMove = this.store.getViewIndex() === i + 1;
-          const review = this.store.getReviewResult();
-          const isStellar = review?.moves[i + 1]?.class === 'stellar';
-          this.playReviewMoveSound(i + 1);
-          this.store.setViewIndex(i + 1);
-          if (isCurrentMove && isStellar) {
-            retriggerStellarAnimation();
-          }
+          this.selectPly(i + 1);
         });
         row.appendChild(blackSpan);
       }

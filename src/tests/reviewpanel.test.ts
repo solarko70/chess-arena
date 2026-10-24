@@ -360,4 +360,37 @@ describe('Variation badges and stellar cleanup', () => {
     expect(offsetWidthReads).toBeGreaterThanOrEqual(1)
     expect(square.classList.contains('stellar-wings-active')).toBe(true)
   })
+
+  it('clicking stellar move in history applies stellar wings and crown to target piece', () => {
+    store.setViewIndex(1)
+    const rows = history.querySelectorAll<HTMLElement>('.history-move')
+    rows[0].click()
+
+    const targetPiece = board.querySelector<HTMLElement>('[data-square="36"] .piece-wrapper')
+    expect(targetPiece).not.toBeNull()
+    expect(targetPiece?.classList.contains('stellar-wings-active')).toBe(true)
+    expect(targetPiece?.classList.contains('stellar-crown-active')).toBe(true)
+  })
+
+  it('repeated click on active move restarts animations with forced reflow via offsetWidth', () => {
+    const rows = history.querySelectorAll<HTMLElement>('.history-move')
+    rows[0].click()
+
+    const offsetWidthSpy = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+    rows[0].click()
+
+    expect(offsetWidthSpy).toHaveBeenCalled()
+    const targetPiece = board.querySelector<HTMLElement>('[data-square="36"] .piece-wrapper')
+    expect(targetPiece?.classList.contains('stellar-wings-active')).toBe(true)
+    expect(targetPiece?.classList.contains('stellar-crown-active')).toBe(true)
+  })
+
+  it('clicking a regular move in history triggers warp trail and landing effect', () => {
+    vi.spyOn(boardUI as unknown as { animationsEnabled(): boolean }, 'animationsEnabled').mockReturnValue(true)
+    const rows = history.querySelectorAll<HTMLElement>('.history-move')
+    rows[1].click()
+
+    expect(board.querySelector('.solar-warp-trail[data-from="12"][data-to="28"]')).not.toBeNull()
+    expect(board.querySelector('[data-square="28"].solar-piece-land')).not.toBeNull()
+  })
 })

@@ -1,5 +1,6 @@
 import { ChessStore, type VariationNode } from '../state/store';
 import { ChessBoardUI } from './board';
+import { triggerReviewMoveEffects } from './reviewpanel';
 import { APP_NAME } from '@/config';
 import { createEngine, type AnalysisEngine, type AnalysisEngineResult } from '@/analysis';
 import {
@@ -531,6 +532,18 @@ export class AnalysisBoardUI {
     document.addEventListener('keydown', this.keydownHandler);
   }
 
+  public selectPly(index: number): void {
+    this.store.setActiveVariationNode(null);
+    const current = this.store.getViewIndex();
+    const isRepeat = current === index;
+    this.store.setViewIndex(index);
+    triggerReviewMoveEffects(this.store, index, isRepeat, this.boardUI);
+  }
+
+  public goToMove(index: number): void {
+    this.selectPly(index);
+  }
+
   public viewStart(): void {
     this.store.setActiveVariationNode(null);
     this.store.setViewIndex(-1);
@@ -688,8 +701,7 @@ export class AnalysisBoardUI {
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           const ply = parseInt(el.getAttribute('data-ply') ?? '0', 10);
-          this.store.setActiveVariationNode(null);
-          this.store.setViewIndex(ply);
+          this.selectPly(ply);
         });
       });
 

@@ -99,8 +99,23 @@ export class ChessBoardUI {
   private planningFromSquare: Square | null = null
   private planningArrows = new Map<string, { from: Square; to: Square }>()
   private planningHighlights = new Set<Square>()
+  private static instances = new Set<ChessBoardUI>()
   private static planningMarkerId = 0
   private planningMarkerId = `planning-arrowhead-${++ChessBoardUI.planningMarkerId}`
+
+  public static getActiveBoard(store?: ChessStore): ChessBoardUI | null {
+    for (const board of ChessBoardUI.instances) {
+      if (board.container.isConnected && (!store || board.store === store)) {
+        return board
+      }
+    }
+    for (const board of ChessBoardUI.instances) {
+      if (!store || board.store === store) {
+        return board
+      }
+    }
+    return null
+  }
   private lastHistoryLength = 0
   private wasGameOver = false
   private lastVariationId: string | null = null
@@ -185,6 +200,10 @@ export class ChessBoardUI {
     this.arrowLayerEl = this.container.querySelector('.board-arrow-layer') as SVGElement
     this.badgeLayerEl = this.container.querySelector('.board-badge-layer') as HTMLElement
     this.planningLayerEl = this.container.querySelector('.board-planning-overlay') as SVGElement
+
+    ChessBoardUI.instances.add(this)
+    ;(this.container as unknown as { __chessBoardUI?: ChessBoardUI }).__chessBoardUI = this
+    ;(this.boardEl as unknown as { __chessBoardUI?: ChessBoardUI }).__chessBoardUI = this
 
     this.initEvents()
     this.store.subscribe(() => this.handleStoreNotification())
@@ -1050,6 +1069,7 @@ export class ChessBoardUI {
   }
 
   private clearStellarDecorations(): void {
+    this.container.querySelector('.board-container')?.classList.remove('has-stellar-wings')
     this.currentWingsMountEl?.remove()
     this.currentWingsMountEl = null
     if (this.wingsTimer) clearTimeout(this.wingsTimer)
@@ -1156,8 +1176,10 @@ export class ChessBoardUI {
     }
 
     this.currentWingsMountEl = wingsMount
+    this.container.querySelector('.board-container')?.classList.add('has-stellar-wings')
 
     const cleanup = () => {
+      this.container.querySelector('.board-container')?.classList.remove('has-stellar-wings')
       targetSqEl.classList.remove('stellar-wings-active', 'stellar-crown-active')
       const p = targetSqEl.querySelector('.piece-wrapper')
       p?.classList.remove('stellar-wings-active', 'stellar-crown-active')
@@ -1175,6 +1197,96 @@ export class ChessBoardUI {
 
     wingsMount.addEventListener('animationend', cleanup, { once: true })
     this.wingsTimer = setTimeout(cleanup, 2500)
+  }
+
+  public triggerLanding(sq: Square): void {
+    const target = this.boardEl.querySelector<HTMLElement>(`[data-square="${sq}"]`)
+    if (!target) return
+    const piece = target.querySelector<HTMLElement>('.piece-wrapper')
+
+    target.classList.remove('solar-piece-land')
+    piece?.classList.remove('solar-piece-land')
+
+    void target.offsetWidth
+    if (piece) void piece.offsetWidth
+
+    target.classList.add('solar-piece-land')
+    piece?.classList.add('solar-piece-land')
+
+    if (!this.animationsEnabled()) {
+      target.classList.remove('solar-piece-land')
+      piece?.classList.remove('solar-piece-land')
+      return
+    }
+
+    if (piece) {
+      this.finishEffect(piece, 140, () => {
+        target.classList.remove('solar-piece-land')
+        piece.classList.remove('solar-piece-land')
+      })
+    }
+    const ripple = this.effectElement('solar-landing-ripple')
+    target.prepend(ripple)
+    this.finishEffect(ripple, 180, () => ripple.remove())
+  }
+
+  public triggerWarpTrail(fromSq: Square, toSq: Square): void {
+    const { width, height } = this.store.getState().board
+    const flipped = this.store.isFlipped()
+    this.animateWarpTrail(fromSq, toSq, flipped, width, height)
+  }
+
+  public playStellarAnimation(targetSquare: Square): void {
+    const targetSqEl = this.boardEl.querySelector<HTMLElement>(`[data-square="${targetSquare}"]`)
+    if (!targetSqEl) return
+
+    let wingsMount = targetSqEl.querySelector<HTMLElement>('.stellar-wings-mount')
+    const pieceWrapper = targetSqEl.querySelector<HTMLElement>('.piece-wrapper')
+
+    if (!wingsMount) {
+      this.mountSolarWings(targetSquare)
+      wingsMount = targetSqEl.querySelector<HTMLElement>('.stellar-wings-mount')
+    }
+
+    if (wingsMount) {
+      const crown = wingsMount.querySelector<HTMLElement>('.stellar-crown')
+
+      targetSqEl.classList.remove('stellar-wings-active', 'stellar-crown-active')
+      pieceWrapper?.classList.remove('stellar-wings-active', 'stellar-crown-active')
+      wingsMount.classList.remove('stellar-wings-active')
+      crown?.classList.remove('stellar-crown-active')
+
+      void targetSqEl.offsetWidth
+      if (pieceWrapper) void pieceWrapper.offsetWidth
+      void wingsMount.offsetWidth
+      if (crown) void (crown as HTMLElement).offsetWidth
+
+      targetSqEl.classList.add('stellar-wings-active')
+      pieceWrapper?.classList.add('stellar-wings-active', 'stellar-crown-active')
+      wingsMount.classList.add('stellar-wings-active')
+      crown?.classList.add('stellar-crown-active')
+    }
+  }
+
+  public triggerStellarFX(square: Square): void {
+    this.playStellarAnimation(square)
+  }
+
+  public triggerMoveFX(move: Move, isStellar = false, isRepeat = false): void {
+    const { width, height } = this.store.getState().board
+    const flipped = this.store.isFlipped()
+
+    // 1. Hyperjump warp trail between start and finish
+    this.animateWarpTrail(move.from, move.to, flipped, width, height)
+
+    // 2. Landing effect on destination square
+    this.triggerLanding(move.to)
+
+    // 3. Stellar angelic wings and crown if move is stellar
+    if (isStellar) {
+      this.playStellarAnimation(move.to)
+    }
+    void isRepeat
   }
 
   private renderMoveBadge(flipped: boolean): void {

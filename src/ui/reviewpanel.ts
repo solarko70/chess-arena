@@ -1,5 +1,7 @@
 import { ChessStore } from '@/state/store';
 import { APP_NAME } from '@/config';
+import { ChessBoardUI } from './board';
+import type { Square } from '@/core';
 import {
   exportReviewedPGN,
   getMoveClassMeta,
@@ -752,22 +754,111 @@ export class ReviewPanelUI {
       `;
 
       item.addEventListener('click', () => {
-        const isCurrentMove = this.store.getViewIndex() === idx;
-        const review = this.store.getReviewResult();
-        const isStellar = review?.moves[idx]?.class === 'stellar';
-        this.store.setViewIndex(idx);
-        if (isCurrentMove && isStellar) {
-          retriggerStellarAnimation();
-        }
+        this.selectPly(idx);
       });
 
       this.keyMomentsListEl.appendChild(item);
     }
   }
 
+  public selectPly(index: number): void {
+    selectPly(this.store, index);
+  }
+
+  public goToMove(index: number): void {
+    this.selectPly(index);
+  }
+
+  public playStellarAnimation(targetSquare: Square): boolean {
+    return playStellarAnimation(targetSquare, ChessBoardUI.getActiveBoard(this.store));
+  }
+
+  public triggerStellarFX(square: Square): boolean {
+    return this.playStellarAnimation(square);
+  }
+
   public retriggerStellarAnimation(squareEl?: HTMLElement | null): boolean {
     return retriggerStellarAnimation(squareEl);
   }
+}
+
+/**
+ * Triggers visual effects (hyperjump warp trail, piece landing, stellar wings)
+ * for the requested move index in game review.
+ */
+export function triggerReviewMoveEffects(
+  store: ChessStore,
+  ply: number,
+  isRepeat = false,
+  boardUI?: ChessBoardUI | null,
+): void {
+  if (ply < 0) return;
+  const board = boardUI ?? ChessBoardUI.getActiveBoard(store);
+  if (!board) return;
+
+  const review = store.getReviewResult();
+  const history = store.getLiveState().history;
+  const move = review?.moves[ply]?.move ?? history[ply];
+  if (!move) return;
+
+  const isStellar = review?.moves[ply]?.class === 'stellar';
+  board.triggerMoveFX(move, isStellar, isRepeat);
+}
+
+/**
+ * Navigates to a specific half-move index in history and triggers board visual effects.
+ */
+export function selectPly(
+  store: ChessStore,
+  targetPly: number,
+  customBoard?: ChessBoardUI | null,
+): void {
+  if (targetPly < 0) {
+    if (store.getActiveVariationNode()) {
+      store.exitVariationToMainLine();
+    }
+    store.setViewIndex(-1);
+    return;
+  }
+  const currentPly = store.getViewIndex();
+  const isRepeat = currentPly === targetPly;
+
+  if (store.getActiveVariationNode()) {
+    store.exitVariationToMainLine();
+  }
+
+  store.setViewIndex(targetPly);
+  triggerReviewMoveEffects(store, targetPly, isRepeat, customBoard);
+}
+
+/**
+ * Alias for selectPly.
+ */
+export function goToMove(
+  store: ChessStore,
+  targetPly: number,
+  customBoard?: ChessBoardUI | null,
+): void {
+  selectPly(store, targetPly, customBoard);
+}
+
+/**
+ * Plays stellar angelic wings and cosmic crown animations on the target square.
+ */
+export function playStellarAnimation(targetSquare: Square, customBoard?: ChessBoardUI | null): boolean {
+  const board = customBoard ?? ChessBoardUI.getActiveBoard();
+  if (board) {
+    board.playStellarAnimation(targetSquare);
+    return true;
+  }
+  return retriggerStellarAnimation(document.querySelector<HTMLElement>(`[data-square="${targetSquare}"]`));
+}
+
+/**
+ * Alias for playStellarAnimation.
+ */
+export function triggerStellarFX(targetSquare: Square, customBoard?: ChessBoardUI | null): boolean {
+  return playStellarAnimation(targetSquare, customBoard);
 }
 
 /**
