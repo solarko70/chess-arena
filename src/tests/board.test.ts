@@ -3,6 +3,8 @@ import { ChessStore } from '@/state/store'
 import { ChessBoardUI } from '@/ui/board'
 import { generateLegal } from '@/core'
 import type { GameReviewResult } from '@/analysis'
+import { solarAudio } from '@/audio/solar-audio'
+import { HistoryUI } from '@/ui/history'
 
 describe('Right-click board planning', () => {
   let store: ChessStore
@@ -164,6 +166,25 @@ describe('Solar board juice', () => {
     expect(ripple.isConnected).toBe(false)
   })
 
+  it.each(['white', 'black'])('emits launch and impact sparks for a %s click-to-move', (color) => {
+    enableLifecycle()
+    if (color === 'black') {
+      store.makeMove(52, 36)
+      vi.advanceTimersByTime(500)
+    }
+    const [from, to] = color === 'white' ? [52, 36] : [12, 28]
+    square(from).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    window.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }))
+    square(to).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    window.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }))
+    expect(store.getLastMove()?.to).toBe(to)
+    expect(container.querySelectorAll('.solar-spark-launch .solar-spark-particle')).toHaveLength(6)
+    vi.advanceTimersByTime(200)
+    expect(container.querySelectorAll('.solar-spark-impact .solar-spark-particle')).toHaveLength(6)
+    vi.advanceTimersByTime(230)
+    expect(container.querySelector('.solar-spark-particle')).toBeNull()
+  })
+
   it('leaves a warp trail for the opponent and lands after its slide', () => {
     enableLifecycle()
     vi.spyOn(container.querySelector('.chess-board')!, 'getBoundingClientRect')
@@ -207,6 +228,61 @@ describe('Solar board juice', () => {
     expect(container.querySelector('.piece-dematerialize')).toBeNull()
   })
 
+  it('spawns nine stardust particles after collapse and removes each on animationend', () => {
+    enableLifecycle()
+    capturePosition()
+    store.makeMove(36, 27)
+    expect(container.querySelector('.solar-stardust-particle')).toBeNull()
+    container.querySelector('.captured-piece-ghost')!.dispatchEvent(new Event('animationend'))
+    const particles = [...container.querySelectorAll<HTMLElement>('.solar-stardust-particle')]
+    expect(particles).toHaveLength(9)
+    const group = particles[0].parentElement!
+    expect(group.parentElement?.classList.contains('board-fx-overlay')).toBe(true)
+    expect([group.style.left, group.style.top]).toEqual(['37.5%', '37.5%'])
+    expect(group.getAttribute('aria-hidden')).toBe('true')
+    expect(new Set(particles.map((particle) => particle.style.getPropertyValue('--dust-color'))).size).toBe(3)
+    particles.forEach((particle) => {
+      expect(particle.getAttribute('aria-hidden')).toBe('true')
+      expect(parseFloat(particle.style.getPropertyValue('--dust-size'))).toBeGreaterThanOrEqual(2)
+      expect(parseFloat(particle.style.getPropertyValue('--dust-size'))).toBeLessThanOrEqual(4)
+      expect(Math.abs(parseFloat(particle.style.getPropertyValue('--dx')))).toBeLessThanOrEqual(25)
+      const rise = -parseFloat(particle.style.getPropertyValue('--dy'))
+      expect(rise).toBeGreaterThanOrEqual(10)
+      expect(rise).toBeLessThanOrEqual(25)
+      const duration = parseFloat(particle.style.getPropertyValue('--dust-duration'))
+      expect(duration).toBeGreaterThanOrEqual(450)
+      expect(duration).toBeLessThanOrEqual(600)
+      particle.dispatchEvent(new Event('animationend'))
+      expect(particle.isConnected).toBe(false)
+    })
+    expect(group.isConnected).toBe(false)
+  })
+
+  it('cleans stardust with timeouts and locates flipped en passant dust at the victim', () => {
+    enableLifecycle()
+    store.loadFEN('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2')
+    store.toggleFlip()
+    store.makeMove(28, 19)
+    vi.advanceTimersByTime(270)
+    const group = container.querySelector<HTMLElement>('.solar-stardust-group')!
+    expect([group.style.left, group.style.top]).toEqual(['50%', '50%'])
+    expect(group.querySelectorAll('.solar-stardust-particle')).toHaveLength(9)
+    vi.advanceTimersByTime(630)
+    expect(group.isConnected).toBe(false)
+    expect(container.querySelector('.solar-stardust-particle')).toBeNull()
+  })
+
+  it.each([100, 270])('cancels collapse and stardust on navigation after %i ms', (elapsed) => {
+    enableLifecycle()
+    capturePosition()
+    store.makeMove(36, 27)
+    vi.advanceTimersByTime(elapsed)
+    store.setViewIndex(-1)
+    expect(container.querySelector('.board-effects-layer')?.childElementCount).toBe(0)
+    vi.advanceTimersByTime(1000)
+    expect(container.querySelector('.solar-stardust-particle')).toBeNull()
+  })
+
   it('dematerializes the en passant pawn from its actual square', () => {
     enableLifecycle()
     store.loadFEN('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2')
@@ -246,7 +322,7 @@ describe('Solar board juice', () => {
   it('disables all new effects immediately in the test environment', () => {
     capturePosition()
     store.makeMove(36, 27)
-    expect(container.querySelector('.piece-dematerialize, .solar-piece-land, .solar-warp-trail')).toBeNull()
+    expect(container.querySelector('.piece-dematerialize, .solar-piece-land, .solar-warp-trail, .solar-stardust-particle')).toBeNull()
     expect(container.querySelector('.board-container')?.getAttribute('data-instant-motion')).toBe('true')
   })
 
@@ -257,7 +333,7 @@ describe('Solar board juice', () => {
     try {
       capturePosition()
       store.makeMove(36, 27)
-      expect(container.querySelector('.piece-dematerialize, .solar-piece-land, .solar-landing-ripple')).toBeNull()
+      expect(container.querySelector('.piece-dematerialize, .solar-piece-land, .solar-landing-ripple, .solar-stardust-particle')).toBeNull()
       store.loadFEN('4k3/8/8/8/8/8/R7/6K1 w - - 0 1')
       store.makeMove(48, 52)
       expect(container.querySelector('.solar-king-shock, .solar-king-halo')).toBeNull()
@@ -346,6 +422,26 @@ describe('Solar board juice', () => {
     expect(container.querySelectorAll('.solar-spark-particle')).toHaveLength(12)
   })
 
+  it.each(['white', 'black'])('emits both spark bursts for a %s pointer drag', (color) => {
+    enableLifecycle()
+    vi.spyOn(container.querySelector('.chess-board')!, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 0, 640, 640))
+    if (color === 'black') {
+      store.makeMove(52, 36)
+      vi.advanceTimersByTime(500)
+    }
+    const [from, to] = color === 'white' ? [52, 36] : [12, 28]
+    square(from).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    const coords = { button: 0, bubbles: true, clientX: to % 8 * 80 + 40, clientY: Math.floor(to / 8) * 80 + 40 }
+    window.dispatchEvent(new MouseEvent('pointermove', coords))
+    window.dispatchEvent(new MouseEvent('pointerup', coords))
+    expect(store.getLastMove()?.to).toBe(to)
+    expect(container.querySelectorAll('.solar-spark-launch .solar-spark-particle')).toHaveLength(6)
+    expect(container.querySelectorAll('.solar-spark-impact .solar-spark-particle')).toHaveLength(6)
+    expect(square(to).querySelector('.piece-sliding')).toBeNull()
+    expect(document.querySelector('.floating-drag-piece')).toBeNull()
+  })
+
   it('preserves feedback for the opponent and a synchronously executed premove', () => {
     enableLifecycle()
     store.makeMove(52, 36)
@@ -357,6 +453,155 @@ describe('Solar board juice', () => {
     expect(container.querySelector('.solar-warp-trail[data-to="45"]')).not.toBeNull()
     vi.advanceTimersByTime(200)
     expect(square(45).classList.contains('solar-piece-land')).toBe(true)
+  })
+
+  it('emits impact sparks when a queued premove already relocates the landing piece', () => {
+    enableLifecycle()
+    store.makeMove(52, 36)
+    vi.advanceTimersByTime(500)
+    board.setPremove({ from: 62, to: 45 })
+    board.addPremove({ from: 45, to: 30 })
+    store.makeMove(12, 28)
+    expect(store.getLiveState().history).toHaveLength(3)
+    expect(square(45).querySelector('.piece-wrapper')).toBeNull()
+    expect(square(30).querySelector('.piece-wrapper')).not.toBeNull()
+    expect(container.querySelectorAll('.solar-spark-launch .solar-spark-particle')).toHaveLength(12)
+    expect(container.querySelectorAll('.solar-spark-impact .solar-spark-particle')).toHaveLength(6)
+    vi.advanceTimersByTime(200)
+    expect(container.querySelectorAll('.solar-spark-impact .solar-spark-particle')).toHaveLength(12)
+  })
+
+  const userMoves = (['click', 'drop'] as const).flatMap((mode) =>
+    (['white', 'black'] as const).flatMap((color) => [false, true].map((flipped) => ({ mode, color, flipped }))),
+  )
+
+  it.each(userMoves)('calls spark generators for $color $mode with flip=$flipped', ({ mode, color, flipped }) => {
+    enableLifecycle()
+    vi.spyOn(container.querySelector('.chess-board')!, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 0, 640, 640))
+    if (flipped) store.toggleFlip()
+    if (color === 'black') {
+      store.makeMove(52, 36)
+      vi.advanceTimersByTime(500)
+    }
+    const generators = board as unknown as {
+      spawnLaunchSparks(from: number, to?: number): void
+      spawnImpactSparks(to: number): void
+    }
+    const launch = vi.spyOn(generators, 'spawnLaunchSparks')
+    const impact = vi.spyOn(generators, 'spawnImpactSparks')
+    const [from, to] = color === 'white' ? [52, 36] : [12, 28]
+    square(from).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    if (mode === 'click') {
+      window.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }))
+      square(to).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    } else {
+      const col = flipped ? 7 - to % 8 : to % 8
+      const row = flipped ? 7 - Math.floor(to / 8) : Math.floor(to / 8)
+      window.dispatchEvent(new MouseEvent('pointerup', {
+        button: 0, bubbles: true, clientX: col * 80 + 40, clientY: row * 80 + 40,
+      }))
+    }
+    expect(store.getLastMove()?.to).toBe(to)
+    expect(launch.mock.calls).toEqual([[from, to]])
+    const origin = container.querySelector<HTMLElement>('.solar-spark-launch')!
+    expect(origin.style.left).toBe(`${(flipped ? 7 - from % 8 : from % 8) * 12.5}%`)
+    expect(origin.style.top).toBe(`${(flipped ? 7 - Math.floor(from / 8) : Math.floor(from / 8)) * 12.5}%`)
+    if (mode === 'click') vi.advanceTimersByTime(200)
+    expect(impact.mock.calls).toEqual([[to]])
+    const landing = container.querySelector<HTMLElement>('.solar-spark-impact')!
+    expect(landing.style.left).toBe(`${(flipped ? 7 - to % 8 : to % 8) * 12.5}%`)
+    expect(landing.style.top).toBe(`${(flipped ? 7 - Math.floor(to / 8) : Math.floor(to / 8)) * 12.5}%`)
+  })
+
+  it('calls both spark generators for an executed premove', () => {
+    enableLifecycle()
+    store.makeMove(52, 36)
+    vi.advanceTimersByTime(500)
+    board.setPremove({ from: 62, to: 45 })
+    const generators = board as unknown as {
+      spawnLaunchSparks(from: number, to?: number): void
+      spawnImpactSparks(to: number): void
+    }
+    const launch = vi.spyOn(generators, 'spawnLaunchSparks')
+    const impact = vi.spyOn(generators, 'spawnImpactSparks')
+    store.makeMove(12, 28)
+    expect(launch.mock.calls).toEqual([[12, 28], [62, 45]])
+    vi.advanceTimersByTime(200)
+    expect(impact.mock.calls).toEqual([[28], [45]])
+  })
+
+  it('waits for promotion confirmation before emitting player launch sparks', () => {
+    enableLifecycle()
+    store.loadFEN('7k/P7/8/8/8/8/8/4K3 w - - 0 1')
+    square(8).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    window.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }))
+    square(0).dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    expect(container.querySelector('.solar-spark-launch')).toBeNull()
+    container.querySelector<HTMLButtonElement>('.promo-btn')!.click()
+    expect(container.querySelectorAll('.solar-spark-launch .solar-spark-particle')).toHaveLength(6)
+    vi.advanceTimersByTime(200)
+    expect(container.querySelectorAll('.solar-spark-impact .solar-spark-particle')).toHaveLength(6)
+  })
+
+  it('plays the cosmic finale once on a classic checkmate and ignores later notifications', () => {
+    const previousTheme = solarAudio.getSoundTheme()
+    solarAudio.setSoundTheme('classic')
+    const finale = vi.spyOn(solarAudio.themes.cosmic, 'playGameEnd').mockImplementation(() => {})
+    try {
+      store.loadFEN('7k/8/5KQ1/8/8/8/8/8 w - - 0 1')
+      expect(finale).not.toHaveBeenCalled()
+      store.makeMove(22, 14)
+      expect(store.getLiveGameResult().type).toBe('checkmate')
+      expect(finale.mock.calls).toEqual([['win']])
+      store.setGameOverModalDismissed(true)
+      store.setGameOverModalDismissed(false)
+      store.toggleFlip()
+      store.setViewIndex(-1)
+      store.setViewIndex(null)
+      expect(finale).toHaveBeenCalledOnce()
+    } finally {
+      solarAudio.setSoundTheme(previousTheme)
+    }
+  })
+
+  it('plays a draw finale on stalemate', () => {
+    const finale = vi.spyOn(solarAudio, 'playGameEnd').mockImplementation(() => {})
+    store.loadFEN('7k/8/5K2/6Q1/8/8/8/8 w - - 0 1')
+    store.makeMove(30, 22)
+    expect(store.getLiveGameResult().type).toBe('stalemate')
+    expect(finale.mock.calls).toEqual([['draw']])
+  })
+
+  it('plays a loss finale on resignation and resets after a new game', () => {
+    const finale = vi.spyOn(solarAudio, 'playGameEnd').mockImplementation(() => {})
+    store.resign('white')
+    expect(finale.mock.calls).toEqual([['loss']])
+    store.newGame()
+    store.resign('black')
+    expect(finale.mock.calls).toEqual([['loss'], ['win']])
+  })
+
+  it('keeps terminal imports silent but plays the finale when resigning a loaded position', () => {
+    const finale = vi.spyOn(solarAudio, 'playGameEnd').mockImplementation(() => {})
+    store.loadFEN('7k/6Q1/5K2/8/8/8/8/8 b - - 0 1')
+    expect(store.isGameOver()).toBe(true)
+    expect(finale).not.toHaveBeenCalled()
+    store.loadFEN('7k/8/5KQ1/8/8/8/8/8 w - - 0 1')
+    store.resign('white')
+    expect(finale.mock.calls).toEqual([['loss']])
+  })
+
+  it('plays a timeout finale while viewing history without adding a move', () => {
+    const finale = vi.spyOn(solarAudio, 'playGameEnd').mockImplementation(() => {})
+    store.setClockMode('blitz-3-2')
+    store.makeMove(52, 36)
+    store.setViewIndex(-1)
+    vi.advanceTimersByTime(180001)
+    store.tickClock()
+    expect(store.getTimedOutLoser()).toBe('black')
+    expect(store.getLiveState().history).toHaveLength(1)
+    expect(finale.mock.calls).toEqual([['win']])
   })
 
   const prepareReview = () => {
@@ -377,6 +622,23 @@ describe('Solar board juice', () => {
     store.setViewIndex(1)
     vi.advanceTimersByTime(400)
   }
+
+  it('prioritizes the finale over stellar audio when reviewing a mating move', () => {
+    prepareReview()
+    const historyMount = document.createElement('div')
+    container.appendChild(historyMount)
+    new HistoryUI(historyMount, store)
+    const review = store.getReviewResult()!
+    store.setReviewResult({
+      ...review,
+      moves: review.moves.map((move, index) => index === 2 ? { ...move, san: 'exd5#', class: 'stellar' } : move),
+    })
+    const finale = vi.spyOn(solarAudio, 'playCheckmate').mockImplementation(() => {})
+    const stellar = vi.spyOn(solarAudio, 'playStellar').mockImplementation(() => {})
+    store.setViewIndex(2)
+    expect(finale).toHaveBeenCalledOnce()
+    expect(stellar).not.toHaveBeenCalled()
+  })
 
   it('collapses the victim and lands the attacker when stepping forward in review', () => {
     enableLifecycle()

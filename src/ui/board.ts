@@ -102,6 +102,7 @@ export class ChessBoardUI {
   private static planningMarkerId = 0
   private planningMarkerId = `planning-arrowhead-${++ChessBoardUI.planningMarkerId}`
   private lastHistoryLength = 0
+  private wasGameOver = false
   private lastVariationId: string | null = null
   private hideBadges = false
 
@@ -117,6 +118,7 @@ export class ChessBoardUI {
   private isDragging = false
   private dragFromSquare: Square | null = null
   private droppedMove: Pick<Move, 'from' | 'to'> | null = null
+  private userMoveCommit: Pick<Move, 'from' | 'to'> | null = null
   private floatingPieceEl: HTMLElement | null = null
   private isTouching = false
   private lastTouchEndTime = 0
@@ -144,6 +146,7 @@ export class ChessBoardUI {
     this.store = store
     this.hideBadges = options.hideBadges ?? false
     this.lastHistoryLength = this.store.getLiveState().history.length
+    this.wasGameOver = this.store.isGameOver()
 
     this.container.innerHTML = `
       <div class="board-area">
@@ -435,6 +438,7 @@ export class ChessBoardUI {
   }
 
   private handleStoreNotification(): void {
+    this.playNewGameEndSound()
     const state = this.store.getState()
     const liveState = this.store.getLiveState()
     const currentFen = serializeFEN(state)
@@ -471,6 +475,21 @@ export class ChessBoardUI {
     }
 
     this.render()
+  }
+
+  private playNewGameEndSound(): void {
+    const ended = this.store.isGameOver()
+    const newlyEnded = ended && !this.wasGameOver
+    this.wasGameOver = ended
+    if (!newlyEnded || this.store.isReviewMode()) return
+    const loser = this.store.getResignedPlayer() ?? this.store.getTimedOutLoser()
+    if (!loser && (this.store.isGameLoadedNotation() ||
+      this.store.getLiveState().history.length <= this.lastHistoryLength)) return
+    const result = this.store.getLiveGameResult()
+    const winner = loser ? (loser === 'white' ? 'black' : 'white') : result.winner
+    const perspective = this.store.getGameMode() === 'ai'
+      ? this.store.getPlayerColor() : this.store.isFlipped() ? 'black' : 'white'
+    solarAudio.playGameEnd(winner ? winner === perspective ? 'win' : 'loss' : 'draw')
   }
 
   private updateSelectionHighlights(selectedSq: Square | null): void {
@@ -521,14 +540,11 @@ export class ChessBoardUI {
     }
 
     if (!isReview && !isViewingHistory) {
-      if (historyLen === this.lastHistoryLength + 1 && historyLen > 0) {
+      if (historyLen === this.lastHistoryLength + 1 && historyLen > 0 && !this.store.isGameOver()) {
         const lastMv = liveState.history[historyLen - 1]
-        const gameResult = this.store.getLiveGameResult()
         const check = this.store.isInCheck()
 
-        if (gameResult.type === 'checkmate') {
-          solarAudio.playCheckmate()
-        } else if (check) {
+        if (check) {
           solarAudio.playCheck()
         } else if (lastMv?.captured) {
           solarAudio.playCapture()
@@ -540,10 +556,10 @@ export class ChessBoardUI {
       const activeVar = this.store.getActiveVariationNode()
       if (activeVar && activeVar.id !== this.lastVariationId) {
         this.lastVariationId = activeVar.id
-        if (activeVar.class === 'stellar') {
-          solarAudio.playStellar()
-        } else if (activeVar.san.includes('#')) {
+        if (activeVar.san.includes('#')) {
           solarAudio.playCheckmate()
+        } else if (activeVar.class === 'stellar') {
+          solarAudio.playStellar()
         } else if (activeVar.san.includes('+')) {
           solarAudio.playCheck()
         } else if (activeVar.san.includes('x') || activeVar.move.captured) {
@@ -682,7 +698,14 @@ export class ChessBoardUI {
     this.renderPlanning()
     if (animatedMove) {
       const isDrop = this.droppedMove?.from === animatedMove.from && this.droppedMove.to === animatedMove.to
-      this.animateMoveEffects(animatedMove, flipped, width, height, isDrop, !!reviewMove)
+      const isUserCommit = this.userMoveCommit?.from === animatedMove.from && this.userMoveCommit.to === animatedMove.to
+      if (!isUserCommit) this.spawnLaunchSparks(animatedMove.from, animatedMove.to)
+      const landingFen = serializeFEN(state)
+      const land = () => {
+        if (!isUserCommit || !isDrop) this.spawnImpactSparks(animatedMove.to)
+        if (serializeFEN(this.store.getState()) === landingFen) this.animateLanding(animatedMove.to)
+      }
+      this.animateMoveEffects(animatedMove, flipped, width, height, land, isDrop, !!reviewMove)
     }
     if (shock && kingSq !== null) this.animateKingShock(kingSq)
 
@@ -712,16 +735,41 @@ export class ChessBoardUI {
     return this.store.executeNextPremove()
   }
 
-  private animateMoveEffects(move: Move, flipped: boolean, width: number, height: number, isDrop = false, review = false): void {
-    this.animateSparks(move.from, 'launch', move.to)
-    this.animateWarpTrail(move.from, move.to, flipped, width, height)
-    const landingFen = serializeFEN(this.store.getState())
-    const land = () => {
-      if (serializeFEN(this.store.getState()) === landingFen) this.animateLanding(move.to)
-      else this.animateSparks(move.to, 'impact')
+  private commitUserMove(from: Square, to: Square, promotion?: PieceType): boolean {
+    if (this.store.isReviewMode() || this.store.isViewingHistory() || this.store.getActiveVariationNode()) {
+      return this.store.makeMove(from, to, promotion)
     }
-    if (isDrop) land()
-    else this.animatePieceSlide(move.from, move.to, flipped, width, height, land, review)
+    const historyLen = this.store.getLiveState().history.length
+    this.userMoveCommit = { from, to }
+    try {
+      const applied = this.store.makeMove(from, to, promotion)
+      const confirmed = this.store.getLiveState().history[historyLen]
+      if (confirmed?.from === from && confirmed.to === to) {
+        // Store notifications render synchronously; emit once after the move is confirmed.
+        this.spawnLaunchSparks(from, to)
+        if (this.droppedMove?.from === from && this.droppedMove.to === to) this.spawnImpactSparks(to)
+      }
+      return applied
+    } finally {
+      this.userMoveCommit = null
+    }
+  }
+
+  private spawnLaunchSparks(from: Square, to = from): void {
+    this.animateSparks(from, 'launch', to)
+  }
+
+  private spawnImpactSparks(to: Square): void {
+    this.animateSparks(to, 'impact')
+  }
+
+  private animateMoveEffects(
+    move: Move, flipped: boolean, width: number, height: number,
+    onLanding: () => void, isDrop = false, review = false,
+  ): void {
+    this.animateWarpTrail(move.from, move.to, flipped, width, height)
+    if (isDrop) onLanding()
+    else this.animatePieceSlide(move.from, move.to, flipped, width, height, onLanding, review)
   }
 
   private animationsEnabled(): boolean {
@@ -784,7 +832,6 @@ export class ChessBoardUI {
       target.classList.remove('solar-piece-land')
       return
     }
-    this.animateSparks(sq, 'impact')
     if (piece) this.finishEffect(piece, 140, () => target.classList.remove('solar-piece-land'))
     const ripple = this.effectElement('solar-landing-ripple')
     target.prepend(ripple)
@@ -827,7 +874,31 @@ export class ChessBoardUI {
     slot.appendChild(spiral)
     slot.appendChild(this.effectElement('solar-singularity-flash'))
     this.effectsLayerEl.appendChild(slot)
-    this.finishEffect(ghost, 240, () => slot.remove(), false, true)
+    this.finishEffect(ghost, 240, () => {
+      slot.remove()
+      if (!this.clearingEffects) this.spawnStardust(sq, flipped, width, height)
+    }, false, true)
+  }
+
+  private spawnStardust(sq: Square, flipped: boolean, width: number, height: number): void {
+    if (!this.animationsEnabled()) return
+    const group = this.effectElement('solar-stardust-group')
+    this.positionEffect(group, sq, flipped, width, height)
+    this.effectsLayerEl.appendChild(group)
+    for (let i = 0; i < 9; i++) {
+      const particle = this.effectElement('solar-stardust-particle')
+      const duration = 450 + (i % 4) * 50
+      particle.style.setProperty('--dust-size', `${2 + i % 3}px`)
+      particle.style.setProperty('--dust-color', ['#f59e0b', '#22d3ee', '#ffffff'][i % 3])
+      particle.style.setProperty('--dx', `${Math.cos(i * Math.PI * 2 / 9) * (10 + i % 4 * 5)}px`)
+      particle.style.setProperty('--dy', `${-10 - (i * 7) % 16}px`)
+      particle.style.setProperty('--dust-duration', `${duration}ms`)
+      group.appendChild(particle)
+      this.finishEffect(particle, duration, () => {
+        particle.remove()
+        if (!group.childElementCount) group.remove()
+      }, false, true)
+    }
   }
 
   private animateKingShock(sq: Square): void {
@@ -925,10 +996,10 @@ export class ChessBoardUI {
     review = false,
   ): void {
     const targetSqEl = this.boardEl.querySelector(`[data-square="${toSq}"]`) as HTMLElement | null
-    if (!targetSqEl) return
+    if (!targetSqEl) { onLanding?.(); return }
 
     const pieceEl = targetSqEl.querySelector('.piece-wrapper') as HTMLElement | null
-    if (!pieceEl) return
+    if (!pieceEl) { onLanding?.(); return }
     if (!this.animationsEnabled()) {
       // Preserve the existing review marker without running motion in tests.
       if (review) {
@@ -1352,7 +1423,7 @@ export class ChessBoardUI {
       btn.innerHTML = getPieceSvg(p, color)
       btn.addEventListener('click', (e) => {
         e.stopPropagation()
-        this.store.makeMove(promo.from, promo.to, p)
+        this.commitUserMove(promo.from, promo.to, p)
       })
       optionsContainer.appendChild(btn)
     }
@@ -1414,7 +1485,7 @@ export class ChessBoardUI {
       // If clicking on one of legal destinations
       const validDests = this.store.getValidDestinationsFor(selectedSq)
       if (validDests.includes(sq)) {
-        this.store.makeMove(selectedSq, sq)
+        this.commitUserMove(selectedSq, sq)
         return true
       }
 
@@ -1657,7 +1728,7 @@ export class ChessBoardUI {
         if (validDests.includes(toSq)) {
           this.droppedMove = { from: fromSq, to: toSq }
           try {
-            this.store.makeMove(fromSq, toSq)
+            this.commitUserMove(fromSq, toSq)
           } finally {
             this.droppedMove = null
           }

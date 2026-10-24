@@ -78,10 +78,6 @@ export class SolarAudio {
     } catch {
       // Storage may be unavailable in private browsing.
     }
-    const requested = this.isAmbientRequested;
-    if (theme === 'classic') this.stopMenuAmbient(0);
-    this.isAmbientRequested = requested;
-    if (theme === 'cosmic' && requested) this.startMenuAmbient();
   }
 
   public playMove(): void { this.themes[this.themeId].playMove(); }
@@ -308,7 +304,7 @@ export class SolarAudio {
    * 4. Master ambient gain: ramps from 0.0001 to 0.12 over 2.0s.
    */
   private launchAmbientDrone(): void {
-    if (this.ambientNodes || this.isMutedState || this.themeId !== 'cosmic') return;
+    if (this.ambientNodes || this.isMutedState) return;
     const ctx = this.ensureContext();
     if (!ctx || ctx.state !== 'running') return;
 
@@ -675,10 +671,8 @@ export class SolarAudio {
   }
 
   /**
-   * Deep noble victory chord:
-   * Majestic major chord in bass-mid range: C3 (130.81Hz), G3 (196.0Hz), E4 (329.63Hz),
-   * warm triangle oscillators shaped through an 800Hz lowpass filter,
-   * soft 0.05s attack with prolonged resonating decay over 1.3s.
+   * Cosmic finale: warm harmonic swell and a descending sine sub-bass,
+   * shaped through an 800Hz lowpass with a 0.05s attack and 1.3s decay.
    */
   private playCosmicGameEnd(type: GameEndSound): void {
     if (this.isMutedState) return;
@@ -704,11 +698,32 @@ export class SolarAudio {
       // Low majestic chord: C3, G3, E4
       const freqs = type === 'win' ? [261.63, 329.63, 392.0]
         : type === 'draw' ? [196.0, 261.63, 392.0] : [130.81, 196.0, 329.63];
+      let remaining = freqs.length + 1;
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.35, now);
+      subGain.connect(filter);
+      const release = (osc: OscillatorNode) => {
+        osc.disconnect();
+        if (--remaining === 0) {
+          subGain.disconnect();
+          filter.disconnect();
+          masterGain.disconnect();
+        }
+      };
+      const sub = ctx.createOscillator();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(65.4, now);
+      sub.frequency.exponentialRampToValueAtTime(40, now + 0.7);
+      sub.connect(subGain);
+      sub.onended = () => release(sub);
+      sub.start(now);
+      sub.stop(now + duration);
       for (const freq of freqs) {
         const osc = ctx.createOscillator();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, now);
         osc.connect(filter);
+        osc.onended = () => release(osc);
         osc.start(now);
         osc.stop(now + duration);
       }

@@ -197,11 +197,13 @@ describe('Stage 5a-1: Solar Audio Web Audio API procedural sound engine', () => 
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(1100, 10);
     expect(createdGains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.09, 10.015);
 
-    // Test playCheckmate synthesis (low chord: C3 + G3 + E4 + 800Hz lowpass)
+    // Test playCheckmate synthesis (sub-bass + C3/G3/E4 chord + 800Hz lowpass).
     createdOscillators.length = 0;
     createdFilters.length = 0;
     solarAudio.playCheckmate();
-    expect(createdOscillators.length).toBe(3);
+    expect(createdOscillators.length).toBe(4);
+    expect(createdOscillators[0].type).toBe('sine');
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(65.4, 10);
     expect(createdFilters.length).toBe(1);
     expect(createdFilters[0].type).toBe('lowpass');
     expect(createdFilters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10);

@@ -35,6 +35,52 @@ describe('Sound themes', () => {
     expect(new SolarAudio().getSoundTheme()).toBe('cosmic')
   })
 
+  it.each(['cosmic', 'classic'] as const)('keeps the menu drone independent of the %s theme', (theme) => {
+    vi.useFakeTimers()
+    localStorage.setItem(SOUND_THEME_STORAGE_KEY, theme)
+    const sources: { stop: ReturnType<typeof vi.fn> }[] = []
+    const param = () => ({ setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() })
+    const ctx = {
+      currentTime: 10, state: 'running', destination: {},
+      createGain: vi.fn(() => ({ gain: param(), connect: vi.fn(), disconnect: vi.fn() })),
+      createOscillator: vi.fn(() => {
+        const node = { type: '', frequency: param(), connect: vi.fn(), disconnect: vi.fn(), start: vi.fn(), stop: vi.fn() }
+        sources.push(node)
+        return node
+      }),
+    }
+    const audio = new SolarAudio()
+    audio.setContextForTesting(ctx as unknown as AudioContext)
+    try {
+      audio.startMenuAmbient()
+      expect(audio.isAmbientPlaying()).toBe(true)
+      for (const id of ['classic', 'cosmic', 'classic'] as const) {
+        audio.setSoundTheme(id)
+        expect(audio.isAmbientPlaying()).toBe(true)
+        expect(audio.getIsAmbientRequested()).toBe(true)
+      }
+      expect(ctx.createOscillator).toHaveBeenCalledTimes(4)
+      sources.forEach((node) => expect(node.stop).not.toHaveBeenCalled())
+      audio.setMuted(true)
+      vi.advanceTimersByTime(150)
+      expect(audio.isAmbientPlaying()).toBe(false)
+      sources.forEach((node) => expect(node.stop).toHaveBeenCalledOnce())
+      audio.startMenuAmbient()
+      expect(ctx.createOscillator).toHaveBeenCalledTimes(4)
+      audio.setMuted(false)
+      audio.startMenuAmbient()
+      expect(audio.isAmbientPlaying()).toBe(true)
+      expect(ctx.createOscillator).toHaveBeenCalledTimes(8)
+      audio.stopMenuAmbient(0)
+      vi.advanceTimersByTime(50)
+      expect(audio.isAmbientPlaying()).toBe(false)
+    } finally {
+      audio.setContextForTesting(null)
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+  })
+
   it('previews the requested theme without persisting it and respects mute', () => {
     const audio = new SolarAudio()
     audio.setSoundTheme('cosmic')
@@ -100,56 +146,164 @@ describe('Sound themes', () => {
   })
 
   it('synthesizes dry classic impulses within the frequency and duration limits', () => {
-    const param = () => ({ setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() })
+    const param = () => ({
+      setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(),
+    })
     const oscillators: ReturnType<typeof oscillator>[] = []
     const filters: ReturnType<typeof filter>[] = []
+    const contacts: ReturnType<typeof contact>[] = []
+    const gains: ReturnType<typeof gain>[] = []
     const oscillator = () => ({
       type: '', frequency: param(), connect: vi.fn(), disconnect: vi.fn(),
       start: vi.fn(), stop: vi.fn(), onended: null as (() => void) | null,
     })
     const filter = () => ({ type: '', frequency: param(), Q: param(), connect: vi.fn(), disconnect: vi.fn() })
+    const contact = () => ({
+      buffer: null, connect: vi.fn(), disconnect: vi.fn(), start: vi.fn(), stop: vi.fn(),
+      onended: null as (() => void) | null,
+    })
+    const gain = () => ({ gain: param(), connect: vi.fn(), disconnect: vi.fn() })
     const ctx = {
-      currentTime: 10, state: 'running', destination: {},
+      currentTime: 10, state: 'running', destination: {}, sampleRate: 48000,
       createOscillator: vi.fn(() => { const node = oscillator(); oscillators.push(node); return node }),
       createBiquadFilter: vi.fn(() => { const node = filter(); filters.push(node); return node }),
-      createGain: vi.fn(() => ({ gain: param(), connect: vi.fn(), disconnect: vi.fn() })),
+      createGain: vi.fn(() => { const node = gain(); gains.push(node); return node }),
+      createBuffer: vi.fn((_channels: number, length: number) => ({ getChannelData: () => new Float32Array(length) })),
+      createBufferSource: vi.fn(() => { const node = contact(); contacts.push(node); return node }),
     }
     const audio = new SolarAudio()
     audio.setContextForTesting(ctx as unknown as AudioContext)
     audio.setSoundTheme('classic')
+    const finale = vi.spyOn(audio.themes.cosmic, 'playGameEnd').mockImplementation(() => {})
     audio.playMove()
     audio.playCapture()
     audio.playCheck()
     audio.playGameEnd('win')
     audio.playGameEnd('loss')
     audio.playGameEnd('draw')
-    expect(oscillators).toHaveLength(18)
-    filters.forEach((node) => {
-      expect(node.type).toBe('lowpass')
-      expect(node.frequency.setValueAtTime).toHaveBeenCalledWith(700, 10)
+    expect(finale.mock.calls).toEqual([['win'], ['loss'], ['draw']])
+    expect(oscillators).toHaveLength(8)
+    const lowpasses = filters.filter((node) => node.type === 'lowpass')
+    expect(lowpasses).toHaveLength(3)
+    lowpasses.forEach((node) => {
+      expect(node.frequency.setValueAtTime).toHaveBeenCalledWith(1100, 10)
       expect(node.Q.setValueAtTime).toHaveBeenCalledWith(0.65, 10)
+      expect(node.connect).toHaveBeenCalledWith(ctx.destination)
     })
-    expect(oscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(400, 10)
-    expect(oscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(180, 10.05)
-    expect(oscillators[0].stop).toHaveBeenCalledWith(10.06)
-    expect(oscillators[1].type).toBe('sine')
-    expect(oscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(200, 10)
-    expect(oscillators[2].stop).toHaveBeenCalledWith(10.005)
-    expect(oscillators[3].frequency.setValueAtTime).toHaveBeenCalledWith(260, 10)
-    expect(oscillators[4].frequency.setValueAtTime).toHaveBeenCalledWith(140, 10)
-    expect(oscillators[3].stop).toHaveBeenCalledWith(10.07)
-    expect(oscillators[4].stop).toHaveBeenCalledWith(10.07)
-    oscillators.forEach((node, index) => {
-      const duration = node.stop.mock.calls[0][0] - 10
-      expect(duration).toBeGreaterThanOrEqual(index % 3 === 2 ? 0.004 : 0.05)
-      expect(duration).toBeLessThanOrEqual(index % 3 === 2 ? 0.006 : 0.0701)
+    const bandpasses = filters.filter((node) => node.type === 'bandpass')
+    expect(bandpasses).toHaveLength(4)
+    bandpasses.forEach((node, index) => {
+      const start = index === 2 ? 10.015 : 10
+      expect(node.frequency.setValueAtTime).toHaveBeenCalledWith(2100, start)
+      expect(node.Q.setValueAtTime).toHaveBeenCalledWith(2, start)
+    })
+    expect(ctx.createBuffer).toHaveBeenCalledWith(1, 192, 48000)
+    expect(contacts).toHaveLength(4)
+    contacts.forEach((node, index) => {
+      const start = index === 2 ? 10.015 : 10
+      expect(node.start).toHaveBeenCalledWith(start)
+      expect(node.stop).toHaveBeenCalledWith(start + 0.004)
+      expect(node.connect).toHaveBeenCalledWith(bandpasses[index])
       node.onended?.()
       expect(node.disconnect).toHaveBeenCalledOnce()
+      expect(bandpasses[index].disconnect).toHaveBeenCalledOnce()
     })
+    expect(oscillators[0].type).toBe('triangle')
+    expect(oscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(240, 10)
+    expect(oscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(100, 10.048)
+    expect(oscillators[0].stop).toHaveBeenCalledWith(10.06)
+    expect(oscillators[1].type).toBe('sine')
+    expect(oscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(120, 10)
+    expect(oscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(180, 10)
+    expect(oscillators[2].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(90, 10.048)
+    expect(oscillators[3].frequency.setValueAtTime).toHaveBeenCalledWith(80, 10)
+    expect(oscillators[4].frequency.setValueAtTime).toHaveBeenCalledWith(130, 10.015)
+    expect(oscillators[4].start).toHaveBeenCalledWith(10.015)
+    expect(oscillators[4].stop).toHaveBeenCalledWith(10.015 + 0.065)
+    const bodies = gains.filter((node) => node.gain.linearRampToValueAtTime.mock.calls.length)
+    expect(bodies).toHaveLength(8)
+    expect(bodies[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.45 * 0.6, 10.001)
+    expect(bodies[2].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.6 * 0.6, 10.001)
+    oscillators.forEach((node, index) => {
+      const start = node.start.mock.calls[0][0]
+      const end = node.stop.mock.calls[0][0]
+      expect(end - start).toBeGreaterThanOrEqual(0.05)
+      expect(end - start).toBeLessThanOrEqual(0.0651)
+      expect(bodies[index].gain.setValueAtTime).toHaveBeenCalledWith(0, start)
+      expect(bodies[index].gain.linearRampToValueAtTime.mock.calls[0][1]).toBe(start + 0.001)
+      expect(bodies[index].gain.exponentialRampToValueAtTime).toHaveBeenCalledWith(0.0001, end)
+      expect(bodies[index].gain.setValueAtTime).toHaveBeenCalledWith(0, end)
+      expect(bodies[index].connect).toHaveBeenCalledWith(lowpasses[index < 2 ? 0 : index < 6 ? 1 : Math.floor(index / 2) - 1])
+      node.onended?.()
+      expect(node.disconnect).toHaveBeenCalledOnce()
+      expect(bodies[index].disconnect).toHaveBeenCalledOnce()
+    })
+    lowpasses.forEach((node) => expect(node.disconnect).toHaveBeenCalledOnce())
     audio.startMenuAmbient()
-    expect(audio.isAmbientPlaying()).toBe(false)
+    expect(audio.isAmbientPlaying()).toBe(true)
+    const count = oscillators.length
+    audio.stopMenuAmbient(0)
     audio.setMuted(true)
     audio.playCapture()
-    expect(oscillators).toHaveLength(18)
+    expect(oscillators).toHaveLength(count)
+  })
+
+  it.each(['classic', 'cosmic'] as const)('synthesizes the cosmic finale for the %s theme', (theme) => {
+    const param = () => ({
+      setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(),
+    })
+    const oscillator = () => ({
+      type: '', frequency: param(), connect: vi.fn(), disconnect: vi.fn(), start: vi.fn(), stop: vi.fn(),
+      onended: null as (() => void) | null,
+    })
+    const gain = () => ({ gain: param(), connect: vi.fn(), disconnect: vi.fn() })
+    const filter = () => ({ type: '', frequency: param(), connect: vi.fn(), disconnect: vi.fn() })
+    const oscillators: ReturnType<typeof oscillator>[] = []
+    const gains: ReturnType<typeof gain>[] = []
+    const filters: ReturnType<typeof filter>[] = []
+    const ctx = {
+      state: 'running', currentTime: 10, destination: {},
+      createOscillator: vi.fn(() => { const node = oscillator(); oscillators.push(node); return node }),
+      createGain: vi.fn(() => { const node = gain(); gains.push(node); return node }),
+      createBiquadFilter: vi.fn(() => { const node = filter(); filters.push(node); return node }),
+    }
+    const audio = new SolarAudio()
+    audio.setContextForTesting(ctx as unknown as AudioContext)
+    audio.setSoundTheme(theme)
+    const cosmic = vi.spyOn(audio.themes.cosmic, 'playGameEnd')
+    for (const type of ['win', 'loss', 'draw', 'checkmate'] as const) {
+      oscillators.length = gains.length = filters.length = 0
+      if (type === 'checkmate') audio.playCheckmate()
+      else audio.playGameEnd(type)
+      expect(cosmic).toHaveBeenLastCalledWith(type === 'checkmate' ? 'loss' : type)
+      expect(oscillators).toHaveLength(4)
+      expect(filters[0].type).toBe('lowpass')
+      expect(filters[0].frequency.setValueAtTime).toHaveBeenCalledWith(800, 10)
+      expect(gains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.35, 10.05)
+      expect(gains[0].gain.exponentialRampToValueAtTime).toHaveBeenCalledWith(0.001, 11.3)
+      expect(oscillators[0].type).toBe('sine')
+      expect(oscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(65.4, 10)
+      expect(oscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(40, 10.7)
+      const frequencies = type === 'win' ? [261.63, 329.63, 392]
+        : type === 'draw' ? [196, 261.63, 392] : [130.81, 196, 329.63]
+      oscillators.slice(1).forEach((node, index) => {
+        expect(node.type).toBe('triangle')
+        expect(node.frequency.setValueAtTime).toHaveBeenCalledWith(frequencies[index], 10)
+      })
+      oscillators.forEach((node) => {
+        expect(node.start).toHaveBeenCalledWith(10)
+        expect(node.stop).toHaveBeenCalledWith(11.3)
+        node.onended?.()
+        expect(node.disconnect).toHaveBeenCalledOnce()
+      })
+      filters.forEach((node) => expect(node.disconnect).toHaveBeenCalledOnce())
+      gains.forEach((node) => expect(node.disconnect).toHaveBeenCalledOnce())
+    }
+    const count = ctx.createOscillator.mock.calls.length
+    audio.setMuted(true)
+    audio.playCheckmate()
+    audio.playGameEnd('win')
+    expect(ctx.createOscillator).toHaveBeenCalledTimes(count)
+    audio.setContextForTesting(null)
   })
 })

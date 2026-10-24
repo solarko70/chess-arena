@@ -69,10 +69,10 @@ export class HistoryUI {
       return;
     }
     this.lastPlayedViewIndex = idx;
-    if (revMove.class === 'stellar') {
-      solarAudio.playStellar();
-    } else if (revMove.san?.includes('#')) {
+    if (revMove.san?.includes('#')) {
       solarAudio.playCheckmate();
+    } else if (revMove.class === 'stellar') {
+      solarAudio.playStellar();
     } else if (revMove.san?.includes('+')) {
       solarAudio.playCheck();
     } else if (revMove.san?.includes('x') || revMove.move?.captured) {
